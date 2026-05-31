@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.google.com)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:63547/)",
+      "Bash(npx vite *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(pkill -f \"vite\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:53246/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:54627/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:60054/)",
+      "Bash(curl -s \"http://localhost:60054/api/paytour-orders?since=2026-05-01\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('warmingUp:', d.get\\('warmingUp'\\), '| progress:', d.get\\('progress'\\)\\)\")",
+      "Bash(curl -s \"http://localhost:63515/api/paytour-orders?since=2026-05-01\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"http://localhost:60429/api/paytour-orders?since=2026-05-01\")",
+      "Bash(npm run *)",
+      "Bash(pkill -f \"node server.js\")",
+      "Bash(DASHBOARD_PASSWORD=teste123 node server.js)",
+      "Bash(curl -s http://localhost:3000/api/auth/status)",
+      "Bash(npm install *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
