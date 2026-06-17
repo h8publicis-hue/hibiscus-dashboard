@@ -379,34 +379,96 @@ function paytourAggregatorPlugin(appKey: string, appSecret: string): Plugin {
     // Hoje não vai para disco — muda o dia todo
   }
 
-  // ── Standard path: qualquer período com lookback ──────────────────────────
-  async function doFetch(since: string, until: string | null): Promise<void> {
+  // ── Verifica se o período é futuro (next_month) ──────────────────────────
+  function isFuturePeriod(since: string): boolean {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return new Date(`${since}T00:00:00`) > today;
+  }
+
+  // ── Path para períodos presentes/passados: filtra por data de CRIAÇÃO ──────
+  // Mais simples e confiável: varre só as páginas dentro do período, sem
+  // lookback excessivo que causa milhares de detail-fetches e rate-limit.
+  async function doFetchByCreationDate(since: string, until: string | null): Promise<void> {
     const key       = `${since}:${until ?? ''}`;
     const sinceDate = new Date(`${since}T00:00:00`);
     const untilDate = until ? new Date(`${until}T23:59:59`) : new Date();
 
-    // Fast path para "hoje"
-    const isToday = since === todayStr() && (!until || until === todayStr());
-    if (isToday) { await doFetchToday(key); return; }
+    const tk = await getToken();
+    const p1 = await fetchListPage(tk, 1);
+    const totalPages = p1?.info?.total_paginas ?? 1;
+    console.log(`[paytour] ${since}→${until ?? 'hoje'} (by creation date): ${totalPages} págs total`);
 
-    // ── Cache em disco ───────────────────────────────────────────────────────
-    const disk = await readDiskCache(key);
-    if (disk) {
-      console.log(`[paytour] Cache disco: ${disk.orders.length} pedidos para ${key}`);
-      cache.set(key, disk);
-      progressMap.delete(key);
-      return;
+    const listOrders: RawListOrder[] = [];
+    let done = false;
+
+    // Coleta pedidos de todas as páginas até ultrapassar sinceDate
+    const addItems = (items: RawListOrder[]) => {
+      for (const o of items) {
+        const d = new Date(o.data_hora_pedido.replace(' ', 'T'));
+        if (d > untilDate) continue;         // ainda mais recente que until — ignora
+        if (d < sinceDate) { done = true; break; }  // passou do período — para
+        const grp = (o.status ?? '').toLowerCase();
+        if (grp !== 'cancelado' && grp !== 'reprovado') listOrders.push(o);
+      }
+    };
+
+    addItems(p1?.itens ?? []);
+    progressMap.set(key, { current: 1, total: totalPages });
+
+    for (let s = 2; s <= totalPages && !done; s += LIST_CONCURRENCY) {
+      const e     = Math.min(s + LIST_CONCURRENCY - 1, totalPages);
+      const pages = await Promise.all(
+        Array.from({ length: e - s + 1 }, (_, i) => fetchListPage(tk, s + i)),
+      );
+      for (const pg of pages) {
+        addItems(pg?.itens ?? []);
+        if (done) break;
+      }
+      progressMap.set(key, { current: Math.min(e, totalPages), total: totalPages });
     }
+
+    console.log(`[paytour] ${listOrders.length} pedidos no período — buscando detalhes…`);
+
+    // Detalhes apenas dos pedidos do período (muito menos chamadas)
+    const detailed: RawDetailOrder[] = [];
+    for (let s = 0; s < listOrders.length; s += DETAIL_CONCURRENCY) {
+      const batch   = listOrders.slice(s, s + DETAIL_CONCURRENCY);
+      const results = await Promise.all(batch.map((o) => fetchOrderDetail(tk, o.id)));
+      results.forEach((r, i) => detailed.push(r ?? { ...batch[i], itens: [] }));
+      progressMap.set(key, {
+        current: Math.round(((s + batch.length) / listOrders.length) * totalPages),
+        total:   totalPages,
+      });
+    }
+
+    const statusCount: Record<string, number> = {};
+    let totalValor = 0;
+    for (const o of detailed) {
+      statusCount[o.status] = (statusCount[o.status] ?? 0) + 1;
+      totalValor += parseFloat(o.valor ?? '0');
+    }
+    console.log(`[paytour] ✓ ${detailed.length} pedidos | R$ ${totalValor.toFixed(2)} | Status: ${JSON.stringify(statusCount)}`);
+
+    cache.set(key, { orders: detailed, ts: Date.now() });
+    progressMap.delete(key);
+    await writeDiskCache(key, detailed);
+  }
+
+  // ── Path para períodos futuros (next_month): filtra por data do PASSEIO ───
+  // Busca com lookback porque os pedidos são criados ANTES do mês do passeio.
+  async function doFetchByTourDate(since: string, until: string | null): Promise<void> {
+    const key       = `${since}:${until ?? ''}`;
+    const sinceDate = new Date(`${since}T00:00:00`);
+    const untilDate = until ? new Date(`${until}T23:59:59`) : new Date();
 
     const tk = await getToken();
 
-    // ── Lookback: pedidos criados até LOOKBACK_MONTHS antes do início ─────────
     const lookbackDate = new Date(sinceDate);
     lookbackDate.setMonth(lookbackDate.getMonth() - LOOKBACK_MONTHS);
 
     const p1         = await fetchListPage(tk, 1);
     const totalPages = p1?.info?.total_paginas ?? 1;
-    console.log(`[paytour] ${since}→${until ?? 'hoje'}: lookback desde ${lookbackDate.toISOString().slice(0,10)}, ${totalPages} págs total`);
+    console.log(`[paytour] ${since}→${until ?? 'hoje'} (by tour date, lookback ${LOOKBACK_MONTHS}m): ${totalPages} págs`);
 
     const listOrders: RawListOrder[] = [...(p1?.itens ?? [])];
     let reachedLookback = false;
@@ -435,22 +497,19 @@ function paytourAggregatorPlugin(appKey: string, appSecret: string): Plugin {
     });
     console.log(`[paytour] ${inWindow.length} pedidos na janela — buscando detalhes…`);
 
-    // ── Detalhes em paralelo ─────────────────────────────────────────────────
     const detailed: RawDetailOrder[] = [];
-    const totalDetail = inWindow.length;
-    let doneDetail    = 0;
-    for (let s = 0; s < totalDetail; s += DETAIL_CONCURRENCY) {
+    let doneDetail = 0;
+    for (let s = 0; s < inWindow.length; s += DETAIL_CONCURRENCY) {
       const batch   = inWindow.slice(s, s + DETAIL_CONCURRENCY);
       const results = await Promise.all(batch.map((o) => fetchOrderDetail(tk, o.id)));
       results.forEach((r, i) => detailed.push(r ?? { ...batch[i], itens: [] }));
       doneDetail += batch.length;
       progressMap.set(key, {
-        current: Math.round((doneDetail / totalDetail) * totalPages),
+        current: Math.round((doneDetail / inWindow.length) * totalPages),
         total:   totalPages,
       });
     }
 
-    // ── Filtra por data do PASSEIO ────────────────────────────────────────────
     const orders = detailed.filter((o) =>
       (o.itens ?? []).some((item) => {
         if (!item.produto_disponibilidade_data) return false;
@@ -465,11 +524,36 @@ function paytourAggregatorPlugin(appKey: string, appSecret: string): Plugin {
       statusCount[o.status] = (statusCount[o.status] ?? 0) + 1;
       totalValor += parseFloat(o.valor ?? '0');
     }
-    console.log(`[paytour] ✓ ${orders.length} pedidos | R$ ${totalValor.toFixed(2)} | Status: ${JSON.stringify(statusCount)}`);
+    console.log(`[paytour] ✓ ${orders.length} pedidos tour-date | R$ ${totalValor.toFixed(2)} | Status: ${JSON.stringify(statusCount)}`);
 
     cache.set(key, { orders, ts: Date.now() });
     progressMap.delete(key);
     await writeDiskCache(key, orders);
+  }
+
+  // ── Standard path: roteia para a estratégia correta ──────────────────────
+  async function doFetch(since: string, until: string | null): Promise<void> {
+    const key = `${since}:${until ?? ''}`;
+
+    // Fast path para "hoje"
+    const isToday = since === todayStr() && (!until || until === todayStr());
+    if (isToday) { await doFetchToday(key); return; }
+
+    // Cache em disco
+    const disk = await readDiskCache(key);
+    if (disk) {
+      console.log(`[paytour] Cache disco: ${disk.orders.length} pedidos para ${key}`);
+      cache.set(key, disk);
+      progressMap.delete(key);
+      return;
+    }
+
+    // Rota pela estratégia certa
+    if (isFuturePeriod(since)) {
+      await doFetchByTourDate(since, until);
+    } else {
+      await doFetchByCreationDate(since, until);
+    }
   }
 
   function ensureFetch(since: string, until: string | null): Promise<void> {
@@ -483,7 +567,9 @@ function paytourAggregatorPlugin(appKey: string, appSecret: string): Plugin {
   function currentMonthRange(): { since: string; until: string } {
     const now   = new Date();
     const since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-    const until = now.toISOString().slice(0, 10);
+    // WHY fim do mês: o frontend usa periodRange('month') que pede since=1º dia, until=último dia.
+    // Usar until=hoje causava chave diferente → pre-warm nunca atingia o cache do frontend.
+    const until = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
     return { since, until };
   }
 

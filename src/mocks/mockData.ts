@@ -18,11 +18,13 @@ function generateSalesData(days: number) {
 export const mockPaytourData: PaytourData = {
   totalRevenue: 204685,
   totalSales: 1350,
+  totalItems: 3240,
   averageTicket: 151.62,
   conversionRate: 71.2,
   cancellations: 37,
   todayRevenue: 8450,
   todayOrders: 56,
+  todayItems: 134,
   salesByDay: generateSalesData(90),
   salesByChannel: [
     { channel: 'Online', count: 742, revenue: 112470 },

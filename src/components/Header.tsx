@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { RefreshCw, Moon, Sun, Target, Tv, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Moon, Sun, Target, Tv, CalendarDays, ChevronLeft, ChevronRight, DatabaseZap } from 'lucide-react';
 import { ApiStatus, Period } from '../types';
 import clsx from 'clsx';
 
@@ -14,6 +14,8 @@ interface HeaderProps {
   kdsMode: boolean;
   onToggleKds: () => void;
   onEditGoals: () => void;
+  paytourMock: boolean;
+  onTogglePaytourMock: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -208,7 +210,9 @@ function DateRangePicker({
           <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-1.5">
             {[
               { label: 'Ontem', value: (() => { const d = new Date(); d.setDate(d.getDate() - 1); const s = d.toISOString().slice(0,10); return `custom:${s}:${s}`; })() },
-              { label: '90 dias', value: '90d' },
+              { label: 'Mês atual', value: 'month' },
+              { label: '7 dias',   value: '7d' },
+              { label: '90 dias',  value: '90d' },
             ].map((p) => (
               <button
                 key={p.label}
@@ -246,6 +250,7 @@ export function Header({
   period, onPeriodChange, onRefresh, lastSync,
   apiStatus, darkMode, onToggleDark,
   kdsMode, onToggleKds, onEditGoals,
+  paytourMock, onTogglePaytourMock,
 }: HeaderProps) {
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between gap-3 sticky top-0 z-30">
@@ -290,6 +295,14 @@ export function Header({
 
         <button onClick={onRefresh} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Atualizar">
           <RefreshCw size={15} />
+        </button>
+        <button
+          onClick={onTogglePaytourMock}
+          className={clsx('p-1.5 rounded-lg transition-colors',
+            paytourMock ? 'bg-amber-500 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700')}
+          title={paytourMock ? 'Desativar dados simulados do Paytour' : 'Usar dados simulados do Paytour (fallback)'}
+        >
+          <DatabaseZap size={15} />
         </button>
         <button onClick={onEditGoals} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Editar Metas">
           <Target size={15} />

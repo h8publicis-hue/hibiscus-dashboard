@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { PaytourData } from '../types';
 import { mockPaytourData } from '../mocks/mockData';
 import { useMockMode } from './useMockMode';
+import { usePaytourMockMode } from './usePaytourMockMode';
 import { fetchPaytourData, PaytourProgress } from '../services/paytour';
 
 interface UsePaytourResult {
@@ -19,6 +20,7 @@ export function usePaytour(period: string): UsePaytourResult {
   const [error,    setError]    = useState<string | null>(null);
   const [progress, setProgress] = useState<PaytourProgress | null>(null);
   const isMock = useMockMode();
+  const [paytourMock] = usePaytourMockMode();
 
   const lastGoodData = useRef<PaytourData | null>(null);
   const onProgress   = useCallback((p: PaytourProgress | null) => setProgress(p), []);
@@ -26,7 +28,7 @@ export function usePaytour(period: string): UsePaytourResult {
   useEffect(() => {
     setError(null);
 
-    if (isMock) {
+    if (isMock || paytourMock) {
       setLoading(true);
       setStale(false);
       const timer = setTimeout(() => {
@@ -77,7 +79,7 @@ export function usePaytour(period: string): UsePaytourResult {
     }, 300);
 
     return () => clearTimeout(debounce);
-  }, [period, isMock]);
+  }, [period, isMock, paytourMock]);
 
   const displayData = data ?? lastGoodData.current;
 

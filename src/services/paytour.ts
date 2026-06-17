@@ -46,7 +46,17 @@ function periodRange(period: string): { since: string; until: string | null } {
   }
   if (period === 'month') {
     const n = new Date();
-    return { since: fmt(new Date(n.getFullYear(), n.getMonth(), 1)), until: null };
+    return {
+      since: fmt(new Date(n.getFullYear(), n.getMonth(), 1)),
+      until: fmt(new Date(n.getFullYear(), n.getMonth() + 1, 0)),
+    };
+  }
+  if (period === 'next_month') {
+    const n = new Date();
+    return {
+      since: fmt(new Date(n.getFullYear(), n.getMonth() + 1, 1)),
+      until: fmt(new Date(n.getFullYear(), n.getMonth() + 2, 0)),
+    };
   }
   if (period.startsWith('custom:')) {
     const parts = period.split(':');
@@ -124,18 +134,24 @@ async function fetchFromServer(
 }
 
 // ── Aggregate raw orders into PaytourData ─────────────────────────────────────
-function aggregate(orders: RawOrder[], since: string): PaytourData {
+interface RawOrderWithItems extends RawOrder {
+  itens?: { produto_id?: string; produto_disponibilidade_data?: string }[];
+}
+
+function aggregate(orders: RawOrderWithItems[], since: string): PaytourData {
   const todayStart = startOfToday();
   const topProducts = emptyProducts();
 
   let totalRevenue = 0;
   let totalSales   = 0;
+  let totalItems   = 0;
   const statusCount  = { confirmed: 0, pending: 0, cancelled: 0 };
   const byDay: Record<string, { revenue: number; count: number }>     = {};
   const byChannel: Record<string, { count: number; revenue: number }> = {};
 
   let todayRevenue = 0;
   let todayOrders  = 0;
+  let todayItems   = 0;
 
   for (const order of orders) {
     const grp = statusGroup(order.status);
@@ -143,16 +159,19 @@ function aggregate(orders: RawOrder[], since: string): PaytourData {
 
     const d     = new Date(order.data_hora_pedido.replace(' ', 'T'));
     const value = parseFloat(order.valor ?? '0');
+    const itensCnt = order.itens?.length ?? 0;
 
     if (d >= todayStart && grp !== 'cancelled') {
       todayRevenue += value;
       todayOrders++;
+      todayItems += itensCnt;
     }
 
     if (grp === 'cancelled') continue;
 
     totalRevenue += value;
     totalSales++;
+    totalItems += itensCnt;
 
     const day = order.data_hora_pedido.slice(0, 10);
     if (day) {
@@ -176,11 +195,12 @@ function aggregate(orders: RawOrder[], since: string): PaytourData {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, v]) => ({ date, ...v }));
 
-  console.log(`[Paytour] ✓ R$ ${totalRevenue.toFixed(2)} | ${totalSales} vendas`);
+  console.log(`[Paytour] ✓ R$ ${totalRevenue.toFixed(2)} | ${totalSales} pedidos | ${totalItems} atividades`);
 
   return {
     totalRevenue,
     totalSales,
+    totalItems,
     averageTicket:         totalSales > 0 ? totalRevenue / totalSales : 0,
     conversionRate:        orders.length > 0
       ? Math.round((statusCount.confirmed / orders.length) * 100 * 10) / 10
@@ -188,6 +208,7 @@ function aggregate(orders: RawOrder[], since: string): PaytourData {
     cancellations:         statusCount.cancelled,
     todayRevenue,
     todayOrders,
+    todayItems,
     previousPeriodRevenue: 0,
     salesByDay,
     salesByChannel:        Object.entries(byChannel).map(([channel, v]) => ({ channel, ...v })),
@@ -216,7 +237,13 @@ export async function fetchPaytourData(
 
   const promise = _doFetch(period, onProgress)
     .then((data) => {
-      resultCache.set(period, { data, ts: Date.now() });
+      // Não cacheia resultado "zerado": pode ser fruto de um warm-up ainda
+      // incompleto no servidor — preferimos revalidar a exibir zeros obsoletos.
+      if (data.totalSales > 0 || data.totalRevenue > 0) {
+        resultCache.set(period, { data, ts: Date.now() });
+      } else {
+        resultCache.delete(period);
+      }
       return data;
     })
     .finally(() => inflightFetch.delete(period));

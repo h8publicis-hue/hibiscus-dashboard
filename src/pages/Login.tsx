@@ -21,6 +21,7 @@ export function Login({ onLogin }: LoginProps) {
       });
       if (res.ok) {
         onLogin();
+        window.location.href = '/';
       } else {
         setError('Senha incorreta. Tente novamente.');
       }

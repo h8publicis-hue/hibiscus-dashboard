@@ -5,7 +5,7 @@ import cookieParser  from 'cookie-parser';
 import { createHash } from 'node:crypto';
 import { get }        from 'node:https';
 import { request }    from 'node:https';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +17,9 @@ const COOKIE_SECRET = process.env.COOKIE_SECRET ?? 'hibiscus-secret-2026';
 const app = express();
 app.use(express.json());
 app.use(cookieParser(COOKIE_SECRET));
+
+// ── Assets estáticos SEMPRE acessíveis (sem auth) ─────────────────────────────
+app.use(express.static(join(__dirname, 'dist')));
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 function hashPassword(p) {
@@ -40,7 +43,8 @@ function authMiddleware(req, res, next) {
   }
 }
 
-app.use(authMiddleware);
+// auth desativado — acesso direto
+// app.use(authMiddleware);
 
 // ── Auth endpoints ────────────────────────────────────────────────────────────
 app.post('/api/auth', (req, res) => {
@@ -247,6 +251,12 @@ async function readDiskCache(key) {
   } catch { return null; }
 }
 
+async function deleteDiskCache(key) {
+  try {
+    await unlink(join(DISK_CACHE_DIR, key.replace(/:/g,'_') + '.json'));
+  } catch { /* já não existe — ok */ }
+}
+
 async function writeDiskCache(key, orders) {
   try {
     await mkdir(DISK_CACHE_DIR, { recursive: true });
@@ -257,6 +267,135 @@ async function writeDiskCache(key, orders) {
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
+}
+
+// ── Sync completo por data do PASSEIO (para uso noturno) ──────────────────────
+// Busca todos os pedidos, filtra itens com produto_disponibilidade_data no período.
+// Demora ~5-15 min — roda de madrugada e salva em disco.
+async function doFullSync(since, until) {
+  const key       = `${since}:${until}`;
+  const sinceDate = new Date(`${since}T00:00:00`);
+  const untilDate = new Date(`${until}T23:59:59`);
+  const tk        = await getToken();
+
+  console.log(`[paytour:sync] Iniciando sync ${since}→${until} (lookback 3 meses)`);
+
+  // Lookback: busca pedidos criados até 3 meses antes do início do período
+  const lookback = new Date(`${since}T00:00:00`);
+  lookback.setMonth(lookback.getMonth() - 3);
+  console.log(`[paytour:sync] Lookback desde ${lookback.toISOString().slice(0,10)}`);
+
+  // 1. Busca páginas até ultrapassar o lookback (para cedo!)
+  const p1         = await fetchListPage(tk, 1);
+  const totalPages = p1?.info?.total_paginas ?? 1;
+  progressMap.set(key, { current: 1, total: totalPages });
+
+  const allList = [...(p1?.itens ?? [])];
+  let reached = false;
+
+  // Verifica já na página 1
+  for (const o of (p1?.itens ?? [])) {
+    if (new Date(o.data_hora_pedido.replace(' ','T')) < lookback) { reached = true; break; }
+  }
+
+  for (let s = 2; s <= totalPages && !reached; s += 10) {
+    const e     = Math.min(s + 9, totalPages);
+    const pages = await Promise.all(Array.from({ length: e - s + 1 }, (_, i) => fetchListPage(tk, s + i)));
+    for (const pg of pages) {
+      for (const o of (pg?.itens ?? [])) {
+        allList.push(o);
+        if (new Date(o.data_hora_pedido.replace(' ','T')) < lookback) { reached = true; break; }
+      }
+      if (reached) break;
+    }
+    progressMap.set(key, { current: Math.min(e, totalPages), total: totalPages });
+  }
+  console.log(`[paytour:sync] Parou na pág ${progressMap.get(key)?.current}: ${allList.length} pedidos brutos`);
+
+  // 2. Busca detalhes em paralelo (para ter data do passeio)
+  const BATCH = 40;
+  const detailed = [];
+  for (let s = 0; s < allList.length; s += BATCH) {
+    const batch   = allList.slice(s, s + BATCH);
+    const results = await Promise.all(batch.map((o) => fetchDetail(tk, o.id)));
+    results.forEach((r, i) => detailed.push(r ?? { ...batch[i], itens: [] }));
+    if (s % 400 === 0) console.log(`[paytour:sync] Detalhes: ${s}/${allList.length}`);
+  }
+
+  // 3. Filtra por data do PASSEIO nos itens
+  const orders = detailed.filter((o) => {
+    const grp = (o.status ?? '').toLowerCase();
+    if (grp === 'cancelado' || grp === 'reprovado') return false;
+    return (o.itens ?? []).some((item) => {
+      if (!item.produto_disponibilidade_data) return false;
+      const d = new Date(item.produto_disponibilidade_data + 'T00:00:00');
+      return d >= sinceDate && d <= untilDate;
+    });
+  });
+
+  const totalValor = orders.reduce((s, o) => s + parseFloat(o.valor ?? '0'), 0);
+  const totalItens = orders.reduce((s, o) => s + (o.itens ?? []).filter((i) => {
+    if (!i.produto_disponibilidade_data) return false;
+    const d = new Date(i.produto_disponibilidade_data + 'T00:00:00');
+    return d >= sinceDate && d <= untilDate;
+  }).length, 0);
+
+  console.log(`[paytour:sync] ✅ ${orders.length} pedidos | ${totalItens} atividades | R$ ${totalValor.toFixed(2)}`);
+
+  memCache.set(key, { orders, ts: Date.now() });
+  progressMap.delete(key);
+  await writeDiskCache(key, orders);
+  return orders;
+}
+
+// ── Agendador noturno ─────────────────────────────────────────────────────────
+function nextMonthRange() {
+  const now   = new Date();
+  const since = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
+  const until = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().slice(0, 10);
+  return { since, until };
+}
+
+function scheduleMidnightSync() {
+  const now     = new Date();
+  const target  = new Date(now);
+  target.setHours(3, 0, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const msUntil = target - now;
+
+  console.log(`[paytour:sync] Próximo sync: ${target.toLocaleString('pt-BR')} (em ${Math.round(msUntil/60000)} min)`);
+
+  setTimeout(async () => {
+    const n     = new Date();
+    // Mês atual
+    const since = new Date(n.getFullYear(), n.getMonth(), 1).toISOString().slice(0, 10);
+    const until = new Date(n.getFullYear(), n.getMonth() + 1, 0).toISOString().slice(0, 10);
+    // Mês seguinte
+    const { since: ns, until: nu } = nextMonthRange();
+
+    console.log(`[paytour:sync] 🌙 Sync noturno: ${since}→${until} + ${ns}→${nu}`);
+    try {
+      // Mês atual: abordagem rápida por data de criação (lista) — renova cache em disco
+      const curKey  = `${since}:${until}`;
+      const nextKey = `${ns}:${nu}`;
+      // Apaga caches antigos para forçar uma busca fresca (não confiar no TTL)
+      memCache.delete(curKey);
+      memCache.delete(nextKey);
+      await deleteDiskCache(curKey);
+      await deleteDiskCache(nextKey);
+
+      await ensureFetch(since, until);
+
+      // Mês seguinte: sync completo por data do passeio — renova cache em disco
+      // (sem isso, o cache só era atualizado no startup e expirava em pleno expediente)
+      await doFullSync(ns, nu);
+
+      console.log(`[paytour:sync] 🌙 Sync noturno concluído!`);
+    } catch (e) {
+      console.error(`[paytour:sync] Erro:`, e.message);
+    }
+    scheduleMidnightSync();
+  }, msUntil);
 }
 
 async function doFetchToday(key) {
@@ -294,71 +433,53 @@ async function doFetch(since, until) {
 
   if (isToday) { await doFetchToday(key); return; }
 
+  // Usa cache em disco se válido — renova ts para evitar re-sync imediato
   const disk = await readDiskCache(key);
   if (disk) {
-    console.log(`[paytour] Cache disco: ${disk.orders.length} pedidos para ${key}`);
-    memCache.set(key, disk);
+    console.log(`[paytour] Cache disco ✅ ${disk.orders.length} pedidos para ${key}`);
+    memCache.set(key, { orders: disk.orders, ts: Date.now() });
     progressMap.delete(key);
     return;
   }
 
-  const tk = await getToken();
-  const lookbackDate = new Date(sinceDate);
-  lookbackDate.setMonth(lookbackDate.getMonth() - 5);
+  // Próximo mês: usa doFullSync (tour date filtering)
+  const { since: _ns, until: _nu } = nextMonthRange();
+  if (since === _ns && until === _nu) {
+    await doFullSync(since, until);
+    return;
+  }
 
+  // Sem cache: busca lista completa filtrando por data_hora_pedido (sem N+1)
+  const tk = await getToken();
   const p1         = await fetchListPage(tk, 1);
   const totalPages = p1?.info?.total_paginas ?? 1;
-  console.log(`[paytour] ${since}→${until??'hoje'}: ${totalPages} págs, lookback ${lookbackDate.toISOString().slice(0,10)}`);
+  console.log(`[paytour] ${since}→${until??'hoje'}: varrendo ${totalPages} págs por data de pedido`);
 
-  const listOrders = [...(p1?.itens??[])];
-  let reached = false;
+  const allItems = [...(p1?.itens ?? [])];
   progressMap.set(key, { current: 1, total: totalPages });
 
-  for (let s = 2; s <= totalPages && !reached; s += 30) {
+  for (let s = 2; s <= totalPages; s += 30) {
     const e     = Math.min(s + 29, totalPages);
-    const pages = await Promise.all(Array.from({length: e-s+1}, (_,i) => fetchListPage(tk, s+i)));
-    for (const pg of pages) {
-      for (const o of (pg?.itens??[])) {
-        listOrders.push(o);
-        if (new Date(o.data_hora_pedido.replace(' ','T')) < lookbackDate) { reached = true; break; }
-      }
-      if (reached) break;
-    }
+    const pages = await Promise.all(Array.from({ length: e - s + 1 }, (_, i) => fetchListPage(tk, s + i)));
+    pages.forEach((pg) => allItems.push(...(pg?.itens ?? [])));
     progressMap.set(key, { current: Math.min(e, totalPages), total: totalPages });
   }
 
-  const inWindow = listOrders.filter((o) => {
-    const d = new Date(o.data_hora_pedido.replace(' ','T'));
-    return d >= lookbackDate && d <= untilDate;
-  });
-  console.log(`[paytour] ${inWindow.length} pedidos na janela — detalhes…`);
-
-  const detailed = [];
-  const total    = inWindow.length;
-  let done       = 0;
-  for (let s = 0; s < total; s += 40) {
-    const batch   = inWindow.slice(s, s + 40);
-    const results = await Promise.all(batch.map((o) => fetchDetail(tk, o.id)));
-    results.forEach((r, i) => detailed.push(r ?? { ...batch[i], itens: [] }));
-    done += batch.length;
-    progressMap.set(key, { current: Math.round((done/total)*totalPages), total: totalPages });
+  // Filtra por data de criação do pedido no período
+  const seen = new Set();
+  const orders = [];
+  for (const o of allItems) {
+    if (!o?.data_hora_pedido || seen.has(o.id)) continue;
+    const d = new Date(o.data_hora_pedido.replace(' ', 'T'));
+    const grp = (o.status ?? '').toLowerCase();
+    if (d >= sinceDate && d <= untilDate && grp !== 'cancelado' && grp !== 'reprovado') {
+      seen.add(o.id);
+      orders.push({ ...o, itens: [] }); // sem detalhes
+    }
   }
 
-  const orders = detailed.filter((o) =>
-    (o.itens??[]).some((item) => {
-      if (!item.produto_disponibilidade_data) return false;
-      const d = new Date(item.produto_disponibilidade_data + 'T00:00:00');
-      return d >= sinceDate && d <= untilDate;
-    }),
-  );
-
-  const statusCount = {};
-  let totalValor = 0;
-  for (const o of orders) {
-    statusCount[o.status] = (statusCount[o.status]??0)+1;
-    totalValor += parseFloat(o.valor??'0');
-  }
-  console.log(`[paytour] ✓ ${orders.length} pedidos | R$ ${totalValor.toFixed(2)} | Status: ${JSON.stringify(statusCount)}`);
+  const totalValor = orders.reduce((s, o) => s + parseFloat(o.valor ?? '0'), 0);
+  console.log(`[paytour] ✅ ${orders.length} pedidos | R$ ${totalValor.toFixed(2)} para ${key}`);
 
   memCache.set(key, { orders, ts: Date.now() });
   progressMap.delete(key);
@@ -402,17 +523,47 @@ app.get('/api/paytour-orders', async (req, res) => {
 
 // ── Pre-warm on startup ───────────────────────────────────────────────────────
 setTimeout(async () => {
+  const appKey    = process.env.VITE_PAYTOUR_APP_KEY ?? '';
+  const appSecret = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+  if (!appKey || !appSecret) return;
+
+  // 1. Hoje (rápido — sempre atualiza)
   const today = todayStr();
   await ensureFetch(today, today).catch((e) => console.error('[paytour] Hoje falhou:', e.message));
+
+  // 2. Mês corrente — verifica se tem cache em disco válido
   const now   = new Date();
-  const since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
-  ensureFetch(since, today).catch((e) => console.error('[paytour] Mês falhou:', e.message));
+  const since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const until = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const key   = `${since}:${until}`;
+
+  const diskExists = await readDiskCache(key);
+  if (diskExists) {
+    console.log(`[paytour] Cache mensal em disco — carregando instantaneamente`);
+    memCache.set(key, { orders: diskExists.orders, ts: Date.now() });
+  } else {
+    console.log(`[paytour] Sem cache mensal — iniciando sync em background…`);
+    doFullSync(since, until).catch((e) => console.error('[paytour] Sync mês falhou:', e.message));
+  }
+
+  // 3. Mês seguinte — sync completo por data do passeio (tour date)
+  const { since: ns, until: nu } = nextMonthRange();
+  const nextKey  = `${ns}:${nu}`;
+  const nextDisk = await readDiskCache(nextKey);
+  if (nextDisk) {
+    console.log(`[paytour] Cache mês seguinte em disco`);
+    memCache.set(nextKey, { orders: nextDisk.orders, ts: Date.now() });
+  } else {
+    console.log(`[paytour:sync] Iniciando sync de ${ns}→${nu} (tour date, ~10-15 min)…`);
+    // Roda em background — não bloqueia o startup
+    doFullSync(ns, nu).catch((e) => console.error('[paytour] Sync julho falhou:', e.message));
+  }
+
+  // 4. Agenda sync noturno
+  scheduleMidnightSync();
 }, 3000);
 
-// ── Serve static React build ──────────────────────────────────────────────────
-app.use(express.static(join(__dirname, 'dist')));
-
-// Login page (served from dist, but SPA fallback sends to /login which React handles)
+// ── SPA fallback ──────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });

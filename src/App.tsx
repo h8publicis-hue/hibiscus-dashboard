@@ -1,6 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Login } from './pages/Login';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Overview } from './pages/Overview';
@@ -10,8 +9,10 @@ import { Reviews } from './pages/Reviews';
 import { Occupancy } from './pages/Occupancy';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
+import { ReviewsTicker } from './components/ReviewsTicker';
 import { Period, ApiStatus } from './types';
 import { useMockMode } from './hooks/useMockMode';
+import { usePaytourMockMode } from './hooks/usePaytourMockMode';
 import { useGoals } from './hooks/useGoals';
 import { useOccupancy } from './hooks/useOccupancy';
 import { usePaytour } from './hooks/usePaytour';
@@ -22,19 +23,7 @@ import { invalidatePaytourCache } from './services/paytour';
 const KDS_INTERVAL_MS = 8000;
 
 export default function App() {
-  const [authed, setAuthed] = useState<boolean | null>(null); // null = verificando
-
-  useEffect(() => {
-    fetch('/api/auth/status')
-      .then((r) => r.json())
-      .then((d) => setAuthed(d.authenticated ?? true))
-      .catch(() => setAuthed(true)); // sem server = dev local, libera
-  }, []);
-
-  if (authed === null) return null; // splash mínimo enquanto verifica
-  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
-
-  const [period, setPeriod]       = useState<Period>('month');
+  const [period, setPeriod]       = useState<Period>('today');
   const [lastSync, setLastSync]   = useState<Date | null>(new Date());
   const [darkMode, setDarkMode]   = useState(false);
   const [kdsMode, setKdsMode]     = useState(false);
@@ -42,6 +31,7 @@ export default function App() {
   const [goals, setGoals]         = useGoals();
   const [occupancy, occupancyActions] = useOccupancy();
   const isMock = useMockMode();
+  const [paytourMock, setPaytourMock] = usePaytourMockMode();
 
   // Real API status + data — hooks share the same cache layer as child pages (no extra requests)
   const { loading: ptL, error: ptErr }                              = usePaytour(period);
@@ -102,6 +92,8 @@ export default function App() {
           kdsMode={kdsMode}
           onToggleKds={() => setKdsMode((k) => !k)}
           onEditGoals={() => setGoalsOpen(true)}
+          paytourMock={paytourMock}
+          onTogglePaytourMock={() => setPaytourMock(!paytourMock)}
         />
         <div className="flex flex-1 overflow-hidden">
           {!kdsMode && (
@@ -112,10 +104,15 @@ export default function App() {
               reviewsAlerts={sidebarAlerts.reviews}
             />
           )}
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto pb-[72px]">
             {isMock && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-700 dark:text-amber-400 text-center">
                 Modo Mock ativo — dados simulados para desenvolvimento
+              </div>
+            )}
+            {!isMock && paytourMock && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-700 dark:text-amber-400 text-center">
+                Dados do Paytour simulados — API indisponível ou em manutenção
               </div>
             )}
             <Routes>
@@ -130,6 +127,11 @@ export default function App() {
         <KdsProgressBar active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
         <KdsBadge active={kdsMode} />
       </div>
+
+      <ReviewsTicker
+        googleData={gData}
+        surveyData={smData}
+      />
 
       {goalsOpen && (
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />

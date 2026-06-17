@@ -6,9 +6,13 @@ const SHEET_ID = '160RcNG4v6TrdkV2Sc1T__kWt_N7rdI1daNY6lqNJSb4';
 const JSON_URL = `/sheets-api/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
 
 // Column indices (0-based) in the sheet
-const COL_DATE     = 4;  // Start Date
-const COL_FEEDBACK = 12; // Q2 — open text
-const COL_RATING   = 13; // Q3 — score 1–5
+const COL_DATE      = 4;  // Start Date
+const COL_EMAIL     = 8;  // Email Address (SurveyMonkey metadata)
+const COL_FIRSTNAME = 9;  // First Name
+const COL_LASTNAME  = 10; // Last Name
+const COL_PULSEIRA  = 11; // Q1 — número da pulseira
+const COL_FEEDBACK  = 12; // Q2 — open text
+const COL_RATING    = 13; // Q3 — score 1–5
 
 // ── gviz/tq JSON parser ───────────────────────────────────────────────────────
 interface GVizCell { v: string | number | null; f?: string }
@@ -85,8 +89,8 @@ function periodEnd(period: string): Date | null {
 type Sentiment = 'positive' | 'neutral' | 'negative';
 
 function toSentiment(score: number): Sentiment {
-  if (score === 5) return 'positive';
-  if (score === 4) return 'neutral';
+  if (score >= 4) return 'positive';
+  if (score === 3) return 'neutral';
   return 'negative';
 }
 
@@ -146,7 +150,14 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
   const since = periodStart(period);
   const until = periodEnd(period);
 
-  interface Entry { date: Date; text: string; score: number }
+  interface Entry {
+    date:     Date;
+    text:     string;
+    score:    number;
+    pulseira: string;
+    nome:     string;
+    email:    string;
+  }
 
   // Parse every row — keep only those with a valid 1–5 rating
   const allEntries: Entry[] = [];
@@ -158,8 +169,14 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     const date    = parseGVizDate(rawDate as string);
     if (!date) continue;
 
-    const text = String(cellVal(row, COL_FEEDBACK) ?? '').trim();
-    allEntries.push({ date, text, score });
+    const text      = String(cellVal(row, COL_FEEDBACK)  ?? '').trim();
+    const pulseira  = String(cellVal(row, COL_PULSEIRA)  ?? '').trim();
+    const firstName = String(cellVal(row, COL_FIRSTNAME) ?? '').trim();
+    const lastName  = String(cellVal(row, COL_LASTNAME)  ?? '').trim();
+    const nome      = [firstName, lastName].filter(Boolean).join(' ');
+    const email     = String(cellVal(row, COL_EMAIL)     ?? '').trim();
+
+    allEntries.push({ date, text, score, pulseira, nome, email });
   }
 
   // Total across ALL time (what you see in the sheet total)
@@ -173,9 +190,9 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
   const total = entries.length;
 
   // Promoters = 5, Neutrals = 4, Detractors = 1–3
-  const nP = entries.filter(e => e.score === 5).length;
-  const nN = entries.filter(e => e.score === 4).length;
-  const nD = entries.filter(e => e.score <= 3).length;
+  const nP = entries.filter(e => e.score >= 4).length;
+  const nN = entries.filter(e => e.score === 3).length;
+  const nD = entries.filter(e => e.score <= 2).length;
 
   const pctP = total > 0 ? Math.round((nP / total) * 100) : 0;
   const pctN = total > 0 ? Math.round((nN / total) * 100) : 0;
@@ -188,8 +205,8 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     const day = e.date.toISOString().slice(0, 10);
     if (!byDay[day]) byDay[day] = { p: 0, d: 0, t: 0 };
     byDay[day].t++;
-    if (e.score === 5)      byDay[day].p++;
-    else if (e.score <= 3)  byDay[day].d++;
+    if (e.score >= 4)      byDay[day].p++;
+    else if (e.score <= 2) byDay[day].d++;
   }
 
   const npsHistory = Object.entries(byDay)
@@ -199,17 +216,19 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
       score: v.t > 0 ? Math.round((v.p / v.t - v.d / v.t) * 100) : 0,
     }));
 
-  // Last 50 responses with text, newest first
+  // Responses with text, newest first (no artificial cap)
   const recentResponses = [...entries]
     .filter(e => e.text.length > 3)
     .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .slice(0, 50)
     .map((e, i) => ({
       id:        String(i + 1),
       text:      e.text,
       sentiment: toSentiment(e.score),
       date:      e.date.toISOString().slice(0, 10),
       score:     e.score,
+      pulseira:  e.pulseira || undefined,
+      nome:      e.nome     || undefined,
+      email:     e.email    || undefined,
     }));
 
   const responseRate = total > 0

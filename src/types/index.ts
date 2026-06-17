@@ -24,12 +24,14 @@ export interface TopProduct {
 
 export interface PaytourData {
   totalRevenue: number;
-  totalSales: number;
+  totalSales: number;       // pedidos (reservas)
+  totalItems: number;       // atividades vendidas (itens)
   averageTicket: number;
   conversionRate: number;
   cancellations: number;
   todayRevenue: number;
   todayOrders: number;
+  todayItems: number;       // atividades vendidas hoje
   salesByDay: SalesByDay[];
   salesByChannel: SalesByChannel[];
   topProducts: TopProduct[];
@@ -53,6 +55,9 @@ export interface RecentResponse {
   sentiment: 'positive' | 'negative' | 'neutral';
   date: string;
   score: number;
+  pulseira?: string;
+  nome?: string;
+  email?: string;
 }
 
 export interface Survey {
@@ -129,18 +134,20 @@ export interface Alert {
 
 // Goals / Metas
 export interface Goals {
-  receitaTotal: number;    // R$/mês
-  numeroVendas: number;    // unidades/mês
-  npsScore: number;        // pontos
-  notaGoogle: number;      // estrelas (1–5)
-  taxaSatisfacao: number;  // % promotores
+  receitaTotal: number;       // R$/mês
+  atividadesMes: number;      // atividades vendidas/mês
+  numeroVendas: number;       // pedidos/mês
+  npsScore: number;           // pontos
+  notaGoogle: number;         // estrelas (1–5)
+  taxaSatisfacao: number;     // % promotores
 }
 
 export const DEFAULT_GOALS: Goals = {
-  receitaTotal: 220000,
-  numeroVendas: 1400,
-  npsScore: 65,
-  notaGoogle: 4.7,
+  receitaTotal:  220000,
+  atividadesMes: 2000,
+  numeroVendas:  1400,
+  npsScore:      65,
+  notaGoogle:    4.7,
   taxaSatisfacao: 75,
 };
 

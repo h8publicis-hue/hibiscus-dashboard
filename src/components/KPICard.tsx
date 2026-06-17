@@ -37,7 +37,7 @@ export function KPICard({ title, value, subtitle, icon, trend, color = 'brand', 
         {progress ? (
           <div className="mt-3">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-400">Carregando dados…</span>
+              <span className="text-gray-400">🔄 Sincronizando Paytour…</span>
               <span className="text-gray-500 font-medium">{pct}%</span>
             </div>
             <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -46,7 +46,9 @@ export function KPICard({ title, value, subtitle, icon, trend, color = 'brand', 
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400 mt-1">{progress.current} / {progress.total} páginas</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {progress.current} / {progress.total} págs · 1ª vez leva ~3 min, depois é instantâneo
+            </p>
           </div>
         ) : (
           <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse" />
