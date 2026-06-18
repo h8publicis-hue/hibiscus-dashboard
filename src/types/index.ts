@@ -116,7 +116,6 @@ export interface GoogleBusinessData {
 export type ApiStatusType = 'connected' | 'error' | 'loading';
 
 export interface ApiStatus {
-  paytour: ApiStatusType;
   surveymonkey: ApiStatusType;
   google: ApiStatusType;
 }

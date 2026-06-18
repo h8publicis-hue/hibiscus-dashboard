@@ -12,13 +12,10 @@ import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { ReviewsTicker } from './components/ReviewsTicker';
 import { Period, ApiStatus } from './types';
 import { useMockMode } from './hooks/useMockMode';
-import { usePaytourMockMode } from './hooks/usePaytourMockMode';
 import { useGoals } from './hooks/useGoals';
 import { useOccupancy } from './hooks/useOccupancy';
-import { usePaytour } from './hooks/usePaytour';
 import { useSurveyMonkey } from './hooks/useSurveyMonkey';
 import { useGoogleBusiness } from './hooks/useGoogleBusiness';
-import { invalidatePaytourCache } from './services/paytour';
 
 const KDS_INTERVAL_MS = 8000;
 
@@ -31,18 +28,15 @@ export default function App() {
   const [goals, setGoals]         = useGoals();
   const [occupancy, occupancyActions] = useOccupancy();
   const isMock = useMockMode();
-  const [paytourMock, setPaytourMock] = usePaytourMockMode();
 
   // Real API status + data — hooks share the same cache layer as child pages (no extra requests)
-  const { loading: ptL, error: ptErr }                              = usePaytour(period);
   const { loading: smL, error: smErr, data: smData }               = useSurveyMonkey(period);
   const { loading: gL,  error: gErr, notConfigured: gNC, data: gData } = useGoogleBusiness(period);
 
   const apiStatus: ApiStatus = useMemo(() => ({
-    paytour:      ptL ? 'loading' : ptErr           ? 'error' : 'connected',
     surveymonkey: smL ? 'loading' : smErr           ? 'error' : 'connected',
     google:       gL  ? 'loading' : (gErr && !gNC) ? 'error' : 'connected',
-  }), [ptL, ptErr, smL, smErr, gL, gErr, gNC]);
+  }), [smL, smErr, gL, gErr, gNC]);
 
   // ── Sidebar alerts (todos dinâmicos) ─────────────────────────────────────────
   // Ocupação: espaços ≥ 90% de capacidade
@@ -68,7 +62,7 @@ export default function App() {
     return { overview: overviewAlerts, survey: surveyAlerts, reviews: reviewsAlerts };
   }, [smData, gData, occupancyAlerts]);
 
-  const handleRefresh    = useCallback(() => { invalidatePaytourCache(); setLastSync(new Date()); }, []);
+  const handleRefresh    = useCallback(() => { setLastSync(new Date()); }, []);
   const handleToggleDark = useCallback(() => {
     setDarkMode((d) => {
       const next = !d;
@@ -92,8 +86,6 @@ export default function App() {
           kdsMode={kdsMode}
           onToggleKds={() => setKdsMode((k) => !k)}
           onEditGoals={() => setGoalsOpen(true)}
-          paytourMock={paytourMock}
-          onTogglePaytourMock={() => setPaytourMock(!paytourMock)}
         />
         <div className="flex flex-1 overflow-hidden">
           {!kdsMode && (
@@ -108,11 +100,6 @@ export default function App() {
             {isMock && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-700 dark:text-amber-400 text-center">
                 Modo Mock ativo — dados simulados para desenvolvimento
-              </div>
-            )}
-            {!isMock && paytourMock && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-700 dark:text-amber-400 text-center">
-                Dados do Paytour simulados — API indisponível ou em manutenção
               </div>
             )}
             <Routes>

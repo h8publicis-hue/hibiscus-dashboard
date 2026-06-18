@@ -66,7 +66,8 @@
       "Bash(curl -sS -m 8 -o /dev/null -w \"HTTP %{http_code} in %{time_total}s\\\\n\" https://api-ha.paytour.com.br/v2/lojas/login?grant_type=application)",
       "Bash(ping -c2 -t3 api-ha.paytour.com.br)",
       "Bash(curl -s -m 5 \"http://localhost:3000/api/paytour-orders?since=2026-06-15&until=2026-06-15\")",
-      "Bash(curl -s \"http://localhost:3000/sheets-api/spreadsheets/d/160RcNG4v6TrdkV2Sc1T__kWt_N7rdI1daNY6lqNJSb4/gviz/tq?tqx=out:json&headers=1\")"
+      "Bash(curl -s \"http://localhost:3000/sheets-api/spreadsheets/d/160RcNG4v6TrdkV2Sc1T__kWt_N7rdI1daNY6lqNJSb4/gviz/tq?tqx=out:json&headers=1\")",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
