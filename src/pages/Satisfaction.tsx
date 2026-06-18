@@ -517,12 +517,26 @@ export function Satisfaction({ period }: SatisfactionProps) {
             ) : (
               <div className="space-y-2">
                 {data?.surveys.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate pr-2">{s.name}</span>
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-semibold text-gray-900 dark:text-white">{s.responses}</span>
-                      <span className="text-[10px] text-gray-400 block">Taxa: {s.rate}%</span>
+                  <div key={i} className="p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate pr-2">{s.name}</span>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-semibold text-gray-900 dark:text-white">{s.responses}</span>
+                        <span className="text-[10px] text-gray-400 block">Taxa: {s.rate}%</span>
+                      </div>
                     </div>
+                    {counts.all < s.responses && (
+                      <div className="mt-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-600 flex justify-between text-[10px] text-gray-400">
+                        <span>Com comentário</span>
+                        <span className="font-medium text-gray-600 dark:text-gray-300">{counts.all}</span>
+                      </div>
+                    )}
+                    {counts.all < s.responses && (
+                      <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                        <span>Só nota</span>
+                        <span className="font-medium text-gray-600 dark:text-gray-300">{s.responses - counts.all}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -550,7 +564,14 @@ export function Satisfaction({ period }: SatisfactionProps) {
               )}
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Respostas dos Clientes
-                {!loading && <span className="ml-2 text-xs font-normal text-gray-400">({counts[activeFilter]})</span>}
+                {!loading && (
+                  <span className="ml-2 text-xs font-normal text-gray-400">
+                    {counts[activeFilter]} com comentário
+                    {activeFilter === 'all' && periodTotal > counts.all
+                      ? ` · ${periodTotal - counts.all} só nota`
+                      : ''}
+                  </span>
+                )}
               </h3>
             </div>
             {!loading && (

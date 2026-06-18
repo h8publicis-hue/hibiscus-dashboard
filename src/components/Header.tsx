@@ -281,6 +281,7 @@ export function Header({
         <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1"><StatusDot status={apiStatus.surveymonkey} /> SM</span>
           <span className="flex items-center gap-1"><StatusDot status={apiStatus.google} /> GM</span>
+          <span className="flex items-center gap-1"><StatusDot status={apiStatus.paytour} /> PT</span>
         </div>
 
         {lastSync && (

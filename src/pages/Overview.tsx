@@ -1,6 +1,7 @@
 import { Users, Star, Target, MessageSquare, Smile } from 'lucide-react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
+import { usePaytour } from '../hooks/usePaytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import clsx from 'clsx';
 
@@ -43,6 +44,7 @@ function OccupancyMini({ label, current, max }: { label: string; current: number
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: survey,  loading: smL } = useSurveyMonkey(period);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
+  const { data: paytour, loading: ptL } = usePaytour(period);
 
   return (
     <div className="p-4 h-full overflow-hidden flex flex-col gap-3">
@@ -54,30 +56,80 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
             <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Ao vivo — Hoje</h2>
           </div>
-          <span className="text-[10px] opacity-60">Integração Paytour desativada</span>
+          {ptL && <span className="text-[10px] opacity-60 animate-pulse">Carregando...</span>}
         </div>
         <div className="grid grid-cols-4 gap-2">
-          {['Receita', 'Atividades', 'Reservas', 'Ticket médio'].map((label) => (
-            <div key={label} className="bg-white/10 rounded-lg px-3 py-2">
-              <p className="text-[10px] opacity-70">{label}</p>
-              <p className="text-lg font-bold leading-tight opacity-40">—</p>
-            </div>
-          ))}
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <p className="text-[10px] opacity-70">Receita</p>
+            {ptL
+              ? <div className="h-6 w-16 bg-white/20 rounded animate-pulse mt-1" />
+              : <p className="text-lg font-bold leading-tight">
+                  {paytour ? `R$ ${fmtN(Math.round(paytour.todayRevenue))}` : '—'}
+                </p>
+            }
+          </div>
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <p className="text-[10px] opacity-70">Atividades</p>
+            {ptL
+              ? <div className="h-6 w-10 bg-white/20 rounded animate-pulse mt-1" />
+              : <p className="text-lg font-bold leading-tight">{paytour ? fmtN(paytour.todayItems) : '—'}</p>
+            }
+          </div>
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <p className="text-[10px] opacity-70">Reservas</p>
+            {ptL
+              ? <div className="h-6 w-10 bg-white/20 rounded animate-pulse mt-1" />
+              : <p className="text-lg font-bold leading-tight">{paytour ? fmtN(paytour.todayOrders) : '—'}</p>
+            }
+          </div>
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <p className="text-[10px] opacity-70">Ticket médio</p>
+            {ptL
+              ? <div className="h-6 w-16 bg-white/20 rounded animate-pulse mt-1" />
+              : <p className="text-lg font-bold leading-tight">
+                  {paytour && paytour.todayOrders > 0
+                    ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}`
+                    : '—'}
+                </p>
+            }
+          </div>
         </div>
       </div>
 
       {/* ── GRID PRINCIPAL: Metas | Próximo mês + Satisfação | Ocupação ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
 
-        {/* Meta do mês — Paytour desativado */}
+        {/* Meta do mês */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
           <div className="flex items-center gap-1.5 mb-3">
             <Target size={14} className="text-brand-600" />
-            <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Meta do Mês</h2>
+            <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Resumo do Período</h2>
           </div>
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-xs text-gray-400 text-center">Integração Paytour desativada</p>
-          </div>
+          {ptL
+            ? <div className="flex-1 flex items-center justify-center"><div className="h-4 w-24 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
+            : paytour
+              ? (
+                <div className="grid grid-cols-2 gap-3 flex-1">
+                  <div className="text-center">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Receita</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(paytour.totalRevenue))}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Pedidos</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white">{fmtN(paytour.totalSales)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Atividades</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white">{fmtN(paytour.totalItems)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Ticket Médio</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(paytour.averageTicket))}</p>
+                  </div>
+                </div>
+              )
+              : <div className="flex-1 flex items-center justify-center"><p className="text-xs text-gray-400">Sem dados</p></div>
+          }
         </div>
 
         {/* Próximo mês + Satisfação/Google */}
@@ -89,7 +141,23 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 Já vendido — {monthName(1)}
               </h2>
             </div>
-            <p className="text-xs text-gray-400">Integração Paytour desativada</p>
+            {ptL
+              ? <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+              : paytour
+                ? (
+                  <div className="flex gap-4">
+                    <div>
+                      <p className="text-[10px] text-gray-400">Receita</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(paytour.totalRevenue))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400">Pedidos</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(paytour.totalSales)}</p>
+                    </div>
+                  </div>
+                )
+                : <p className="text-xs text-gray-400">Sem dados</p>
+            }
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex-1">

@@ -3,9 +3,11 @@
 import express       from 'express';
 import cookieParser  from 'cookie-parser';
 import { createHash } from 'node:crypto';
-import { get }        from 'node:https';
+import { get, request as httpRequest } from 'node:https';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs   from 'node:fs';
+import path from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT ?? 3000;
@@ -147,6 +149,111 @@ app.get('/api/google-reviews', async (req, res) => {
   } catch (err) {
     console.error('[google]', err.message);
     res.status(500).json({ configured: true, error: String(err) });
+  }
+});
+
+// ── Paytour ───────────────────────────────────────────────────────────────────
+const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+const PT_BASE   = 'api-ha.paytour.com.br';
+const PT_DISK   = path.join(dirname(fileURLToPath(import.meta.url)), '.paytour-cache');
+const PT_DISK_TTL = 12 * 60 * 60 * 1000;
+const ptMemCache  = new Map();
+const TTL_TODAY   = 2  * 60 * 1000;
+const TTL_OTHER   = 10 * 60 * 1000;
+
+function paytourGet(apiPath) {
+  const auth = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(
+      { hostname: PT_BASE, path: apiPath, method: 'GET', timeout: 30000,
+        headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+          catch (e) { reject(e); }
+        });
+        res.on('error', reject);
+      });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Paytour timeout')); });
+    req.end();
+  });
+}
+
+async function fetchPaytourOrders(since, until) {
+  const today   = new Date().toISOString().slice(0, 10);
+  const isToday = since === today && until === today;
+  const all = [];
+  let page = 1;
+  while (true) {
+    const qp   = `/pedidos?data_inicio=${since}&data_fim=${until}&page=${page}&per_page=100`;
+    const data  = await paytourGet(qp);
+    const batch = data.data ?? data.pedidos ?? [];
+    if (!batch.length) break;
+    if (isToday) {
+      const stale = batch.findIndex((o) => o.data_hora_pedido.slice(0, 10) < today);
+      if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
+      all.push(...batch);
+      if (page >= 10) break;
+    } else {
+      const stale = batch.findIndex((o) => o.data_hora_pedido.slice(0, 10) < since);
+      if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
+      all.push(...batch);
+    }
+    page++;
+  }
+  return all;
+}
+
+function ptDiskPath(since, until) { return path.join(PT_DISK, `${since}_${until}.json`); }
+function readPtDisk(since, until) {
+  try {
+    const p = ptDiskPath(since, until);
+    if (Date.now() - fs.statSync(p).mtimeMs > PT_DISK_TTL) return null;
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch { return null; }
+}
+function writePtDisk(since, until, orders) {
+  try { fs.mkdirSync(PT_DISK, { recursive: true }); fs.writeFileSync(ptDiskPath(since, until), JSON.stringify(orders)); }
+  catch { /* ignore */ }
+}
+function ptRevalidate(since, until) {
+  const today = new Date().toISOString().slice(0, 10);
+  const key   = `${since}_${until}`;
+  fetchPaytourOrders(since, until)
+    .then((orders) => {
+      ptMemCache.set(key, { orders, ts: Date.now() });
+      if (since !== today || until !== today) writePtDisk(since, until, orders);
+    })
+    .catch((e) => console.error('[paytour] revalidate error:', e));
+}
+
+app.get('/api/paytour-orders', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  if (!PT_KEY || !PT_SECRET) { res.json([]); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const since = req.query.since ?? today;
+  const until = req.query.until ?? today;
+  const key   = `${since}_${until}`;
+  const ttl   = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
+  const cached = ptMemCache.get(key);
+  if (cached) {
+    if (Date.now() - cached.ts > ttl) ptRevalidate(since, until);
+    res.json(cached.orders); return;
+  }
+  const disk = readPtDisk(since, until);
+  if (disk) { ptMemCache.set(key, { orders: disk, ts: Date.now() }); ptRevalidate(since, until); res.json(disk); return; }
+  try {
+    const orders = await fetchPaytourOrders(since, until);
+    ptMemCache.set(key, { orders, ts: Date.now() });
+    if (since !== today || until !== today) writePtDisk(since, until, orders);
+    res.json(orders);
+  } catch (err) {
+    console.error('[paytour]', err.message);
+    res.status(500).json({ error: String(err) });
   }
 });
 

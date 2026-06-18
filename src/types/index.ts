@@ -117,7 +117,8 @@ export type ApiStatusType = 'connected' | 'error' | 'loading';
 
 export interface ApiStatus {
   surveymonkey: ApiStatusType;
-  google: ApiStatusType;
+  google:       ApiStatusType;
+  paytour:      ApiStatusType;
 }
 
 export type AlertType = 'warning' | 'info' | 'success' | 'error';

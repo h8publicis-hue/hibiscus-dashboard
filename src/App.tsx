@@ -16,6 +16,8 @@ import { useGoals } from './hooks/useGoals';
 import { useOccupancy } from './hooks/useOccupancy';
 import { useSurveyMonkey } from './hooks/useSurveyMonkey';
 import { useGoogleBusiness } from './hooks/useGoogleBusiness';
+import { usePaytour } from './hooks/usePaytour';
+import { invalidatePaytourCache } from './services/paytour';
 
 const KDS_INTERVAL_MS = 8000;
 
@@ -32,11 +34,13 @@ export default function App() {
   // Real API status + data — hooks share the same cache layer as child pages (no extra requests)
   const { loading: smL, error: smErr, data: smData }               = useSurveyMonkey(period);
   const { loading: gL,  error: gErr, notConfigured: gNC, data: gData } = useGoogleBusiness(period);
+  const { loading: ptL, error: ptErr }                              = usePaytour(period);
 
   const apiStatus: ApiStatus = useMemo(() => ({
     surveymonkey: smL ? 'loading' : smErr           ? 'error' : 'connected',
     google:       gL  ? 'loading' : (gErr && !gNC) ? 'error' : 'connected',
-  }), [smL, smErr, gL, gErr, gNC]);
+    paytour:      ptL ? 'loading' : ptErr           ? 'error' : 'connected',
+  }), [smL, smErr, gL, gErr, gNC, ptL, ptErr]);
 
   // ── Sidebar alerts (todos dinâmicos) ─────────────────────────────────────────
   // Ocupação: espaços ≥ 90% de capacidade
@@ -62,7 +66,7 @@ export default function App() {
     return { overview: overviewAlerts, survey: surveyAlerts, reviews: reviewsAlerts };
   }, [smData, gData, occupancyAlerts]);
 
-  const handleRefresh    = useCallback(() => { setLastSync(new Date()); }, []);
+  const handleRefresh    = useCallback(() => { invalidatePaytourCache(); setLastSync(new Date()); }, []);
   const handleToggleDark = useCallback(() => {
     setDarkMode((d) => {
       const next = !d;

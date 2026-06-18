@@ -21,6 +21,199 @@ interface PlaceApiResponse {
   result:         PlaceResult;
 }
 
+// ── HTTP helper for Paytour (via Node built-ins) ─────────────────────────────
+interface PaytourOrder {
+  id: string;
+  status: string;
+  valor: string;
+  data_hora_pedido: string;
+  pedido_origem?: string;
+  itens?: Array<{
+    produto_id: string;
+    produto_disponibilidade_data: string;
+    valor: string;
+    nome_produto: string;
+  }>;
+}
+
+async function paytourRequest(path: string, appKey: string, appSecret: string): Promise<unknown> {
+  const { request } = await import('node:http');
+  const auth = Buffer.from(`${appKey}:${appSecret}`).toString('base64');
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: '127.0.0.1',
+      port:     3000,
+      path:     `/paytour-api${path}`,
+      method:   'GET',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        Accept:        'application/json',
+      },
+      timeout: 30000,
+    };
+    const req = request(options, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => {
+        try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+        catch (e) { reject(e); }
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Paytour timeout')); });
+    req.end();
+  });
+}
+
+// ── Paytour aggregator plugin ─────────────────────────────────────────────────
+import fs   from 'node:fs';
+import path from 'node:path';
+
+function paytourAggregatorPlugin(appKey: string, appSecret: string): Plugin {
+  // ── Disk cache ──────────────────────────────────────────────────────────────
+  const DISK_CACHE_DIR = path.join(process.cwd(), '.paytour-cache');
+  const DISK_TTL       = 12 * 60 * 60 * 1000; // 12h
+
+  function diskCachePath(since: string, until: string) {
+    return path.join(DISK_CACHE_DIR, `${since}_${until}.json`);
+  }
+  function readDiskCache(since: string, until: string): PaytourOrder[] | null {
+    try {
+      const p    = diskCachePath(since, until);
+      const stat = fs.statSync(p);
+      if (Date.now() - stat.mtimeMs > DISK_TTL) return null;
+      return JSON.parse(fs.readFileSync(p, 'utf8')) as PaytourOrder[];
+    } catch { return null; }
+  }
+  function writeDiskCache(since: string, until: string, orders: PaytourOrder[]) {
+    try {
+      fs.mkdirSync(DISK_CACHE_DIR, { recursive: true });
+      fs.writeFileSync(diskCachePath(since, until), JSON.stringify(orders));
+    } catch { /* ignore */ }
+  }
+
+  // ── In-memory cache ─────────────────────────────────────────────────────────
+  const memCache = new Map<string, { orders: PaytourOrder[]; ts: number; fresh: boolean }>();
+  const TTL_TODAY  = 2  * 60 * 1000;
+  const TTL_OTHER  = 10 * 60 * 1000;
+
+  // ── Fetch all pages ──────────────────────────────────────────────────────────
+  async function fetchOrders(since: string, until: string): Promise<PaytourOrder[]> {
+    const today   = new Date().toISOString().slice(0, 10);
+    const isToday = since === today && until === today;
+    const all: PaytourOrder[] = [];
+    let page = 1;
+
+    while (true) {
+      const qp   = `?data_inicio=${since}&data_fim=${until}&page=${page}&per_page=100`;
+      const data  = await paytourRequest(`/pedidos${qp}`, appKey, appSecret) as {
+        data?: PaytourOrder[];
+        pedidos?: PaytourOrder[];
+      };
+      const batch: PaytourOrder[] = data.data ?? data.pedidos ?? [];
+      if (!batch.length) break;
+
+      // Fast-path for today: stop once order date < today
+      if (isToday) {
+        const stale = batch.findIndex(
+          (o) => o.data_hora_pedido.slice(0, 10) < today
+        );
+        if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
+        all.push(...batch);
+        if (page >= 10) break; // limit to ~10 pages for today
+      } else {
+        const stale = batch.findIndex(
+          (o) => o.data_hora_pedido.slice(0, 10) < since
+        );
+        if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
+        all.push(...batch);
+      }
+      page++;
+    }
+    return all;
+  }
+
+  // ── Background revalidation ─────────────────────────────────────────────────
+  function revalidate(since: string, until: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const key   = `${since}_${until}`;
+    fetchOrders(since, until)
+      .then((orders) => {
+        memCache.set(key, { orders, ts: Date.now(), fresh: true });
+        if (since !== today || until !== today) writeDiskCache(since, until, orders);
+        console.log(`[paytour] revalidated ${key}: ${orders.length} orders`);
+      })
+      .catch((err) => console.error('[paytour] revalidation error:', err));
+  }
+
+  // ── Middleware ───────────────────────────────────────────────────────────────
+  return {
+    name: 'paytour-aggregator',
+
+    configureServer(server) {
+      // Pre-warm today on startup
+      if (appKey && appSecret) {
+        setTimeout(() => {
+          console.log('[paytour] pre-warming today cache...');
+          revalidate(
+            new Date().toISOString().slice(0, 10),
+            new Date().toISOString().slice(0, 10),
+          );
+        }, 2000);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      server.middlewares.use('/api/paytour-orders', async (req: any, res: any) => {
+        res.setHeader('Content-Type', 'application/json');
+
+        if (!appKey || !appSecret) {
+          res.statusCode = 200;
+          res.end(JSON.stringify({ configured: false, orders: [] }));
+          return;
+        }
+
+        const url    = new URL(req.url, 'http://localhost');
+        const since  = url.searchParams.get('since') ?? new Date().toISOString().slice(0, 10);
+        const until  = url.searchParams.get('until') ?? since;
+        const today  = new Date().toISOString().slice(0, 10);
+        const key    = `${since}_${until}`;
+        const ttl    = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
+
+        const cached = memCache.get(key);
+        if (cached) {
+          const age   = Date.now() - cached.ts;
+          const stale = age > ttl;
+          if (stale) revalidate(since, until);
+          res.end(JSON.stringify(cached.orders));
+          return;
+        }
+
+        // Try disk cache
+        const disk = readDiskCache(since, until);
+        if (disk) {
+          memCache.set(key, { orders: disk, ts: Date.now(), fresh: false });
+          revalidate(since, until);
+          res.end(JSON.stringify(disk));
+          return;
+        }
+
+        // First load — fetch live
+        try {
+          const orders = await fetchOrders(since, until);
+          memCache.set(key, { orders, ts: Date.now(), fresh: true });
+          if (since !== today || until !== today) writeDiskCache(since, until, orders);
+          res.end(JSON.stringify(orders));
+        } catch (err) {
+          console.error('[paytour] fetch error:', err);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+      });
+    },
+  };
+}
+
 // ── HTTPS helpers via Node built-ins (ESM-safe) ───────────────────────────────
 async function httpsGet(url: string): Promise<string> {
   const { get } = await import('node:https');
@@ -201,10 +394,21 @@ export default defineConfig(({ mode }) => {
         env.GOOGLE_PLACES_API_KEY ?? '',
         env.GOOGLE_PLACE_ID       ?? '',
       ),
+      paytourAggregatorPlugin(
+        env.VITE_PAYTOUR_APP_KEY    ?? '',
+        env.VITE_PAYTOUR_APP_SECRET ?? '',
+      ),
     ],
     server: {
-      port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
+      host: true,
+      port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
       proxy: {
+        '/paytour-api': {
+          target:       'https://api-ha.paytour.com.br',
+          changeOrigin: true,
+          rewrite:      (p) => p.replace(/^\/paytour-api/, ''),
+          secure:       true,
+        },
         '/sheets-api': {
           target:      'https://docs.google.com',
           changeOrigin: true,
