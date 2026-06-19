@@ -1,12 +1,39 @@
 const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
 const PT_BASE   = 'https://api-ha.paytour.com.br';
+const KV_URL    = process.env.KV_REST_API_URL   ?? '';
+const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
 
 let ptToken = '';
 let ptTokenExpiry = 0;
 const memCache = new Map<string, { orders: unknown[]; ts: number }>();
-const TTL_TODAY = 2 * 60 * 1000;
-const TTL_OTHER = 10 * 60 * 1000;
+const TTL_TODAY = 5  * 60 * 1000;  // 5 min
+const TTL_OTHER = 30 * 60 * 1000;  // 30 min
+
+// ── Redis helpers (Upstash REST) ─────────────────────────────────────────────
+async function kvGet(key: string): Promise<{ orders: unknown[]; ts: number } | null> {
+  if (!KV_URL || !KV_TOKEN) return null;
+  try {
+    const r = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    });
+    const j = await r.json() as any;
+    const raw = j?.result;
+    if (!raw) return null;
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch { return null; }
+}
+
+async function kvSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  if (!KV_URL || !KV_TOKEN) return;
+  try {
+    await fetch(`${KV_URL}/set/${encodeURIComponent(key)}?ex=${ttlSeconds}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'text/plain' },
+      body: JSON.stringify(value),
+    });
+  } catch { /* ignore */ }
+}
 
 async function getPtToken() {
   if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
@@ -89,25 +116,34 @@ export default async function handler(req: any, res: any) {
   const since  = (req.query.since  as string) ?? today;
   const until  = (req.query.until  as string) ?? today;
   const filter = (req.query.filter as string) ?? 'order';
-  const key    = `${filter}:${since}_${until}`;
-  const ttl    = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
+  const isToday = since === today && until === today;
+  const ttl     = isToday ? TTL_TODAY : TTL_OTHER;
+  const ttlSec  = ttl / 1000;
+  const key     = `pt:${filter}:${since}_${until}`;
 
-  const cached = memCache.get(key);
-  if (cached) {
-    if (Date.now() - cached.ts > ttl) {
-      const fn = filter === 'visita' ? fetchOrdersByVisitDate : fetchOrders;
-      fn(since, until).then((orders) => memCache.set(key, { orders, ts: Date.now() })).catch(() => {});
-    }
-    return res.json({ orders: cached.orders, stale: Date.now() - cached.ts > ttl });
+  // L1: in-memory (hot path within same function instance)
+  const mem = memCache.get(key);
+  if (mem && Date.now() - mem.ts < ttl) {
+    return res.json({ orders: mem.orders });
+  }
+
+  // L2: Redis (survives cold starts)
+  const kv = await kvGet(key);
+  if (kv && Date.now() - kv.ts < ttl) {
+    memCache.set(key, kv);
+    return res.json({ orders: kv.orders });
   }
 
   try {
-    const orders = filter === 'visita'
-      ? await fetchOrdersByVisitDate(since, until)
-      : await fetchOrders(since, until);
-    memCache.set(key, { orders, ts: Date.now() });
+    const fn     = filter === 'visita' ? fetchOrdersByVisitDate : fetchOrders;
+    const orders = await fn(since, until);
+    const entry  = { orders, ts: Date.now() };
+    memCache.set(key, entry);
+    kvSet(key, entry, ttlSec).catch(() => {});   // async, don't await
     return res.json({ orders });
   } catch (err: any) {
+    // Return stale data if available rather than an error
+    if (kv) return res.json({ orders: kv.orders, stale: true });
     console.error('[paytour]', err.message);
     return res.status(500).json({ error: String(err) });
   }
