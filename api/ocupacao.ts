@@ -11,14 +11,17 @@ async function kvGet(key: string) {
     headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
   const j = await r.json() as any;
-  return j?.result ?? null;
+  const result = j?.result;
+  if (!result) return null;
+  try { return typeof result === 'string' ? JSON.parse(result) : result; } catch { return null; }
 }
 
 async function kvSet(key: string, value: unknown) {
   if (!KV_URL || !KV_TOKEN) return;
+  // Upstash REST SET expects the value as a plain string body
   await fetch(`${KV_URL}/set/${key}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'text/plain' },
     body: JSON.stringify(value),
   });
 }
