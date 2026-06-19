@@ -1,4 +1,5 @@
-import { Users, Star, Target, MessageSquare, Smile } from 'lucide-react';
+import { Users, Star, Target, MessageSquare, Smile, Info } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
@@ -9,6 +10,39 @@ interface OverviewProps {
   period: Period;
   goals:  Goals;
   occupancy: OccupancyState;
+}
+
+// ── Tooltip de informação ─────────────────────────────────────────────────────
+function InfoTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative inline-flex items-center">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="text-gray-300 hover:text-brand-500 dark:text-gray-500 dark:hover:text-brand-400 transition-colors"
+        aria-label="Saiba mais"
+      >
+        <Info size={11} />
+      </button>
+      {open && (
+        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 dark:bg-gray-700 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl">
+          {text}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function fmtN(v: number) {
@@ -190,7 +224,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   color === 'gray'   && 'bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700',
                 )}>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Satisfação Geral</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Satisfação Geral</p>
+                      <InfoTooltip text="Média ponderada entre o NPS da pesquisa interna e a nota do Google (convertida para a mesma escala de -100 a +100). Quanto maior o número, melhor a percepção geral dos clientes." />
+                    </div>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                       Survey + Google · {fmtN(totalVol)} votos
                     </p>
@@ -217,10 +254,14 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             })()}
 
             <div className="grid grid-cols-2 gap-2">
-              <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} sub="Pesquisa interna" color="green" loading={smL} />
-              <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL} />
-              <MiniKPI icon={<Smile size={14} />} label="Promotores" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL} />
-              <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL} />
+              <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} sub="Pesquisa interna" color="green" loading={smL}
+                info="Net Promoter Score da pesquisa interna. Vai de -100 a +100. Acima de 50 é considerado Excelente. Calculado como % Promotores (nota 4-5) menos % Detratores (nota 1-2)." />
+              <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL}
+                info="Média das avaliações públicas no Google Maps. Escala de 1 a 5 estrelas. Nota acima de 4.5 coloca o negócio no top 10% da categoria." />
+              <MiniKPI icon={<Smile size={14} />} label="Promotores" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL}
+                info="Percentual de clientes que deram nota 4 ou 5 na pesquisa. São os mais propensos a indicar o Hibiscus para amigos e família." />
+              <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL}
+                info="Quantidade de avaliações do Google que ainda não receberam resposta da equipe. Responder avaliações (positivas e negativas) melhora o posicionamento no Google e demonstra cuidado com o cliente." />
             </div>
           </div>
         </div>
@@ -248,7 +289,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
 // ── Mini KPI compacto (grade 2x2) ────────────────────────────────────────────
 function MiniKPI({
-  icon, label, value, sub, color = 'brand', loading,
+  icon, label, value, sub, color = 'brand', loading, info,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -256,6 +297,7 @@ function MiniKPI({
   sub?: string;
   color?: string;
   loading?: boolean;
+  info?: string;
 }) {
   const colors: Record<string, string> = {
     brand:  'bg-brand-600',
@@ -268,8 +310,11 @@ function MiniKPI({
       <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0', colors[color] ?? colors.brand)}>
         {icon}
       </div>
-      <div className="min-w-0">
-        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{label}</p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1">
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{label}</p>
+          {info && <InfoTooltip text={info} />}
+        </div>
         {loading
           ? <div className="h-4 w-12 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
           : <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{value}</p>
