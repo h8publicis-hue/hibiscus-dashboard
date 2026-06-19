@@ -396,8 +396,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Ocupação ───────────────────────────────────────────────────────
   const blocoOcupacao = (() => {
-    const total = occupancy.beach + occupancy.lounges.reduce((a, b) => a + b, 0) + occupancy.prime;
-    const max   = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
+    const totalLounges = occupancy.lounges.reduce((a, b) => a + b, 0);
+    const maxLounges   = SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
+    const total = occupancy.beach + totalLounges + occupancy.prime;
+    const max   = SPACE_CONFIGS.beach.max + maxLounges + SPACE_CONFIGS.prime.max;
     const pct   = Math.round(total / max * 100);
     const loungesFull = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
     return (
@@ -411,6 +413,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         </div>
         <div className="flex flex-col gap-1.5">
           <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+          <OccupancyRow label="🛋️ Lounges" current={totalLounges} max={maxLounges} />
           <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
         </div>
         <LoungeMap lounges={occupancy.lounges} />
@@ -555,6 +558,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
           <div className="flex flex-col gap-1">
             <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+            <OccupancyRow label="🛋️ Lounges" current={occupancy.lounges.reduce((a, b) => a + b, 0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
             <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
           </div>
           <LoungeMapMini lounges={occupancy.lounges} />
