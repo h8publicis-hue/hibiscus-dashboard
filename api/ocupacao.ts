@@ -1,15 +1,38 @@
-import { kv } from '@vercel/kv';
-
 const DEFAULT = { beach: 0, lounges: Array(14).fill(0), prime: 0 };
 const clamp = (n: unknown, min: number, max: number) =>
   Math.min(max, Math.max(min, Number(n) || 0));
+
+const KV_URL   = process.env.KV_REST_API_URL;
+const KV_TOKEN = process.env.KV_REST_API_TOKEN;
+
+async function kvGet(key: string) {
+  if (!KV_URL || !KV_TOKEN) return null;
+  const r = await fetch(`${KV_URL}/get/${key}`, {
+    headers: { Authorization: `Bearer ${KV_TOKEN}` },
+  });
+  const j = await r.json() as any;
+  return j?.result ?? null;
+}
+
+async function kvSet(key: string, value: unknown) {
+  if (!KV_URL || !KV_TOKEN) return;
+  await fetch(`${KV_URL}/set/${key}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(value),
+  });
+}
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'GET') {
-    const data = (await kv.get('ocupacao')) ?? DEFAULT;
-    return res.json(data);
+    try {
+      const data = (await kvGet('ocupacao')) ?? DEFAULT;
+      return res.json(data);
+    } catch {
+      return res.json(DEFAULT);
+    }
   }
 
   if (req.method === 'POST') {
@@ -19,7 +42,7 @@ export default async function handler(req: any, res: any) {
       lounges: Array(14).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 10)),
       prime:   clamp(d.prime, 0, 10),
     };
-    await kv.set('ocupacao', data);
+    await kvSet('ocupacao', data);
     return res.json(data);
   }
 
