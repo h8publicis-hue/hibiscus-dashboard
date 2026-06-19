@@ -15,8 +15,16 @@ function httpsGet(url: string): Promise<string> {
 }
 
 export default async function handler(req: any, res: any) {
-  const suffix = req.url.replace(/^\/sheets-api/, '');
-  const url    = `https://docs.google.com${suffix}`;
+  // 'p' holds the path captured from /sheets-api/:path*
+  const { p, ...rest } = req.query as Record<string, string | string[]>;
+  const pathStr = Array.isArray(p) ? p.join('/') : (p ?? '');
+  const qs = new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(rest).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
+    )
+  ).toString();
+  const url = `https://docs.google.com/${pathStr}${qs ? '?' + qs : ''}`;
+
   try {
     const body = await httpsGet(url);
     res.setHeader('Content-Type', 'application/json');
