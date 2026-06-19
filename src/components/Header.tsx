@@ -293,12 +293,12 @@ export function Header({
         <button onClick={onRefresh} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Atualizar">
           <RefreshCw size={15} />
         </button>
-        <button onClick={onEditGoals} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Editar Metas">
+        <button onClick={onEditGoals} className="hidden sm:block p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Editar Metas">
           <Target size={15} />
         </button>
         <button
           onClick={onToggleKds}
-          className={clsx('p-1.5 rounded-lg transition-colors',
+          className={clsx('hidden sm:block p-1.5 rounded-lg transition-colors',
             kdsMode ? 'bg-brand-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700')}
           title={kdsMode ? 'Desativar Modo TV' : 'Modo TV'}
         >

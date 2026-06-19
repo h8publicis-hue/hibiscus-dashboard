@@ -1,5 +1,5 @@
 import { Users, Star, Target, MessageSquare, Smile, Info } from 'lucide-react';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
@@ -143,82 +143,29 @@ function MiniKPI({
   );
 }
 
-// ── Carrossel mobile (scroll-snap nativo) ────────────────────────────────────
-const AUTO_MS = 8000;
-
-function MobileCarousel({ slides }: { slides: { label: string; content: React.ReactNode }[] }) {
-  const [idx, setIdx]  = useState(0);
-  const trackRef       = useRef<HTMLDivElement>(null);
-  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const scrollTo = useCallback((i: number) => {
-    const el = trackRef.current;
-    if (el) el.scrollTo({ left: i * el.offsetWidth, behavior: 'smooth' });
-    setIdx(i);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIdx(c => {
-        const next = (c + 1) % slides.length;
-        const el = trackRef.current;
-        if (el) el.scrollTo({ left: next * el.offsetWidth, behavior: 'smooth' });
-        return next;
-      });
-    }, AUTO_MS);
-  }, [slides.length]);
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setIdx(c => {
-        const next = (c + 1) % slides.length;
-        const el = trackRef.current;
-        if (el) el.scrollTo({ left: next * el.offsetWidth, behavior: 'smooth' });
-        return next;
-      });
-    }, AUTO_MS);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [slides.length]);
-
-  const onScroll = useCallback(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    const i = Math.round(el.scrollLeft / el.offsetWidth);
-    setIdx(i);
-  }, []);
-
+// ── Mapa de lounges compacto para mobile ─────────────────────────────────────
+function LoungeMapMini({ lounges }: { lounges: number[] }) {
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Track com scroll-snap */}
-      <div
-        ref={trackRef}
-        onScroll={onScroll}
-        className="flex flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {slides.map((s, i) => (
-          <div
-            key={i}
-            className="min-w-full snap-start overflow-y-auto p-4 flex flex-col gap-3"
-          >
-            {s.content}
-          </div>
-        ))}
+    <div className="flex flex-col gap-1">
+      <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">🛋️ Lounges</p>
+      <div className="grid grid-cols-10 gap-0.5">
+        {lounges.map((v, i) => {
+          const pct = v / SPACE_CONFIGS.lounge.max;
+          const bg  = v === 0
+            ? 'bg-gray-100 dark:bg-gray-700'
+            : pct >= 0.9 ? 'bg-red-400'
+            : pct >= 0.6 ? 'bg-yellow-400'
+            : 'bg-green-400';
+          return (
+            <div key={i} title={`${SPACE_CONFIGS.lounge.start + i}: ${v}`}
+              className={clsx('rounded-sm aspect-square', bg)} />
+          );
+        })}
       </div>
-
-      {/* Dots + label */}
-      <div className="flex flex-col items-center gap-1.5 py-3 shrink-0 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{slides[idx]?.label}</p>
-        <div className="flex items-center gap-1.5">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => scrollTo(i)}
-              className={clsx(
-                'h-1.5 rounded-full transition-all duration-300',
-                i === idx ? 'bg-brand-600 w-5' : 'bg-gray-300 dark:bg-gray-600 w-1.5',
-              )}
-            />
-          ))}
-        </div>
+      <div className="flex gap-2">
+        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-gray-200 inline-block"/>Livre</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-green-400 inline-block"/>Ocupado</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-red-400 inline-block"/>Cheio</span>
       </div>
     </div>
   );
@@ -474,46 +421,165 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     );
   })();
 
-  // ── Slides mobile ─────────────────────────────────────────────────────────
-  const slides = [
-    {
-      label: 'Ao Vivo',
-      content: (
-        <>
-          {blocoAoVivo}
-          {blocoJaVendido}
-        </>
-      ),
-    },
-    {
-      label: 'Vendas',
-      content: (
-        <>
-          {blocoResumo}
-          {blocoTopProduto}
-        </>
-      ),
-    },
-    {
-      label: 'Ocupação',
-      content: blocoOcupacao,
-    },
-    {
-      label: 'Satisfação',
-      content: (
-        <>
-          {blocoAvaliacao}
-          {blocoSatisfacao}
-        </>
-      ),
-    },
-  ];
+  // ── Dados de satisfação (compartilhado entre mobile e desktop) ──────────────
+  const surveyNPS    = survey?.npsScore ?? null;
+  const surveyVol    = survey?.totalResponses ?? 0;
+  const googleRating = google?.averageRating ?? null;
+  const googleVol    = google?.totalReviews ?? 0;
+  const googleNPS    = googleRating !== null ? Math.round((googleRating - 3) / 2 * 100) : null;
+  const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
+  const combined     = totalVol > 0
+    ? Math.round(
+        ((surveyNPS ?? 0) * (surveyNPS !== null ? surveyVol : 0) +
+         (googleNPS ?? 0) * (googleNPS !== null ? googleVol : 0)) / totalVol
+      )
+    : null;
+  const satColor = combined === null ? 'gray' : combined >= 50 ? 'green' : combined >= 0 ? 'orange' : 'red';
+  const satLabel = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
+
+  // ── Resumo de ocupação ────────────────────────────────────────────────────
+  const occTotal      = occupancy.beach + occupancy.lounges.reduce((a, b) => a + b, 0) + occupancy.prime;
+  const occMax        = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
+  const loungesFull   = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
 
   return (
     <>
-      {/* ── MOBILE: carrossel ────────────────────────────────────────────── */}
-      <div className="lg:hidden flex flex-col flex-1 min-h-0">
-        <MobileCarousel slides={slides} />
+      {/* ── MOBILE: layout compacto estático ─────────────────────────────── */}
+      <div className="lg:hidden overflow-y-auto p-3 flex flex-col gap-2.5 pb-4">
+
+        {/* Ao Vivo */}
+        <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-3 text-white shadow">
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Ao vivo — Hoje</span>
+            {ptL && <span className="text-[9px] opacity-50 animate-pulse ml-auto">Carregando...</span>}
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[
+              { label: 'Receita',    val: paytour ? `R$ ${fmtN(Math.round(paytour.todayRevenue))}` : '—' },
+              { label: 'Atividades', val: paytour ? fmtN(paytour.todayItems) : '—' },
+              { label: 'Reservas',   val: paytour ? fmtN(paytour.todayOrders) : '—' },
+              { label: 'Ticket',     val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
+            ].map(({ label, val }) => (
+              <div key={label} className="bg-white/10 rounded-lg px-2 py-1.5">
+                <p className="text-[8px] opacity-60 leading-none mb-0.5">{label}</p>
+                {ptL
+                  ? <div className="h-4 w-full bg-white/20 rounded animate-pulse" />
+                  : <p className="text-xs font-bold leading-tight truncate">{val}</p>
+                }
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Já Vendido + Ocupação lado a lado */}
+        <div className="grid grid-cols-2 gap-2.5">
+
+          {/* Já Vendido */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-1 mb-1.5">
+              <Target size={11} className="text-brand-600 shrink-0" />
+              <p className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide leading-tight">
+                Já vendido<br />{monthName(1).split(' ')[0]}
+              </p>
+            </div>
+            {nextMonthL
+              ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+              : nextMonth
+                ? (
+                  <div className="flex flex-col gap-0.5">
+                    <div>
+                      <p className="text-[8px] text-gray-400">Receita</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">R${fmtN(Math.round(nextMonth.revenue))}</p>
+                    </div>
+                    <div className="flex gap-2 mt-0.5">
+                      <div>
+                        <p className="text-[8px] text-gray-400">Pedidos</p>
+                        <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{fmtN(nextMonth.pedidos)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] text-gray-400">Ativ.</p>
+                        <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{fmtN(nextMonth.atividades)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+                : <p className="text-[10px] text-gray-400">—</p>
+            }
+          </div>
+
+          {/* Satisfação compacta */}
+          <div className={clsx(
+            'rounded-xl p-3 border flex flex-col justify-between',
+            satColor === 'green'  && 'bg-green-50 dark:bg-green-900/20 border-green-200',
+            satColor === 'orange' && 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200',
+            satColor === 'red'    && 'bg-red-50 dark:bg-red-900/20 border-red-200',
+            satColor === 'gray'   && 'bg-gray-50 dark:bg-gray-700/30 border-gray-200',
+          )}>
+            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Satisfação</p>
+            <div>
+              {(smL || gL)
+                ? <div className="h-6 w-12 bg-gray-200 rounded animate-pulse" />
+                : <p className={clsx('text-2xl font-bold',
+                    satColor === 'green'  && 'text-green-600',
+                    satColor === 'orange' && 'text-yellow-600',
+                    satColor === 'red'    && 'text-red-600',
+                    satColor === 'gray'   && 'text-gray-400',
+                  )}>{combined ?? '—'}</p>
+              }
+              <p className="text-[9px] text-gray-400 mt-0.5">
+                {google ? `${google.averageRating}★ Google` : ''}{survey && google ? ' · ' : ''}{survey ? `NPS ${survey.npsScore}` : ''}
+              </p>
+            </div>
+            <p className={clsx('text-[10px] font-semibold',
+              satColor === 'green'  && 'text-green-600',
+              satColor === 'orange' && 'text-yellow-600',
+              satColor === 'red'    && 'text-red-600',
+              satColor === 'gray'   && 'text-gray-400',
+            )}>{satLabel}</p>
+          </div>
+        </div>
+
+        {/* Ocupação compacta */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <Users size={11} className="text-gray-400" />
+              <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Ocupação Atual</p>
+            </div>
+            <a href="/ocupacao" className="text-[9px] text-brand-600">detalhes →</a>
+          </div>
+          <div className="flex flex-col gap-1">
+            <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+            <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
+          </div>
+          <LoungeMapMini lounges={occupancy.lounges} />
+          <div className="flex items-center justify-between text-[10px] bg-gray-50 dark:bg-gray-700/40 rounded-lg px-2 py-1.5">
+            <span className="text-gray-500">Total na casa</span>
+            <span className="font-bold text-gray-800 dark:text-white">{occTotal}<span className="font-normal text-gray-400"> / {occMax} ({Math.round(occTotal/occMax*100)}%)</span></span>
+            {loungesFull > 0 && <span className="text-red-600 font-semibold">{loungesFull} cheio{loungesFull > 1 ? 's' : ''}</span>}
+          </div>
+        </div>
+
+        {/* Resumo do período compacto */}
+        {paytour && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Resumo do Período</p>
+            <div className="grid grid-cols-4 gap-1 text-center">
+              {[
+                { l: 'Receita',   v: `R$${fmtN(Math.round(paytour.totalRevenue))}` },
+                { l: 'Pedidos',   v: fmtN(paytour.totalSales) },
+                { l: 'Ativid.',   v: fmtN(paytour.totalItems) },
+                { l: 'Ticket',    v: `R$${fmtN(Math.round(paytour.averageTicket))}` },
+              ].map(({ l, v }) => (
+                <div key={l}>
+                  <p className="text-[8px] text-gray-400">{l}</p>
+                  <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">{v}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
