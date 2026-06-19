@@ -18,10 +18,44 @@ const SECTORS = [
   'FILA', 'ANIMAIS',
 ] as const;
 
-const LS_KEY = 'hibiscus-sector-tags';
+const LS_KEY      = 'hibiscus-sector-tags';
+const LS_SEED_KEY = 'hibiscus-sector-tags-seeded-v1';
+
+// Tags pré-classificadas — aplicadas automaticamente na primeira abertura
+const SEED_TAGS: Record<string, string[]> = {
+  "1342":["ESTRUTURA"],"1363":["ESTRUTURA"],"1369":["ESTRUTURA"],
+  "1377":["ESTRUTURA","ATENDIMENTO"],"1385":["ESTRUTURA"],"1449":["ESTRUTURA"],
+  "1473":["ESTRUTURA"],"1487":["ESTRUTURA"],"1485":["ESTRUTURA"],
+  "1525":["ESTRUTURA"],"1555":["ESTRUTURA"],"1556":["ESTRUTURA"],
+  "1577":["MANUTENÇÃO"],
+  "1418":["A&B"],"1415":["A&B"],"1468":["A&B"],"1496":["A&B"],
+  "1530":["A&B"],"1531":["A&B"],"1534":["A&B"],"1558":["A&B"],
+  "1574":["A&B"],"1581":["A&B","ATENDIMENTO"],
+  "1372":["ATENDIMENTO"],
+  "1368":["PREÇO"],"1402":["PREÇO"],"1423":["PREÇO"],"1405":["PREÇO"],
+  "1537":["PREÇO"],"1559":["PREÇO"],"1578":["PREÇO"],
+  "1359":["ATRAÇÕES"],"1376":["ATRAÇÕES"],
+  "1492":["SOM"],
+  "1546":["PISCINA"],
+  "1343":["PRAIA"],"1399":["PRAIA"],
+};
+
+function seedTagsOnce() {
+  if (localStorage.getItem(LS_SEED_KEY)) return;
+  const existing: Record<string, string[]> = (() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}'); } catch { return {}; }
+  })();
+  const merged = { ...existing };
+  for (const [k, v] of Object.entries(SEED_TAGS)) {
+    merged[k] = [...new Set([...(merged[k] ?? []), ...v])];
+  }
+  localStorage.setItem(LS_KEY, JSON.stringify(merged));
+  localStorage.setItem(LS_SEED_KEY, '1');
+}
 
 function useSectorTags() {
   const [tags, setTags] = useState<Record<string, string[]>>(() => {
+    seedTagsOnce();
     try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}'); }
     catch { return {}; }
   });
