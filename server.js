@@ -283,6 +283,33 @@ app.get('/api/paytour-orders', async (req, res) => {
   }
 });
 
+// ── Ocupação (persistida em arquivo) ─────────────────────────────────────────
+const OCC_FILE = path.join(dirname(fileURLToPath(import.meta.url)), '.ocupacao.json');
+const DEFAULT_OCC = { beach: 0, lounges: Array(14).fill(0), prime: 0 };
+
+function readOcc() {
+  try { return JSON.parse(fs.readFileSync(OCC_FILE, 'utf8')); } catch { return DEFAULT_OCC; }
+}
+function writeOcc(data) {
+  try { fs.writeFileSync(OCC_FILE, JSON.stringify(data)); } catch { /* ignore */ }
+}
+
+app.get('/api/ocupacao', (req, res) => {
+  res.json(readOcc());
+});
+
+app.post('/api/ocupacao', (req, res) => {
+  const { beach, lounges, prime } = req.body;
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, Number(n) || 0));
+  const data = {
+    beach:   clamp(beach, 0, 500),
+    lounges: Array(14).fill(0).map((_, i) => clamp(lounges?.[i], 0, 10)),
+    prime:   clamp(prime, 0, 10),
+  };
+  writeOcc(data);
+  res.json(data);
+});
+
 // ── Google Sheets proxy (SurveyMonkey/NPS) ───────────────────────────────────
 app.get('/sheets-api/*', async (req, res) => {
   const path = req.url.replace('/sheets-api', '');

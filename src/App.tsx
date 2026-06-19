@@ -7,6 +7,7 @@ import { Sales } from './pages/Sales';
 import { Satisfaction } from './pages/Satisfaction';
 import { Reviews } from './pages/Reviews';
 import { Occupancy } from './pages/Occupancy';
+import { OccupancyInput } from './pages/OccupancyInput';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { ReviewsTicker } from './components/ReviewsTicker';
@@ -20,6 +21,11 @@ import { usePaytour } from './hooks/usePaytour';
 import { invalidatePaytourCache } from './services/paytour';
 
 const KDS_INTERVAL_MS = 8000;
+
+// Página /entrada renderizada fora do layout principal
+function EntradaPage() {
+  return <OccupancyInput />;
+}
 
 export default function App() {
   const [period, setPeriod]       = useState<Period>('today');
@@ -74,6 +80,11 @@ export default function App() {
       return next;
     });
   }, []);
+
+  // Rota /entrada renderizada sem o layout do dashboard
+  if (typeof window !== 'undefined' && window.location.pathname === '/entrada') {
+    return <BrowserRouter><Routes><Route path="/entrada" element={<EntradaPage />} /></Routes></BrowserRouter>;
+  }
 
   return (
     <BrowserRouter>
