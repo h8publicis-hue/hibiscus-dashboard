@@ -48,8 +48,10 @@ function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       className="w-16 h-16 rounded-2xl bg-white border-2 border-gray-200 text-3xl font-light text-gray-700 active:bg-gray-100 select-none shadow-sm"
-      onMouseDown={start} onMouseUp={stop} onMouseLeave={stop}
-      onTouchStart={(e) => { e.preventDefault(); start(); }} onTouchEnd={stop}
+      onPointerDown={(e) => { e.preventDefault(); start(); }}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
     >
       {label}
     </button>
@@ -247,9 +249,10 @@ export function OccupancyInput() {
         {/* Zerar tudo */}
         <button
           onClick={() => {
-            if (window.confirm('Zerar todos os contadores?')) {
-              update({ beach: 0, lounges: Array(14).fill(0), prime: 0 });
-            }
+            const senha = window.prompt('Digite a senha para zerar:');
+            if (senha === null) return;
+            if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
+            update({ beach: 0, lounges: Array(14).fill(0), prime: 0 });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
         >
