@@ -58,12 +58,16 @@ async function paytourGet(path: string) {
   return res.json();
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const PAGE_DELAY_MS = 120; // pausa entre páginas para não saturar a Paytour
+
 async function fetchOrders(since: string, until: string) {
   const today   = new Date().toISOString().slice(0, 10);
   const isToday = since === today && until === today;
   const maxPage = isToday ? 10 : 9999;
   const all: unknown[] = [];
   for (let page = 1; page <= maxPage; page++) {
+    if (page > 1) await sleep(PAGE_DELAY_MS);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=30&pagina=${page}`) as any;
     const items = data?.itens ?? [];
     if (!items.length) break;
@@ -79,15 +83,15 @@ async function fetchOrders(since: string, until: string) {
   return all;
 }
 
-// Filtra por data de visita (produto_disponibilidade_data) — para "Já Vendido"
+// Filtra por data de visita — lookback de 3 meses (reservas antecipadas raras acima disso)
 async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
-  // Pedidos podem ser feitos até 6 meses antes da visita
   const cutoff = new Date(visitSince);
-  cutoff.setMonth(cutoff.getMonth() - 6);
+  cutoff.setMonth(cutoff.getMonth() - 3);
   const orderCutoff = cutoff.toISOString().slice(0, 10);
 
   const all: unknown[] = [];
   for (let page = 1; page <= 9999; page++) {
+    if (page > 1) await sleep(PAGE_DELAY_MS);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=30&pagina=${page}`) as any;
     const items = data?.itens ?? [];
     if (!items.length) break;

@@ -134,41 +134,30 @@ function mapOrders(orders: RawOrder[], since: string, until: string): PaytourDat
   };
 }
 
-// ── In-memory cache ───────────────────────────────────────────────────────────
+// ── In-memory cache + in-flight deduplication ────────────────────────────────
 interface CacheEntry {
   data: PaytourData;
   ts:   number;
 }
-const cache = new Map<string, CacheEntry>();
+const cache    = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<PaytourData>>();
 
-const TTL_TODAY  = 2  * 60 * 1000;  // 2 min
-const TTL_OTHER  = 10 * 60 * 1000;  // 10 min
+const TTL_TODAY  = 5  * 60 * 1000;  // 5 min
+const TTL_OTHER  = 30 * 60 * 1000;  // 30 min
 
 export function invalidatePaytourCache(): void {
   cache.clear();
-  nextMonthCache = null;
+  nextMonthCache    = null;
+  nextMonthInflight = null;
 }
 
-// ── Fetch with warming-up polling ────────────────────────────────────────────
-async function fetchWithPolling(url: string): Promise<RawOrder[]> {
-  const MAX_WAIT = 60_000;
-  const POLL_MS  = 5_000;
-  const start    = Date.now();
-
-  while (true) {
-    const res  = await fetch(url);
-    if (!res.ok) throw new Error(`Paytour API ${res.status}`);
-    const json = await res.json() as { warmingUp?: boolean; orders?: RawOrder[] } | RawOrder[];
-
-    if (Array.isArray(json)) return json;
-    if ((json as { warmingUp?: boolean }).warmingUp) {
-      if (Date.now() - start > MAX_WAIT)
-        throw new Error('Paytour warming up timeout');
-      await new Promise((r) => setTimeout(r, POLL_MS));
-      continue;
-    }
-    return (json as { orders?: RawOrder[] }).orders ?? [];
-  }
+// ── Fetch simples — a Vercel function nunca retorna warmingUp ────────────────
+async function apiFetch(url: string): Promise<RawOrder[]> {
+  const res  = await fetch(url);
+  if (!res.ok) throw new Error(`Paytour API ${res.status}`);
+  const json = await res.json() as { orders?: RawOrder[] } | RawOrder[];
+  if (Array.isArray(json)) return json;
+  return (json as { orders?: RawOrder[] }).orders ?? [];
 }
 
 // ── Dados do próximo mês por data de visita ───────────────────────────────────
@@ -178,7 +167,8 @@ export interface NextMonthVisit {
   atividades: number;
 }
 
-let nextMonthCache: { data: NextMonthVisit; ts: number; key: string } | null = null;
+let nextMonthCache:    { data: NextMonthVisit; ts: number; key: string } | null = null;
+let nextMonthInflight: Promise<NextMonthVisit> | null = null;
 
 export async function fetchNextMonthVisitData(): Promise<NextMonthVisit> {
   const pad  = (n: number) => String(n).padStart(2, '0');
@@ -194,38 +184,61 @@ export async function fetchNextMonthVisitData(): Promise<NextMonthVisit> {
     return nextMonthCache.data;
   }
 
-  const url    = `/api/paytour-orders?since=${visitSince}&until=${visitUntil}&filter=visita`;
-  const orders = await fetchWithPolling(url) as RawOrder[];
+  // Deduplication: se já tem uma request em voo, retorna a mesma promise
+  if (nextMonthInflight) return nextMonthInflight;
 
-  const active = orders.filter(o =>
-    o.status === 'confirmado' || o.status === 'aprovado' || o.status === 'pendente'
-  );
-  const revenue    = active.reduce((s, o) => s + parseFloat(o.valor || '0'), 0);
-  const pedidos    = active.length;
-  const atividades = active.reduce((s, o) => {
-    const items = (o.itens ?? []).filter(item => {
-      const vd = item.produto_disponibilidade_data?.slice(0, 10);
-      return vd && vd >= visitSince && vd <= visitUntil;
-    });
-    return s + (items.length > 0 ? items.length : 1);
-  }, 0);
+  nextMonthInflight = (async () => {
+    try {
+      const url    = `/api/paytour-orders?since=${visitSince}&until=${visitUntil}&filter=visita`;
+      const orders = await apiFetch(url) as RawOrder[];
 
-  const data = { revenue, pedidos, atividades };
-  nextMonthCache = { data, ts: Date.now(), key };
-  return data;
+      const active = orders.filter(o =>
+        o.status === 'confirmado' || o.status === 'aprovado' || o.status === 'pendente'
+      );
+      const revenue    = active.reduce((s, o) => s + parseFloat(o.valor || '0'), 0);
+      const pedidos    = active.length;
+      const atividades = active.reduce((s, o) => {
+        const items = (o.itens ?? []).filter(item => {
+          const vd = item.produto_disponibilidade_data?.slice(0, 10);
+          return vd && vd >= visitSince && vd <= visitUntil;
+        });
+        return s + (items.length > 0 ? items.length : 1);
+      }, 0);
+
+      const data = { revenue, pedidos, atividades };
+      nextMonthCache = { data, ts: Date.now(), key };
+      return data;
+    } finally {
+      nextMonthInflight = null;
+    }
+  })();
+
+  return nextMonthInflight;
 }
 
-// ── Public fetch function ─────────────────────────────────────────────────────
+// ── Public fetch function (com deduplicação) ──────────────────────────────────
 export async function fetchPaytourData(period: string): Promise<PaytourData> {
   const ttl  = period === 'today' ? TTL_TODAY : TTL_OTHER;
   const entry = cache.get(period);
   if (entry && Date.now() - entry.ts < ttl) return entry.data;
 
-  const { since, until } = periodToDates(period);
-  const url = `/api/paytour-orders?since=${since}&until=${until}`;
+  // Se já existe uma request em voo para o mesmo período, retorna a mesma promise
+  const existing = inflight.get(period);
+  if (existing) return existing;
 
-  const orders = await fetchWithPolling(url);
-  const data   = mapOrders(orders, since, until);
-  cache.set(period, { data, ts: Date.now() });
-  return data;
+  const promise = (async () => {
+    try {
+      const { since, until } = periodToDates(period);
+      const url    = `/api/paytour-orders?since=${since}&until=${until}`;
+      const orders = await apiFetch(url);
+      const data   = mapOrders(orders, since, until);
+      cache.set(period, { data, ts: Date.now() });
+      return data;
+    } finally {
+      inflight.delete(period);
+    }
+  })();
+
+  inflight.set(period, promise);
+  return promise;
 }
