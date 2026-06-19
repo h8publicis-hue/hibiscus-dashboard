@@ -107,9 +107,6 @@ function Dashboard() {
         </div>
         <KdsProgressBar active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
         <KdsBadge active={kdsMode} />
-        <footer className="text-center text-[10px] text-gray-400 dark:text-gray-600 py-2 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-          Desenvolvido por <span className="font-semibold">H8 Sistemas</span>
-        </footer>
       </div>
 
       <ReviewsTicker googleData={gData} surveyData={smData} />

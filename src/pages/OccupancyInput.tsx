@@ -29,7 +29,7 @@ async function saveOcc(state: OccupancyState) {
 }
 
 // ── Botão com long-press para incremento/decremento rápido ───────────────────
-function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
+function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -47,8 +47,9 @@ function StepBtn({ label, onClick }: { label: string; onClick: () => void }) {
 
   return (
     <button
-      className="w-16 h-16 rounded-2xl bg-white border-2 border-gray-200 text-3xl font-light text-gray-700 active:bg-gray-100 select-none shadow-sm"
-      onPointerDown={(e) => { e.preventDefault(); start(); }}
+      disabled={disabled}
+      className="w-16 h-16 rounded-2xl bg-white border-2 border-gray-200 text-3xl font-light text-gray-700 active:bg-gray-100 select-none shadow-sm disabled:opacity-30"
+      onPointerDown={(e) => { if (disabled) return; e.preventDefault(); start(); }}
       onPointerUp={stop}
       onPointerLeave={stop}
       onPointerCancel={stop}
@@ -98,6 +99,96 @@ function Counter({
         <StepBtn label="+" onClick={onInc} />
       </div>
     </div>
+  );
+}
+
+// ── Modal de edição de lounge individual ─────────────────────────────────────
+function LoungeModal({
+  idx, value, max, onClose, onSave,
+}: { idx: number; value: number; max: number; onClose: () => void; onSave: (v: number) => void }) {
+  const [qty, setQty] = useState(value);
+  const name = SPACE_CONFIGS.lounge.start + idx;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-t-3xl w-full max-w-sm p-6 flex flex-col gap-5 shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-gray-800">Lounge {name}</h3>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <StepBtn label="−" onClick={() => setQty(q => clamp(q - 1, 0, max))} />
+          <div className="flex-1 text-center">
+            <span className="text-5xl font-bold text-gray-900">{qty}</span>
+            <span className="text-lg text-gray-400 ml-1">/{max}</span>
+          </div>
+          <StepBtn label="+" onClick={() => setQty(q => clamp(q + 1, 0, max))} disabled={qty >= max} />
+        </div>
+
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              qty / max >= 0.9 ? 'bg-red-500' : qty / max >= 0.6 ? 'bg-yellow-400' : 'bg-green-500'
+            }`}
+            style={{ width: `${Math.round((qty / max) * 100)}%` }}
+          />
+        </div>
+
+        <button
+          onClick={() => { onSave(qty); onClose(); }}
+          className="w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700"
+        >
+          Confirmar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: OccupancyState) => void }) {
+  const [editing, setEditing] = useState<number | null>(null);
+
+  return (
+    <>
+      <div className="grid grid-cols-5 gap-1.5 pt-1">
+        {occ.lounges.map((v, i) => {
+          const p = v / SPACE_CONFIGS.lounge.max;
+          return (
+            <button
+              key={i}
+              onClick={() => setEditing(i)}
+              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[10px] font-bold border-2 transition-colors ${
+                p >= 0.9 ? 'bg-red-100 border-red-300 text-red-700' :
+                p >= 0.6 ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
+                p > 0    ? 'bg-green-100 border-green-300 text-green-700' :
+                           'bg-gray-50 border-gray-200 text-gray-400'
+              }`}
+            >
+              <span className="text-[9px] opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
+              <span>{v}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {editing !== null && (
+        <LoungeModal
+          idx={editing}
+          value={occ.lounges[editing]}
+          max={SPACE_CONFIGS.lounge.max}
+          onClose={() => setEditing(null)}
+          onSave={(qty) => {
+            const lounges = [...occ.lounges];
+            lounges[editing] = qty;
+            update({ ...occ, lounges });
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -210,29 +301,7 @@ export function OccupancyInput() {
           </div>
 
           {/* Grade dos lounges individuais */}
-          <div className="grid grid-cols-5 gap-1.5 pt-1">
-            {occ.lounges.map((v, i) => {
-              const p = v / SPACE_CONFIGS.lounge.max;
-              return (
-                <button key={i}
-                  onClick={() => {
-                    const lounges = [...occ.lounges];
-                    lounges[i] = v >= SPACE_CONFIGS.lounge.max ? 0 : v + 1;
-                    update({ ...occ, lounges });
-                  }}
-                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[10px] font-bold border-2 transition-colors ${
-                    p >= 0.9 ? 'bg-red-100 border-red-300 text-red-700' :
-                    p >= 0.6 ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
-                    p > 0    ? 'bg-green-100 border-green-300 text-green-700' :
-                               'bg-gray-50 border-gray-200 text-gray-400'
-                  }`}
-                >
-                  <span className="text-[9px] opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
-                  <span>{v}</span>
-                </button>
-              );
-            })}
-          </div>
+          <LoungeGrid occ={occ} update={update} />
         </div>
 
         {/* Prime */}
