@@ -74,6 +74,7 @@ export const mockSurveyMonkeyData: SurveyMonkeyData = {
     { id: '9',  rowIndex: 9,  text: 'Não recomendo. Cobranças indevidas no cartão e demora no atendimento ao cliente para resolver.', sentiment: 'negative', date: '2026-04-01', score: 1 },
     { id: '10', rowIndex: 10, text: 'Melhor beach club da região! Combinei o day use com a massagem e foi uma experiência inesquecível.', sentiment: 'positive', date: '2026-04-01', score: 10 },
   ],
+  allTimeResponses: [],
   surveys: [
     { name: 'Pós-Visita Satisfação', responses: 548, rate: 41.2 },
     { name: 'NPS Mensal',            responses: 224, rate: 30.5 },

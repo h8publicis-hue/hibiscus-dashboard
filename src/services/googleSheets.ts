@@ -218,21 +218,29 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
       score: v.t > 0 ? Math.round((v.p / v.t - v.d / v.t) * 100) : 0,
     }));
 
-  // Responses with text, newest first (no artificial cap)
+  const toResponse = (e: Entry, i: number) => ({
+    id:        String(i + 1),
+    rowIndex:  e.rowIndex,
+    text:      e.text,
+    sentiment: toSentiment(e.score),
+    date:      e.date.toISOString().slice(0, 10),
+    score:     e.score,
+    pulseira:  e.pulseira || undefined,
+    nome:      e.nome     || undefined,
+    email:     e.email    || undefined,
+  });
+
+  // Responses with text, newest first — filtered to selected period
   const recentResponses = [...entries]
     .filter(e => e.text.length > 3)
     .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .map((e, i) => ({
-      id:        String(i + 1),
-      rowIndex:  e.rowIndex,
-      text:      e.text,
-      sentiment: toSentiment(e.score),
-      date:      e.date.toISOString().slice(0, 10),
-      score:     e.score,
-      pulseira:  e.pulseira || undefined,
-      nome:      e.nome     || undefined,
-      email:     e.email    || undefined,
-    }));
+    .map(toResponse);
+
+  // All-time responses — used when sector filter is active (ignores period)
+  const allTimeResponses = [...allEntries]
+    .filter(e => e.text.length > 3)
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .map(toResponse);
 
   const responseRate = total > 0
     ? Math.round((entries.filter(e => e.text.length > 0).length / total) * 100)
@@ -247,6 +255,7 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     totalResponses: totalAllTime,  // ← total em toda a planilha, independente do período
     npsHistory,
     recentResponses,
+    allTimeResponses,
     surveys: [
       {
         name:      'Pesquisa de Satisfação — Hibiscus',

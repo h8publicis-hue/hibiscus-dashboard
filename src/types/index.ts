@@ -76,6 +76,7 @@ export interface SurveyMonkeyData {
   totalResponses: number;
   npsHistory: NpsHistoryEntry[];
   recentResponses: RecentResponse[];
+  allTimeResponses: RecentResponse[];
   surveys: Survey[];
 }
 

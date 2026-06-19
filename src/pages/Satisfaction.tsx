@@ -540,16 +540,19 @@ export function Satisfaction({ period }: SatisfactionProps) {
     { label: 'Detratores', pct: data.detractors, color: '#ef4444' },
   ] : [], [data]);
 
-  const allResponses = useMemo(() => data?.recentResponses ?? [], [data]);
+  const allResponses     = useMemo(() => data?.recentResponses    ?? [], [data]);
+  const allTimeResponses = useMemo(() => data?.allTimeResponses   ?? [], [data]);
   const periodTotal  = data?.surveys[0]?.responses ?? 0;
 
   const filtered = useMemo(() => {
+    // Quando há filtro de setor, busca em TODOS os dados (ignora período)
+    const base = sectorFilter ? allTimeResponses : allResponses;
     let list = activeFilter === 'all'
-      ? allResponses
-      : allResponses.filter((r) => r.sentiment === activeFilter);
+      ? base
+      : base.filter((r) => r.sentiment === activeFilter);
     if (sectorFilter) list = list.filter((r) => (tags[String(r.rowIndex)] ?? []).includes(sectorFilter));
     return list;
-  }, [allResponses, activeFilter, sectorFilter, tags]);
+  }, [allResponses, allTimeResponses, activeFilter, sectorFilter, tags]);
 
   const counts = useMemo(() => ({
     all:      allResponses.length,
