@@ -283,21 +283,9 @@ export function OccupancyInput() {
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <StepBtn label="−" onClick={() => {
-              const lounges = [...occ.lounges];
-              const idx = [...lounges].reverse().findIndex(v => v > 0);
-              if (idx >= 0) { lounges[lounges.length - 1 - idx]--; update({ ...occ, lounges }); }
-            }} />
-            <div className="flex-1 text-center">
-              <span className="text-5xl font-bold text-gray-900">{totalLounges}</span>
-              <span className="text-lg text-gray-400 ml-1">/{maxLounges}</span>
-            </div>
-            <StepBtn label="+" onClick={() => {
-              const lounges = [...occ.lounges];
-              const idx = lounges.findIndex(v => v < SPACE_CONFIGS.lounge.max);
-              if (idx >= 0) { lounges[idx]++; update({ ...occ, lounges }); }
-            }} />
+          <div className="text-center py-1">
+            <span className="text-5xl font-bold text-gray-900">{totalLounges}</span>
+            <span className="text-lg text-gray-400 ml-1">/{maxLounges}</span>
           </div>
 
           {/* Grade dos lounges individuais */}
