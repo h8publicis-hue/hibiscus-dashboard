@@ -11,6 +11,7 @@ import { OccupancyInput } from './pages/OccupancyInput';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { ReviewsTicker } from './components/ReviewsTicker';
+import { BottomNav } from './components/BottomNav';
 import { Period, ApiStatus } from './types';
 import { useMockMode } from './hooks/useMockMode';
 import { useGoals } from './hooks/useGoals';
@@ -90,7 +91,7 @@ function Dashboard() {
               reviewsAlerts={sidebarAlerts.reviews}
             />
           )}
-          <main className="flex-1 overflow-y-auto pb-[72px]">
+          <main className="flex-1 overflow-y-auto pb-[56px] lg:pb-0 flex flex-col">
             {isMock && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-700 dark:text-amber-400 text-center">
                 Modo Mock ativo — dados simulados para desenvolvimento
@@ -110,6 +111,14 @@ function Dashboard() {
       </div>
 
       <ReviewsTicker googleData={gData} surveyData={smData} />
+      {!kdsMode && (
+        <BottomNav
+          occupancyAlerts={occupancyAlerts}
+          overviewAlerts={sidebarAlerts.overview}
+          surveyAlerts={sidebarAlerts.survey}
+          reviewsAlerts={sidebarAlerts.reviews}
+        />
+      )}
 
       {goalsOpen && (
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />

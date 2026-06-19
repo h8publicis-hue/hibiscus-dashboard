@@ -100,7 +100,7 @@ export function ReviewsTicker({ googleData, surveyData, intervalMs = INTERVAL }:
     : 'text-gray-400';
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur border-t border-gray-700 h-[72px] flex items-center px-4 gap-4">
+    <div className="hidden lg:flex fixed bottom-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur border-t border-gray-700 h-[72px] items-center px-4 gap-4">
 
       {/* Esquerda: Autor + data */}
       <div

@@ -1,5 +1,5 @@
 import { Users, Star, Target, MessageSquare, Smile, Info } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
@@ -57,7 +57,7 @@ function monthName(offset: number): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-// Linha compacta para Beach e Prime
+// ── Linha compacta Beach / Prime ──────────────────────────────────────────────
 function OccupancyRow({ label, current, max }: { label: string; current: number; max: number }) {
   const pct  = current / max;
   const bar  = pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
@@ -73,7 +73,7 @@ function OccupancyRow({ label, current, max }: { label: string; current: number;
   );
 }
 
-// Mapa de lounges: cada célula mostra número + ocupação
+// ── Mapa de lounges ───────────────────────────────────────────────────────────
 function LoungeMap({ lounges }: { lounges: number[] }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -105,296 +105,7 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
   );
 }
 
-export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
-  const { data: survey,  loading: smL } = useSurveyMonkey(period);
-  const { data: google,  loading: gL  } = useGoogleBusiness(period);
-  const { data: paytour, loading: ptL } = usePaytour(period);
-
-  const [nextMonth, setNextMonth]     = useState<NextMonthVisit | null>(null);
-  const [nextMonthL, setNextMonthL]   = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setNextMonthL(true);
-    fetchNextMonthVisitData()
-      .then(d  => { if (!cancelled) { setNextMonth(d);  setNextMonthL(false); } })
-      .catch(() => { if (!cancelled) { setNextMonthL(false); } });
-    return () => { cancelled = true; };
-  }, []);
-
-  return (
-    <div className="p-4 h-full overflow-hidden flex flex-col gap-3">
-
-      {/* ── SEÇÃO HOJE (compacta) ──────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-3 text-white shadow-lg flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Ao vivo — Hoje</h2>
-          </div>
-          {ptL && <span className="text-[10px] opacity-60 animate-pulse">Carregando...</span>}
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-white/10 rounded-lg px-3 py-2">
-            <p className="text-[10px] opacity-70">Receita</p>
-            {ptL
-              ? <div className="h-6 w-16 bg-white/20 rounded animate-pulse mt-1" />
-              : <p className="text-lg font-bold leading-tight">
-                  {paytour ? `R$ ${fmtN(Math.round(paytour.todayRevenue))}` : '—'}
-                </p>
-            }
-          </div>
-          <div className="bg-white/10 rounded-lg px-3 py-2">
-            <p className="text-[10px] opacity-70">Atividades</p>
-            {ptL
-              ? <div className="h-6 w-10 bg-white/20 rounded animate-pulse mt-1" />
-              : <p className="text-lg font-bold leading-tight">{paytour ? fmtN(paytour.todayItems) : '—'}</p>
-            }
-          </div>
-          <div className="bg-white/10 rounded-lg px-3 py-2">
-            <p className="text-[10px] opacity-70">Reservas</p>
-            {ptL
-              ? <div className="h-6 w-10 bg-white/20 rounded animate-pulse mt-1" />
-              : <p className="text-lg font-bold leading-tight">{paytour ? fmtN(paytour.todayOrders) : '—'}</p>
-            }
-          </div>
-          <div className="bg-white/10 rounded-lg px-3 py-2">
-            <p className="text-[10px] opacity-70">Ticket médio</p>
-            {ptL
-              ? <div className="h-6 w-16 bg-white/20 rounded animate-pulse mt-1" />
-              : <p className="text-lg font-bold leading-tight">
-                  {paytour && paytour.todayOrders > 0
-                    ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}`
-                    : '—'}
-                </p>
-            }
-          </div>
-        </div>
-      </div>
-
-      {/* ── GRID PRINCIPAL: Metas | Próximo mês + Satisfação | Ocupação ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
-
-        {/* Meta do mês */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Target size={14} className="text-brand-600" />
-            <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Resumo do Período</h2>
-          </div>
-          {ptL
-            ? <div className="flex-1 flex items-center justify-center"><div className="h-4 w-24 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
-            : paytour
-              ? (
-                <div className="grid grid-cols-2 gap-3 flex-1">
-                  <div className="text-center">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Receita</p>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(paytour.totalRevenue))}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Pedidos</p>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">{fmtN(paytour.totalSales)}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Atividades</p>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">{fmtN(paytour.totalItems)}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Ticket Médio</p>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(paytour.averageTicket))}</p>
-                  </div>
-                </div>
-              )
-              : <div className="flex-1 flex items-center justify-center"><p className="text-xs text-gray-400">Sem dados</p></div>
-          }
-        </div>
-
-        {/* Próximo mês + Satisfação/Google */}
-        <div className="flex flex-col gap-3">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-1.5 mb-3">
-              <Target size={14} className="text-brand-600" />
-              <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
-                Já vendido — {monthName(1)}
-              </h2>
-              <InfoTooltip text="Pedidos com data de visita no próximo mês, independente de quando foram realizados. Corresponde ao relatório 'Usuários por Período' do Paytour." />
-            </div>
-            {nextMonthL
-              ? <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-              : nextMonth
-                ? (
-                  <div className="flex gap-4">
-                    <div>
-                      <p className="text-[10px] text-gray-400">Receita</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(nextMonth.revenue))}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-400">Pedidos</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.pedidos)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-400">Atividades</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.atividades)}</p>
-                    </div>
-                  </div>
-                )
-                : <p className="text-xs text-gray-400">Sem dados</p>
-            }
-          </div>
-
-          {/* Top produto + status reservas */}
-          {paytour && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">🏆 Top Produto</p>
-              {paytour.topProducts[0] && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-800 dark:text-white truncate max-w-[60%]">{paytour.topProducts[0].name}</span>
-                  <span className="text-xs font-bold text-green-600">R$ {fmtN(Math.round(paytour.topProducts[0].revenue))}</span>
-                </div>
-              )}
-              <div className="flex gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex-1 text-center">
-                  <p className="text-[9px] text-gray-400 uppercase">Confirmadas</p>
-                  <p className="text-sm font-bold text-green-600">{paytour.reservationStatus.confirmed}</p>
-                </div>
-                <div className="flex-1 text-center">
-                  <p className="text-[9px] text-gray-400 uppercase">Pendentes</p>
-                  <p className="text-sm font-bold text-yellow-600">{paytour.reservationStatus.pending}</p>
-                </div>
-                <div className="flex-1 text-center">
-                  <p className="text-[9px] text-gray-400 uppercase">Canceladas</p>
-                  <p className="text-sm font-bold text-red-500">{paytour.reservationStatus.cancelled}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Última avaliação Google */}
-          {google?.recentReviews?.[0] && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">⭐ Última Avaliação</p>
-                <span className="text-[10px] text-yellow-500 font-bold">{'★'.repeat(google.recentReviews[0].rating)}{'☆'.repeat(5 - google.recentReviews[0].rating)}</span>
-              </div>
-              <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2 italic">"{google.recentReviews[0].text}"</p>
-              <p className="text-[10px] text-gray-400 mt-1">— {google.recentReviews[0].author}</p>
-            </div>
-          )}
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex-1">
-            <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider mb-3">Satisfação &amp; Reputação</h2>
-
-            {/* Satisfação Geral — NPS combinado ponderado */}
-            {(() => {
-              const surveyNPS    = survey?.npsScore ?? null;
-              const surveyVol    = survey?.totalResponses ?? 0;
-              const googleRating = google?.averageRating ?? null;
-              const googleVol    = google?.totalReviews ?? 0;
-              // Converte nota Google (1-5) para escala NPS (-100 a +100)
-              const googleNPS    = googleRating !== null ? Math.round((googleRating - 3) / 2 * 100) : null;
-              const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
-              const combined     = totalVol > 0
-                ? Math.round(
-                    ((surveyNPS ?? 0) * (surveyNPS !== null ? surveyVol : 0) +
-                     (googleNPS ?? 0) * (googleNPS !== null ? googleVol : 0)) / totalVol
-                  )
-                : null;
-              const loading = smL || gL;
-              const color   = combined === null ? 'gray' : combined >= 50 ? 'green' : combined >= 0 ? 'orange' : 'red';
-              const label   = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
-              return (
-                <div className={clsx(
-                  'rounded-xl p-3 mb-3 flex items-center justify-between',
-                  color === 'green'  && 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800',
-                  color === 'orange' && 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800',
-                  color === 'red'    && 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800',
-                  color === 'gray'   && 'bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700',
-                )}>
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Satisfação Geral</p>
-                      <InfoTooltip text="Média ponderada entre o NPS da pesquisa interna e a nota do Google (convertida para a mesma escala de -100 a +100). Quanto maior o número, melhor a percepção geral dos clientes." />
-                    </div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                      Survey + Google · {fmtN(totalVol)} votos
-                    </p>
-                  </div>
-                  {loading
-                    ? <div className="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-                    : <div className="text-right">
-                        <p className={clsx('text-2xl font-bold',
-                          color === 'green'  && 'text-green-600 dark:text-green-400',
-                          color === 'orange' && 'text-yellow-600 dark:text-yellow-400',
-                          color === 'red'    && 'text-red-600 dark:text-red-400',
-                          color === 'gray'   && 'text-gray-400',
-                        )}>{combined ?? '—'}</p>
-                        <p className={clsx('text-[10px] font-medium',
-                          color === 'green'  && 'text-green-500',
-                          color === 'orange' && 'text-yellow-500',
-                          color === 'red'    && 'text-red-500',
-                          color === 'gray'   && 'text-gray-400',
-                        )}>{label}</p>
-                      </div>
-                  }
-                </div>
-              );
-            })()}
-
-            <div className="grid grid-cols-2 gap-2">
-              <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} sub="Pesquisa interna" color="green" loading={smL}
-                info="Net Promoter Score da pesquisa interna. Vai de -100 a +100. Acima de 50 é considerado Excelente. Calculado como % Promotores (nota 4-5) menos % Detratores (nota 1-2)." />
-              <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL}
-                info="Média das avaliações públicas no Google Maps. Escala de 1 a 5 estrelas. Nota acima de 4.5 coloca o negócio no top 10% da categoria." />
-              <MiniKPI icon={<Smile size={14} />} label="Promotores" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL}
-                info="Percentual de clientes que deram nota 4 ou 5 na pesquisa. São os mais propensos a indicar o Hibiscus para amigos e família." />
-              <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL}
-                info="Quantidade de avaliações do Google que ainda não receberam resposta da equipe. Responder avaliações (positivas e negativas) melhora o posicionamento no Google e demonstra cuidado com o cliente." />
-            </div>
-          </div>
-        </div>
-
-        {/* Ocupação */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Users size={14} className="text-gray-500" />
-              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ocupação Atual</h3>
-            </div>
-            <a href="/ocupacao" className="text-[10px] text-brand-600 hover:underline">detalhes →</a>
-          </div>
-
-          {/* Beach e Prime compactos */}
-          <div className="flex flex-col gap-1.5">
-            <OccupancyRow label="🏖️ Beach"  current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
-            <OccupancyRow label="💎 Prime"  current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
-          </div>
-
-          {/* Mapa de lounges */}
-          <LoungeMap lounges={occupancy.lounges} />
-
-          {/* Resumo rápido */}
-          {(() => {
-            const total = occupancy.beach + occupancy.lounges.reduce((a,b)=>a+b,0) + occupancy.prime;
-            const max   = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
-            const pct   = Math.round(total / max * 100);
-            const loungesFull = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
-            return (
-              <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
-                <span className="text-gray-500 dark:text-gray-400">Total na casa</span>
-                <span className="font-bold text-gray-800 dark:text-white">{total} <span className="font-normal text-gray-400">/ {max} ({pct}%)</span></span>
-                {loungesFull > 0 && (
-                  <span className="text-red-600 font-semibold">{loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}</span>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-// ── Mini KPI compacto (grade 2x2) ────────────────────────────────────────────
+// ── Mini KPI compacto ─────────────────────────────────────────────────────────
 function MiniKPI({
   icon, label, value, sub, color = 'brand', loading, info,
 }: {
@@ -429,5 +140,406 @@ function MiniKPI({
         {sub && !loading && <p className="text-[9px] text-gray-400 truncate">{sub}</p>}
       </div>
     </div>
+  );
+}
+
+// ── Carrossel mobile (scroll-snap nativo) ────────────────────────────────────
+const AUTO_MS = 8000;
+
+function MobileCarousel({ slides }: { slides: { label: string; content: React.ReactNode }[] }) {
+  const [idx, setIdx]  = useState(0);
+  const trackRef       = useRef<HTMLDivElement>(null);
+  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const scrollTo = useCallback((i: number) => {
+    const el = trackRef.current;
+    if (el) el.scrollTo({ left: i * el.offsetWidth, behavior: 'smooth' });
+    setIdx(i);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setIdx(c => {
+        const next = (c + 1) % slides.length;
+        const el = trackRef.current;
+        if (el) el.scrollTo({ left: next * el.offsetWidth, behavior: 'smooth' });
+        return next;
+      });
+    }, AUTO_MS);
+  }, [slides.length]);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setIdx(c => {
+        const next = (c + 1) % slides.length;
+        const el = trackRef.current;
+        if (el) el.scrollTo({ left: next * el.offsetWidth, behavior: 'smooth' });
+        return next;
+      });
+    }, AUTO_MS);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [slides.length]);
+
+  const onScroll = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const i = Math.round(el.scrollLeft / el.offsetWidth);
+    setIdx(i);
+  }, []);
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Track com scroll-snap */}
+      <div
+        ref={trackRef}
+        onScroll={onScroll}
+        className="flex flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {slides.map((s, i) => (
+          <div
+            key={i}
+            className="min-w-full snap-start overflow-y-auto p-4 flex flex-col gap-3"
+          >
+            {s.content}
+          </div>
+        ))}
+      </div>
+
+      {/* Dots + label */}
+      <div className="flex flex-col items-center gap-1.5 py-3 shrink-0 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{slides[idx]?.label}</p>
+        <div className="flex items-center gap-1.5">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => scrollTo(i)}
+              className={clsx(
+                'h-1.5 rounded-full transition-all duration-300',
+                i === idx ? 'bg-brand-600 w-5' : 'bg-gray-300 dark:bg-gray-600 w-1.5',
+              )}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
+  const { data: survey,  loading: smL } = useSurveyMonkey(period);
+  const { data: google,  loading: gL  } = useGoogleBusiness(period);
+  const { data: paytour, loading: ptL } = usePaytour(period);
+
+  const [nextMonth, setNextMonth]   = useState<NextMonthVisit | null>(null);
+  const [nextMonthL, setNextMonthL] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNextMonthL(true);
+    fetchNextMonthVisitData()
+      .then(d  => { if (!cancelled) { setNextMonth(d);  setNextMonthL(false); } })
+      .catch(() => { if (!cancelled) { setNextMonthL(false); } });
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Bloco: Ao Vivo ────────────────────────────────────────────────────────
+  const blocoAoVivo = (
+    <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-3 text-white shadow-lg">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+          <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Ao vivo — Hoje</h2>
+        </div>
+        {ptL && <span className="text-[10px] opacity-60 animate-pulse">Carregando...</span>}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { label: 'Receita',     val: paytour ? `R$ ${fmtN(Math.round(paytour.todayRevenue))}` : '—' },
+          { label: 'Atividades',  val: paytour ? fmtN(paytour.todayItems) : '—' },
+          { label: 'Reservas',    val: paytour ? fmtN(paytour.todayOrders) : '—' },
+          { label: 'Ticket médio',val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
+        ].map(({ label, val }) => (
+          <div key={label} className="bg-white/10 rounded-lg px-3 py-2">
+            <p className="text-[10px] opacity-70">{label}</p>
+            {ptL
+              ? <div className="h-6 w-16 bg-white/20 rounded animate-pulse mt-1" />
+              : <p className="text-lg font-bold leading-tight">{val}</p>
+            }
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── Bloco: Já Vendido ─────────────────────────────────────────────────────
+  const blocoJaVendido = (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Target size={14} className="text-brand-600" />
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
+          Já vendido — {monthName(1)}
+        </h2>
+        <InfoTooltip text="Pedidos com data de visita no próximo mês, independente de quando foram realizados. Corresponde ao relatório 'Usuários por Período' do Paytour." />
+      </div>
+      {nextMonthL
+        ? <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+        : nextMonth
+          ? (
+            <div className="flex gap-4">
+              <div>
+                <p className="text-[10px] text-gray-400">Receita</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(nextMonth.revenue))}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400">Pedidos</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.pedidos)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400">Atividades</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.atividades)}</p>
+              </div>
+            </div>
+          )
+          : <p className="text-xs text-gray-400">Sem dados</p>
+      }
+    </div>
+  );
+
+  // ── Bloco: Resumo do Período ──────────────────────────────────────────────
+  const blocoResumo = (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Target size={14} className="text-brand-600" />
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Resumo do Período</h2>
+      </div>
+      {ptL
+        ? <div className="flex-1 flex items-center justify-center"><div className="h-4 w-24 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
+        : paytour
+          ? (
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Receita',      val: `R$ ${fmtN(Math.round(paytour.totalRevenue))}` },
+                { label: 'Pedidos',      val: fmtN(paytour.totalSales) },
+                { label: 'Atividades',   val: fmtN(paytour.totalItems) },
+                { label: 'Ticket Médio', val: `R$ ${fmtN(Math.round(paytour.averageTicket))}` },
+              ].map(({ label, val }) => (
+                <div key={label} className="text-center">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
+                  <p className="text-base font-bold text-gray-900 dark:text-white">{val}</p>
+                </div>
+              ))}
+            </div>
+          )
+          : <div className="flex-1 flex items-center justify-center"><p className="text-xs text-gray-400">Sem dados</p></div>
+      }
+    </div>
+  );
+
+  // ── Bloco: Top Produto + Status Reservas ──────────────────────────────────
+  const blocoTopProduto = paytour ? (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">🏆 Top Produto</p>
+      {paytour.topProducts[0] && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-gray-800 dark:text-white truncate max-w-[60%]">{paytour.topProducts[0].name}</span>
+          <span className="text-xs font-bold text-green-600">R$ {fmtN(Math.round(paytour.topProducts[0].revenue))}</span>
+        </div>
+      )}
+      <div className="flex gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+        {[
+          { label: 'Confirmadas', val: paytour.reservationStatus.confirmed, color: 'text-green-600' },
+          { label: 'Pendentes',   val: paytour.reservationStatus.pending,   color: 'text-yellow-600' },
+          { label: 'Canceladas',  val: paytour.reservationStatus.cancelled, color: 'text-red-500' },
+        ].map(({ label, val, color }) => (
+          <div key={label} className="flex-1 text-center">
+            <p className="text-[9px] text-gray-400 uppercase">{label}</p>
+            <p className={clsx('text-sm font-bold', color)}>{val}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  // ── Bloco: Última avaliação Google ────────────────────────────────────────
+  const blocoAvaliacao = google?.recentReviews?.[0] ? (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">⭐ Última Avaliação</p>
+        <span className="text-[10px] text-yellow-500 font-bold">
+          {'★'.repeat(google.recentReviews[0].rating)}{'☆'.repeat(5 - google.recentReviews[0].rating)}
+        </span>
+      </div>
+      <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2 italic">"{google.recentReviews[0].text}"</p>
+      <p className="text-[10px] text-gray-400 mt-1">— {google.recentReviews[0].author}</p>
+    </div>
+  ) : null;
+
+  // ── Bloco: Satisfação ─────────────────────────────────────────────────────
+  const blocoSatisfacao = (() => {
+    const surveyNPS    = survey?.npsScore ?? null;
+    const surveyVol    = survey?.totalResponses ?? 0;
+    const googleRating = google?.averageRating ?? null;
+    const googleVol    = google?.totalReviews ?? 0;
+    const googleNPS    = googleRating !== null ? Math.round((googleRating - 3) / 2 * 100) : null;
+    const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
+    const combined     = totalVol > 0
+      ? Math.round(
+          ((surveyNPS ?? 0) * (surveyNPS !== null ? surveyVol : 0) +
+           (googleNPS ?? 0) * (googleNPS !== null ? googleVol : 0)) / totalVol
+        )
+      : null;
+    const loading = smL || gL;
+    const color   = combined === null ? 'gray' : combined >= 50 ? 'green' : combined >= 0 ? 'orange' : 'red';
+    const label   = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Satisfação &amp; Reputação</h2>
+
+        <div className={clsx(
+          'rounded-xl p-3 flex items-center justify-between',
+          color === 'green'  && 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800',
+          color === 'orange' && 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800',
+          color === 'red'    && 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800',
+          color === 'gray'   && 'bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700',
+        )}>
+          <div>
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Satisfação Geral</p>
+              <InfoTooltip text="Média ponderada entre o NPS da pesquisa interna e a nota do Google (convertida para a mesma escala de -100 a +100). Quanto maior o número, melhor a percepção geral dos clientes." />
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Survey + Google · {fmtN(totalVol)} votos</p>
+          </div>
+          {loading
+            ? <div className="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+            : <div className="text-right">
+                <p className={clsx('text-2xl font-bold',
+                  color === 'green'  && 'text-green-600 dark:text-green-400',
+                  color === 'orange' && 'text-yellow-600 dark:text-yellow-400',
+                  color === 'red'    && 'text-red-600 dark:text-red-400',
+                  color === 'gray'   && 'text-gray-400',
+                )}>{combined ?? '—'}</p>
+                <p className={clsx('text-[10px] font-medium',
+                  color === 'green'  && 'text-green-500',
+                  color === 'orange' && 'text-yellow-500',
+                  color === 'red'    && 'text-red-500',
+                  color === 'gray'   && 'text-gray-400',
+                )}>{label}</p>
+              </div>
+          }
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} sub="Pesquisa interna" color="green" loading={smL}
+            info="Net Promoter Score da pesquisa interna. Vai de -100 a +100. Acima de 50 é considerado Excelente. Calculado como % Promotores (nota 4-5) menos % Detratores (nota 1-2)." />
+          <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL}
+            info="Média das avaliações públicas no Google Maps. Escala de 1 a 5 estrelas. Nota acima de 4.5 coloca o negócio no top 10% da categoria." />
+          <MiniKPI icon={<Smile size={14} />} label="Promotores" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL}
+            info="Percentual de clientes que deram nota 4 ou 5 na pesquisa. São os mais propensos a indicar o Hibiscus para amigos e família." />
+          <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL}
+            info="Quantidade de avaliações do Google que ainda não receberam resposta da equipe. Responder avaliações (positivas e negativas) melhora o posicionamento no Google e demonstra cuidado com o cliente." />
+        </div>
+      </div>
+    );
+  })();
+
+  // ── Bloco: Ocupação ───────────────────────────────────────────────────────
+  const blocoOcupacao = (() => {
+    const total = occupancy.beach + occupancy.lounges.reduce((a, b) => a + b, 0) + occupancy.prime;
+    const max   = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
+    const pct   = Math.round(total / max * 100);
+    const loungesFull = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Users size={14} className="text-gray-500" />
+            <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ocupação Atual</h3>
+          </div>
+          <a href="/ocupacao" className="text-[10px] text-brand-600 hover:underline">detalhes →</a>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+          <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
+        </div>
+        <LoungeMap lounges={occupancy.lounges} />
+        <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+          <span className="text-gray-500 dark:text-gray-400">Total na casa</span>
+          <span className="font-bold text-gray-800 dark:text-white">{total} <span className="font-normal text-gray-400">/ {max} ({pct}%)</span></span>
+          {loungesFull > 0 && (
+            <span className="text-red-600 font-semibold">{loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}</span>
+          )}
+        </div>
+      </div>
+    );
+  })();
+
+  // ── Slides mobile ─────────────────────────────────────────────────────────
+  const slides = [
+    {
+      label: 'Ao Vivo',
+      content: (
+        <>
+          {blocoAoVivo}
+          {blocoJaVendido}
+        </>
+      ),
+    },
+    {
+      label: 'Vendas',
+      content: (
+        <>
+          {blocoResumo}
+          {blocoTopProduto}
+        </>
+      ),
+    },
+    {
+      label: 'Ocupação',
+      content: blocoOcupacao,
+    },
+    {
+      label: 'Satisfação',
+      content: (
+        <>
+          {blocoAvaliacao}
+          {blocoSatisfacao}
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      {/* ── MOBILE: carrossel ────────────────────────────────────────────── */}
+      <div className="lg:hidden flex flex-col flex-1 min-h-0">
+        <MobileCarousel slides={slides} />
+      </div>
+
+      {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
+      <div className="hidden lg:flex p-4 h-full overflow-hidden flex-col gap-3">
+        {blocoAoVivo}
+
+        <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
+          {/* Coluna 1: Resumo */}
+          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
+            {blocoResumo}
+          </div>
+
+          {/* Coluna 2: Já Vendido + Top + Avaliação + Satisfação */}
+          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
+            {blocoJaVendido}
+            {blocoTopProduto}
+            {blocoAvaliacao}
+            {blocoSatisfacao}
+          </div>
+
+          {/* Coluna 3: Ocupação */}
+          <div className="min-h-0 overflow-y-auto">
+            {blocoOcupacao}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

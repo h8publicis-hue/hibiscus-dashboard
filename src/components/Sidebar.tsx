@@ -45,7 +45,7 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
   );
 
   return (
-    <aside className="w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col py-4 px-3 shrink-0 self-stretch">
+    <aside className="hidden lg:flex w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col py-4 px-3 shrink-0 self-stretch">
       <nav className="flex flex-col gap-1">
         {allItems.map(renderLink)}
       </nav>
