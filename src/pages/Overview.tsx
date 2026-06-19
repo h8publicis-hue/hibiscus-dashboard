@@ -148,24 +148,28 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
   return (
     <div className="flex flex-col gap-1">
       <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">🛋️ Lounges</p>
-      <div className="grid grid-cols-10 gap-0.5">
+      <div className="grid grid-cols-5 gap-1">
         {lounges.map((v, i) => {
           const pct = v / SPACE_CONFIGS.lounge.max;
           const bg  = v === 0
-            ? 'bg-gray-100 dark:bg-gray-700'
-            : pct >= 0.9 ? 'bg-red-400'
-            : pct >= 0.6 ? 'bg-yellow-400'
-            : 'bg-green-400';
+            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+            : pct >= 0.9
+              ? 'bg-red-100 text-red-700 border border-red-300'
+              : pct >= 0.6
+                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                : 'bg-green-100 text-green-700 border border-green-300';
           return (
-            <div key={i} title={`${SPACE_CONFIGS.lounge.start + i}: ${v}`}
-              className={clsx('rounded-sm aspect-square', bg)} />
+            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-0.5 text-center', bg)}>
+              <span className="text-[7px] leading-none opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
+              <span className="text-[9px] font-bold leading-tight">{v}</span>
+            </div>
           );
         })}
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 mt-0.5">
         <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-gray-200 inline-block"/>Livre</span>
-        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-green-400 inline-block"/>Ocupado</span>
-        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-red-400 inline-block"/>Cheio</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-green-200 inline-block"/>Ocupado</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-red-200 inline-block"/>Cheio</span>
       </div>
     </div>
   );

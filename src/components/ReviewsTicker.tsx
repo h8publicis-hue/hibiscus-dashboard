@@ -19,8 +19,10 @@ interface ReviewsTickerProps {
   intervalMs?: number;
 }
 
-const INTERVAL = 6000;
-const MAX_TEXT = 160;
+const INTERVAL   = 6000;
+const MAX_TEXT   = 160;
+const MAX_DAYS   = 7;   // janela principal
+const MIN_ITEMS  = 3;   // se tiver menos, expande para 30 dias
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -40,39 +42,32 @@ export function ReviewsTicker({ googleData, surveyData, intervalMs = INTERVAL }:
   const [idx,     setIdx]     = useState(0);
   const [visible, setVisible] = useState(true);
 
-  // Monta lista unificada de avaliações
+  // Monta lista unificada de avaliações — apenas recentes
   const items: TickerItem[] = useMemo(() => {
-    const list: TickerItem[] = [];
+    function buildList(days: number): TickerItem[] {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const list: TickerItem[] = [];
 
-    // Google reviews
-    (googleData?.recentReviews ?? []).forEach((r) => {
-      if (!r.text?.trim()) return;
-      list.push({
-        id:     `g-${r.id}`,
-        source: 'google',
-        author: r.author,
-        text:   r.text,
-        score:  r.rating,
-        date:   r.date,
+      (googleData?.recentReviews ?? []).forEach((r) => {
+        if (!r.text?.trim()) return;
+        if (r.date && new Date(r.date) < cutoff) return;
+        list.push({ id: `g-${r.id}`, source: 'google', author: r.author, text: r.text, score: r.rating, date: r.date });
       });
-    });
 
-    // Survey responses
-    (surveyData?.recentResponses ?? []).forEach((r) => {
-      if (!r.text?.trim()) return;
-      list.push({
-        id:        `s-${r.id}`,
-        source:    'survey',
-        author:    'Avaliação NPS',
-        text:      r.text,
-        score:     Math.round((r.score / 10) * 5), // normaliza 0–10 → 1–5
-        date:      r.date,
-        sentiment: r.sentiment,
+      (surveyData?.recentResponses ?? []).forEach((r) => {
+        if (!r.text?.trim()) return;
+        if (r.date && new Date(r.date) < cutoff) return;
+        list.push({ id: `s-${r.id}`, source: 'survey', author: 'Avaliação NPS', text: r.text, score: Math.round((r.score / 10) * 5), date: r.date, sentiment: r.sentiment });
       });
-    });
 
-    // Embaralha para intercalar Google e Survey
-    return list.sort(() => Math.random() - 0.5);
+      return list;
+    }
+
+    // Tenta janela de MAX_DAYS; se poucos resultados expande para 30 dias
+    const recent = buildList(MAX_DAYS);
+    const final  = recent.length >= MIN_ITEMS ? recent : buildList(30);
+    return final.sort(() => Math.random() - 0.5);
   }, [googleData, surveyData]);
 
   // Avança item com fade out → troca → fade in
