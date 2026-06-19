@@ -109,7 +109,7 @@ export function clearSheetsCache() {
   periodInflight.clear();
 }
 
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 30 * 60 * 1000;  // 30 min
 
 async function fetchAllRows(): Promise<GVizRow[]> {
   if (rowCache && Date.now() - rowCache.fetchedAt < CACHE_TTL) return rowCache.rows;

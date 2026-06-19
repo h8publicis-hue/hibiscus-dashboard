@@ -1,42 +1,48 @@
 import { GoogleBusinessData } from '../types';
 
-// Simple 5-min client-side cache so switching tabs doesn't re-fetch
 let clientCache: { data: GoogleBusinessData | null; ts: number } | null = null;
-const CACHE_TTL = 5 * 60 * 1000;
+let inflight: Promise<GoogleBusinessData | null> | null = null;
+const CACHE_TTL = 60 * 60 * 1000;  // 60 min — avaliações Google raramente mudam
 
 export async function fetchGoogleReviews(): Promise<GoogleBusinessData | null> {
   if (clientCache && Date.now() - clientCache.ts < CACHE_TTL) {
     return clientCache.data;
   }
 
-  const res = await fetch('/api/google-reviews', {
-    signal: AbortSignal.timeout(15_000),
-  });
+  // Deduplication: se já tem uma request em voo retorna a mesma promise
+  if (inflight) return inflight;
 
-  if (!res.ok) {
-    // Try to extract real error message from JSON body before throwing
-    let detail = `HTTP ${res.status}`;
+  inflight = (async () => {
     try {
-      const body = await res.json() as { error?: string };
-      if (body.error) detail = body.error;
-    } catch { /* ignore parse error */ }
-    throw new Error(detail);
-  }
+      const res = await fetch('/api/google-reviews', { signal: AbortSignal.timeout(15_000) });
 
-  const json = await res.json() as Record<string, unknown>;
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const b = await res.json() as { error?: string }; if (b.error) detail = b.error; } catch { /* ignore */ }
+        throw new Error(detail);
+      }
 
-  // Backend returns { configured: false } when env vars are missing
-  if (json.configured === false) {
-    clientCache = { data: null, ts: Date.now() };
-    return null;
-  }
+      const json = await res.json() as Record<string, unknown>;
 
-  // Backend returned an error but is configured
-  if (json.error) throw new Error(String(json.error));
+      if (json.configured === false) {
+        clientCache = { data: null, ts: Date.now() };
+        return null;
+      }
 
-  const data = json as unknown as GoogleBusinessData;
-  clientCache = { data, ts: Date.now() };
-  return data;
+      if (json.error) throw new Error(String(json.error));
+
+      const data = json as unknown as GoogleBusinessData;
+      clientCache = { data, ts: Date.now() };
+      return data;
+    } finally {
+      inflight = null;
+    }
+  })();
+
+  return inflight;
 }
 
-export function clearGoogleReviewsCache() { clientCache = null; }
+export function clearGoogleReviewsCache() {
+  clientCache = null;
+  inflight    = null;
+}

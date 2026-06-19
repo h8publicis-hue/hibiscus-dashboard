@@ -187,10 +187,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   useEffect(() => {
     let cancelled = false;
     setNextMonthL(true);
-    fetchNextMonthVisitData()
-      .then(d  => { if (!cancelled) { setNextMonth(d);  setNextMonthL(false); } })
-      .catch(() => { if (!cancelled) { setNextMonthL(false); } });
-    return () => { cancelled = true; };
+    // Atrasa 4s para não competir com os fetches principais (Paytour/Survey/Google) na inicialização
+    const delay = setTimeout(() => {
+      fetchNextMonthVisitData()
+        .then(d  => { if (!cancelled) { setNextMonth(d);  setNextMonthL(false); } })
+        .catch(() => { if (!cancelled) { setNextMonthL(false); } });
+    }, 4_000);
+    return () => { cancelled = true; clearTimeout(delay); };
   }, []);
 
   // ── Bloco: Ao Vivo ────────────────────────────────────────────────────────

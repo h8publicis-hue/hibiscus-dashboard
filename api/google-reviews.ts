@@ -15,7 +15,7 @@ function httpsGet(url: string): Promise<string> {
 }
 
 let cache: { data: unknown; ts: number } | null = null;
-const TTL = 60 * 60 * 1000;
+const TTL = 6 * 60 * 60 * 1000;  // 6h — avaliações Google mudam raramente
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');

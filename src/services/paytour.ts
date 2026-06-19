@@ -142,8 +142,8 @@ interface CacheEntry {
 const cache    = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<PaytourData>>();
 
-const TTL_TODAY  = 5  * 60 * 1000;  // 5 min
-const TTL_OTHER  = 30 * 60 * 1000;  // 30 min
+const TTL_TODAY  = 10 * 60 * 1000;  // 10 min
+const TTL_OTHER  = 60 * 60 * 1000;  // 60 min
 
 export function invalidatePaytourCache(): void {
   cache.clear();
