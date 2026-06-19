@@ -45,12 +45,12 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
   );
 
   return (
-    <aside className="w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full py-4 px-3 shrink-0">
-      <nav className="flex flex-col gap-1 flex-1">
+    <aside className="w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col py-4 px-3 shrink-0 self-stretch">
+      <nav className="flex flex-col gap-1">
         {allItems.map(renderLink)}
       </nav>
 
-      <div className="px-3 pt-3 pb-1 border-t border-gray-100 dark:border-gray-700 mt-2">
+      <div className="mt-auto px-3 pt-3 pb-[76px] border-t border-gray-100 dark:border-gray-700">
         <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-tight">Desenvolvido por</p>
         <p className="text-[11px] font-bold text-gray-500 dark:text-gray-500 leading-tight">H8 Sistemas</p>
       </div>
