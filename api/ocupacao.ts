@@ -1,4 +1,4 @@
-const DEFAULT = { beach: 0, lounges: Array(20).fill(0), prime: 0 };
+const DEFAULT = { beach: 0, lounges: Array(18).fill(0), prime: 0 };
 const clamp = (n: unknown, min: number, max: number) =>
   Math.min(max, Math.max(min, Number(n) || 0));
 
@@ -42,7 +42,7 @@ export default async function handler(req: any, res: any) {
     const d = req.body;
     const data = {
       beach:   clamp(d.beach, 0, 500),
-      lounges: Array(20).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 10)),
+      lounges: Array(18).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 10)),
       prime:   clamp(d.prime, 0, 10),
     };
     await kvSet('ocupacao', data);

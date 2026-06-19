@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { OccupancyState } from '../types';
+import { OccupancyState, SPACE_CONFIGS } from '../types';
 
 const DEFAULT_STATE: OccupancyState = {
   beach: 0,
-  lounges: Array(20).fill(0),
+  lounges: Array(SPACE_CONFIGS.lounge.count).fill(0),
   prime: 0,
 };
 
@@ -18,11 +18,11 @@ async function fetchOcc(): Promise<OccupancyState> {
     const d = await r.json() as Partial<OccupancyState>;
     return {
       beach:   clamp(d.beach ?? 0, 0, 500),
-      lounges: Array(20).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
+      lounges: Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
       prime:   clamp(d.prime ?? 0, 0, 10),
     };
   } catch {
-    return { ...DEFAULT_STATE, lounges: Array(20).fill(0) };
+    return { ...DEFAULT_STATE, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) };
   }
 }
 
@@ -44,7 +44,7 @@ export interface OccupancyActions {
 }
 
 export function useOccupancy(): [OccupancyState, OccupancyActions] {
-  const [state, setState] = useState<OccupancyState>({ ...DEFAULT_STATE, lounges: Array(20).fill(0) });
+  const [state, setState] = useState<OccupancyState>({ ...DEFAULT_STATE, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) });
 
   // Carrega do servidor na montagem e polling a cada 30s
   useEffect(() => {
@@ -70,7 +70,7 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
     setPrime: (n) => update({ ...state, lounges: state.lounges, beach: state.beach, prime: clamp(n, 0, 10) }),
     reset: () => {
       if (window.confirm('Zerar todos os contadores de ocupação?')) {
-        update({ beach: 0, lounges: Array(20).fill(0), prime: 0 });
+        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 });
       }
     },
   };

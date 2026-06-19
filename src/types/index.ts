@@ -156,12 +156,12 @@ export const DEFAULT_GOALS: Goals = {
 // Occupancy / Contador de Pessoas
 export interface OccupancyState {
   beach: number;      // 0–500
-  lounges: number[];  // 20 elementos (501–520), cada 0–10
+  lounges: number[];  // 18 elementos (501–518), cada 0–10
   prime: number;      // 0–10
 }
 
 export const SPACE_CONFIGS = {
   beach:  { name: 'Beach',  max: 500, attention: 0.6, alert: 0.9 },
-  lounge: { name: 'Lounge', max: 10,  attention: 0.6, alert: 0.9, count: 20, start: 501 },
+  lounge: { name: 'Lounge', max: 10,  attention: 0.6, alert: 0.9, count: 18, start: 501 },
   prime:  { name: 'Prime',  max: 2,   attention: 0.5, alert: 1.0 },
 } as const;
