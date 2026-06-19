@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 
-const DEFAULT: OccupancyState = { beach: 0, lounges: Array(14).fill(0), prime: 0 };
+const DEFAULT: OccupancyState = { beach: 0, lounges: Array(20).fill(0), prime: 0 };
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -14,10 +14,10 @@ async function fetchOcc(): Promise<OccupancyState> {
     const d = await r.json() as Partial<OccupancyState>;
     return {
       beach:   clamp(d.beach ?? 0, 0, 500),
-      lounges: Array(14).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
+      lounges: Array(20).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
       prime:   clamp(d.prime ?? 0, 0, 10),
     };
-  } catch { return { ...DEFAULT, lounges: Array(14).fill(0) }; }
+  } catch { return { ...DEFAULT, lounges: Array(20).fill(0) }; }
 }
 
 async function saveOcc(state: OccupancyState) {
@@ -103,7 +103,7 @@ function Counter({
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export function OccupancyInput() {
-  const [occ, setOcc]         = useState<OccupancyState>({ ...DEFAULT, lounges: Array(14).fill(0) });
+  const [occ, setOcc]         = useState<OccupancyState>({ ...DEFAULT, lounges: Array(20).fill(0) });
   const [saved, setSaved]     = useState(false);
   const [loading, setLoading] = useState(true);
   const saveTimer             = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -210,7 +210,7 @@ export function OccupancyInput() {
           </div>
 
           {/* Grade dos lounges individuais */}
-          <div className="grid grid-cols-7 gap-1.5 pt-1">
+          <div className="grid grid-cols-5 gap-1.5 pt-1">
             {occ.lounges.map((v, i) => {
               const p = v / SPACE_CONFIGS.lounge.max;
               return (
@@ -227,7 +227,7 @@ export function OccupancyInput() {
                                'bg-gray-50 border-gray-200 text-gray-400'
                   }`}
                 >
-                  <span className="text-[9px] opacity-60">L{i + 1}</span>
+                  <span className="text-[9px] opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
                   <span>{v}</span>
                 </button>
               );
@@ -252,7 +252,7 @@ export function OccupancyInput() {
             const senha = window.prompt('Digite a senha para zerar:');
             if (senha === null) return;
             if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
-            update({ beach: 0, lounges: Array(14).fill(0), prime: 0 });
+            update({ beach: 0, lounges: Array(20).fill(0), prime: 0 });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
         >

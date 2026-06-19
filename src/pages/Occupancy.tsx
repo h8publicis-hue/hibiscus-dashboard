@@ -251,11 +251,11 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             · {SPACE_CONFIGS.lounge.count - occupancy.lounges.filter(l => l >= SPACE_CONFIGS.lounge.max).length} disponíveis
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-5 xl:grid-cols-10 gap-2">
           {occupancy.lounges.map((count, idx) => (
             <OccupancyCounter
               key={idx}
-              name={`L${idx + 1}`}
+              name={`${SPACE_CONFIGS.lounge.start + idx}`}
               current={count}
               max={SPACE_CONFIGS.lounge.max}
               onIncrement={() => actions.setLounge(idx, count + 1)}
