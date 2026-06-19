@@ -83,6 +83,7 @@ interface CounterProps {
   onIncrement: () => void;
   onDecrement: () => void;
   compact?: boolean;
+  selected?: boolean;
 }
 
 function occupancyColor(pct: number) {
@@ -97,7 +98,7 @@ function statusLabel(pct: number) {
   return 'DISPONÍVEL';
 }
 
-function OccupancyCounter({ name, current, max, onIncrement, onDecrement, compact }: CounterProps) {
+function OccupancyCounter({ name, current, max, onIncrement, onDecrement, compact, selected }: CounterProps) {
   const pct = current / max;
   const colors = occupancyColor(pct);
   const pctDisplay = Math.round(pct * 100);
@@ -107,7 +108,10 @@ function OccupancyCounter({ name, current, max, onIncrement, onDecrement, compac
 
   if (compact) {
     return (
-      <div className={clsx('bg-white dark:bg-gray-800 rounded-xl border-2 p-3 flex flex-col gap-2 transition-colors', colors.border)}>
+      <div className={clsx(
+        'bg-white dark:bg-gray-800 rounded-xl border-2 p-3 flex flex-col gap-2 transition-colors',
+        selected ? 'border-brand-400 ring-2 ring-brand-400/40' : colors.border
+      )}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{name}</span>
           <span className={clsx('text-xs px-1.5 py-0.5 rounded font-bold', colors.badge)}>{pctDisplay}%</span>
@@ -115,7 +119,7 @@ function OccupancyCounter({ name, current, max, onIncrement, onDecrement, compac
         <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
           <div className={clsx('h-full rounded-full transition-all duration-300', colors.bar)} style={{ width: `${pctDisplay}%` }} />
         </div>
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2" onClick={e => e.stopPropagation()}>
           <button
             {...decPress}
             disabled={current <= 0}
@@ -176,8 +180,24 @@ function OccupancyCounter({ name, current, max, onIncrement, onDecrement, compac
   );
 }
 
+function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-lg">
+      {msg}
+    </div>
+  );
+}
+
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
-  const [showQr, setShowQr] = useState(false);
+  const [showQr, setShowQr]               = useState(false);
+  const [selectedLounge, setSelectedLounge] = useState<number | null>(null);
+  const [toast, setToast]                 = useState<string | null>(null);
+
+  const showToast = useCallback((msg: string) => { setToast(msg); }, []);
   const totalLounge = occupancy.lounges.reduce((a, b) => a + b, 0);
   const totalMax    = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
   const totalNow    = occupancy.beach + totalLounge + occupancy.prime;
@@ -251,20 +271,45 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             · {SPACE_CONFIGS.lounge.count - occupancy.lounges.filter(l => l >= SPACE_CONFIGS.lounge.max).length} disponíveis
           </span>
         </div>
+        {selectedLounge !== null && (
+          <p className="text-xs text-brand-400 mb-3 font-medium">
+            Lounge {SPACE_CONFIGS.lounge.start + selectedLounge} selecionado — clique no card novamente para desselecionar
+          </p>
+        )}
         <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-5 xl:grid-cols-10 gap-2">
           {occupancy.lounges.map((count, idx) => (
-            <OccupancyCounter
+            <div
               key={idx}
-              name={`${SPACE_CONFIGS.lounge.start + idx}`}
-              current={count}
-              max={SPACE_CONFIGS.lounge.max}
-              onIncrement={() => actions.setLounge(idx, count + 1)}
-              onDecrement={() => actions.setLounge(idx, count - 1)}
-              compact
-            />
+              onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)}
+              className="cursor-pointer"
+            >
+              <OccupancyCounter
+                name={`${SPACE_CONFIGS.lounge.start + idx}`}
+                current={count}
+                max={SPACE_CONFIGS.lounge.max}
+                selected={selectedLounge === idx}
+                onIncrement={() => {
+                  if (selectedLounge !== idx) {
+                    showToast('Selecione o lounge antes de alterar a quantidade');
+                    return;
+                  }
+                  actions.setLounge(idx, count + 1);
+                }}
+                onDecrement={() => {
+                  if (selectedLounge !== idx) {
+                    showToast('Selecione o lounge antes de alterar a quantidade');
+                    return;
+                  }
+                  actions.setLounge(idx, count - 1);
+                }}
+                compact
+              />
+            </div>
           ))}
         </div>
       </div>
+
+      {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
     </div>
   );
 }
