@@ -1,6 +1,7 @@
 import clsx from 'clsx';
-import { useRef, useCallback } from 'react';
-import { RotateCcw, Smartphone } from 'lucide-react';
+import { useRef, useCallback, useEffect, useState } from 'react';
+import { RotateCcw, QrCode, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
 
@@ -30,6 +31,44 @@ function useLongPress(callback: () => void) {
     onTouchStart: (e: React.TouchEvent) => { e.preventDefault(); start(); },
     onTouchEnd: stop,
   };
+}
+
+function QrModal({ onClose }: { onClose: () => void }) {
+  const [dataUrl, setDataUrl] = useState<string>('');
+  const url = window.location.origin + '/entrada';
+
+  useEffect(() => {
+    QRCode.toDataURL(url, { width: 220, margin: 2 }).then(setDataUrl).catch(() => {});
+  }, [url]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl flex flex-col items-center gap-4 max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between w-full">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white">Controle de Ocupação</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+            <X size={16} />
+          </button>
+        </div>
+        {dataUrl ? (
+          <img src={dataUrl} alt="QR Code" className="rounded-lg w-[220px] h-[220px]" />
+        ) : (
+          <div className="w-[220px] h-[220px] bg-gray-100 rounded-lg animate-pulse" />
+        )}
+        <p className="text-xs text-gray-400 text-center">
+          Escaneie com o celular para abrir o controle
+        </p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-brand-600 hover:underline break-all text-center"
+        >
+          {url}
+        </a>
+      </div>
+    </div>
+  );
 }
 
 interface OccupancyProps {
@@ -138,6 +177,7 @@ function OccupancyCounter({ name, current, max, onIncrement, onDecrement, compac
 }
 
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
+  const [showQr, setShowQr] = useState(false);
   const totalLounge = occupancy.lounges.reduce((a, b) => a + b, 0);
   const totalMax    = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
   const totalNow    = occupancy.beach + totalLounge + occupancy.prime;
@@ -146,19 +186,18 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
   return (
     <div className="p-6 space-y-6">
+      {showQr && <QrModal onClose={() => setShowQr(false)} />}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ocupação em Tempo Real</h2>
         <div className="flex items-center gap-2">
-          <a
-            href="/entrada"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => setShowQr(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-sm"
-            title="Abrir controle de ocupação para tablet/celular"
+            title="Abrir QR code para celular/tablet"
           >
-            <Smartphone size={13} />
+            <QrCode size={13} />
             Abrir controle
-          </a>
+          </button>
           <button
             onClick={actions.reset}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
