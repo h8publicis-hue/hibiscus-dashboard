@@ -1,17 +1,8 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
-    {
-      "source": "/paytour-api/(.*)",
-      "destination": "https://api-ha.paytour.com.br/$1"
-    },
-    {
-      "source": "/sheets-api/(.*)",
-      "destination": "https://docs.google.com/$1"
-    }
-  ],
-  "functions": {
-    "api/google-reviews.ts": {
-      "runtime": "nodejs20.x"
-    }
-  }
+    { "source": "/sheets-api/:path*", "destination": "/api/sheets-proxy" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
 }
