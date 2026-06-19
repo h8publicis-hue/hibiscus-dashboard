@@ -162,11 +162,65 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex-1">
             <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider mb-3">Satisfação &amp; Reputação</h2>
+
+            {/* Satisfação Geral — NPS combinado ponderado */}
+            {(() => {
+              const surveyNPS    = survey?.npsScore ?? null;
+              const surveyVol    = survey?.totalResponses ?? 0;
+              const googleRating = google?.averageRating ?? null;
+              const googleVol    = google?.totalReviews ?? 0;
+              // Converte nota Google (1-5) para escala NPS (-100 a +100)
+              const googleNPS    = googleRating !== null ? Math.round((googleRating - 3) / 2 * 100) : null;
+              const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
+              const combined     = totalVol > 0
+                ? Math.round(
+                    ((surveyNPS ?? 0) * (surveyNPS !== null ? surveyVol : 0) +
+                     (googleNPS ?? 0) * (googleNPS !== null ? googleVol : 0)) / totalVol
+                  )
+                : null;
+              const loading = smL || gL;
+              const color   = combined === null ? 'gray' : combined >= 50 ? 'green' : combined >= 0 ? 'orange' : 'red';
+              const label   = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
+              return (
+                <div className={clsx(
+                  'rounded-xl p-3 mb-3 flex items-center justify-between',
+                  color === 'green'  && 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800',
+                  color === 'orange' && 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800',
+                  color === 'red'    && 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800',
+                  color === 'gray'   && 'bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700',
+                )}>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Satisfação Geral</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                      Survey + Google · {fmtN(totalVol)} votos
+                    </p>
+                  </div>
+                  {loading
+                    ? <div className="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+                    : <div className="text-right">
+                        <p className={clsx('text-2xl font-bold',
+                          color === 'green'  && 'text-green-600 dark:text-green-400',
+                          color === 'orange' && 'text-yellow-600 dark:text-yellow-400',
+                          color === 'red'    && 'text-red-600 dark:text-red-400',
+                          color === 'gray'   && 'text-gray-400',
+                        )}>{combined ?? '—'}</p>
+                        <p className={clsx('text-[10px] font-medium',
+                          color === 'green'  && 'text-green-500',
+                          color === 'orange' && 'text-yellow-500',
+                          color === 'red'    && 'text-red-500',
+                          color === 'gray'   && 'text-gray-400',
+                        )}>{label}</p>
+                      </div>
+                  }
+                </div>
+              );
+            })()}
+
             <div className="grid grid-cols-2 gap-2">
-              <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} color="green" loading={smL} />
+              <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} sub="Pesquisa interna" color="green" loading={smL} />
               <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL} />
-              <MiniKPI icon={<Smile size={14} />} label="Satisfação" value={survey ? `${survey.promoters}%` : '—'} sub="Promotores NPS" color="purple" loading={smL} />
-              <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Avaliações" color="brand" loading={gL} />
+              <MiniKPI icon={<Smile size={14} />} label="Promotores" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL} />
+              <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL} />
             </div>
           </div>
         </div>
