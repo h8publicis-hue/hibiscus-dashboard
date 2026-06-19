@@ -3,3 +3,5 @@ dist
 .paytour-cache
 .ocupacao.json
 *.log
+.env
+.env.local
