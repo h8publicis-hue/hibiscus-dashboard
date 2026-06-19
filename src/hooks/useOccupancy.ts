@@ -51,7 +51,7 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
     let cancelled = false;
     const load = () => fetchOcc().then(d => { if (!cancelled) setState(d); });
     load();
-    const id = setInterval(load, 30_000);
+    const id = setInterval(load, 5_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
