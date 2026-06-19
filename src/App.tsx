@@ -22,12 +22,7 @@ import { invalidatePaytourCache } from './services/paytour';
 
 const KDS_INTERVAL_MS = 8000;
 
-// Página /entrada renderizada fora do layout principal
-function EntradaPage() {
-  return <OccupancyInput />;
-}
-
-export default function App() {
+function Dashboard() {
   const [period, setPeriod]       = useState<Period>('today');
   const [lastSync, setLastSync]   = useState<Date | null>(new Date());
   const [darkMode, setDarkMode]   = useState(false);
@@ -37,7 +32,6 @@ export default function App() {
   const [occupancy, occupancyActions] = useOccupancy();
   const isMock = useMockMode();
 
-  // Real API status + data — hooks share the same cache layer as child pages (no extra requests)
   const { loading: smL, error: smErr, data: smData }               = useSurveyMonkey(period);
   const { loading: gL,  error: gErr, notConfigured: gNC, data: gData } = useGoogleBusiness(period);
   const { loading: ptL, error: ptErr }                              = usePaytour(period);
@@ -48,8 +42,6 @@ export default function App() {
     paytour:      ptL ? 'loading' : ptErr           ? 'error' : 'connected',
   }), [smL, smErr, gL, gErr, gNC, ptL, ptErr]);
 
-  // ── Sidebar alerts (todos dinâmicos) ─────────────────────────────────────────
-  // Ocupação: espaços ≥ 90% de capacidade
   const occupancyAlerts = [
     occupancy.beach / 500 >= 0.9 ? 1 : 0,
     occupancy.lounges.filter(l => l / 10 >= 0.9).length,
@@ -57,18 +49,10 @@ export default function App() {
   ].reduce((a, b) => a + b, 0);
 
   const sidebarAlerts = useMemo(() => {
-    // Survey: detratores no período (nota ≤ 3)
     const periodTotal  = smData?.surveys[0]?.responses ?? 0;
-    const surveyAlerts = smData
-      ? Math.round((smData.detractors / 100) * periodTotal)
-      : 0;
-
-    // Avaliações: avaliações do Google sem resposta
+    const surveyAlerts = smData ? Math.round((smData.detractors / 100) * periodTotal) : 0;
     const reviewsAlerts = gData?.unansweredCount ?? 0;
-
-    // Visão Geral: soma de todos os alertas
     const overviewAlerts = surveyAlerts + reviewsAlerts + occupancyAlerts;
-
     return { overview: overviewAlerts, survey: surveyAlerts, reviews: reviewsAlerts };
   }, [smData, gData, occupancyAlerts]);
 
@@ -81,13 +65,8 @@ export default function App() {
     });
   }, []);
 
-  // Rota /entrada renderizada sem o layout do dashboard
-  if (typeof window !== 'undefined' && window.location.pathname === '/entrada') {
-    return <BrowserRouter><Routes><Route path="/entrada" element={<EntradaPage />} /></Routes></BrowserRouter>;
-  }
-
   return (
-    <BrowserRouter>
+    <>
       <KdsController active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
         <Header
@@ -130,14 +109,22 @@ export default function App() {
         <KdsBadge active={kdsMode} />
       </div>
 
-      <ReviewsTicker
-        googleData={gData}
-        surveyData={smData}
-      />
+      <ReviewsTicker googleData={gData} surveyData={smData} />
 
       {goalsOpen && (
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/entrada" element={<OccupancyInput />} />
+        <Route path="/*"       element={<Dashboard />} />
+      </Routes>
     </BrowserRouter>
   );
 }
