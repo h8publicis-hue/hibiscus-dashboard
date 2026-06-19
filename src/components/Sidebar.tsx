@@ -18,44 +18,46 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
     { to: '/ocupacao',   icon: Users,           label: 'Ocupação',    alerts: occupancyAlerts },
   ];
 
-  const avaliacoesIdx = allItems.findIndex(i => i.to === '/avaliacoes');
+  const beforeAvaliacoes = allItems.filter(i => i.to !== '/avaliacoes' && allItems.indexOf(i) < allItems.findIndex(x => x.to === '/avaliacoes'));
+  const fromAvaliacoes   = allItems.filter(i => allItems.indexOf(i) >= allItems.findIndex(x => x.to === '/avaliacoes'));
+
+  const renderLink = ({ to, icon: Icon, label, alerts }: typeof allItems[0]) => (
+    <NavLink
+      key={to}
+      to={to}
+      end={to === '/'}
+      className={({ isActive }) =>
+        clsx(
+          'flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
+            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+        )
+      }
+    >
+      <span className="flex items-center gap-2.5">
+        <Icon size={16} />
+        {label}
+      </span>
+      {alerts > 0 && (
+        <span className="bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center leading-none">
+          {alerts}
+        </span>
+      )}
+    </NavLink>
+  );
 
   return (
     <aside className="w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col py-4 px-3 shrink-0">
       <nav className="flex flex-col gap-1">
-        {allItems.map(({ to, icon: Icon, label, alerts }, idx) => (
-          <>
-            {idx === avaliacoesIdx && (
-              <div key="h8-tag" className="px-3 py-2 mt-1">
-                <p className="text-[10px] text-gray-400 dark:text-gray-600 font-medium">Desenvolvido por</p>
-                <p className="text-[11px] font-bold text-gray-500 dark:text-gray-500">H8 Sistemas</p>
-              </div>
-            )}
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                clsx(
-                  'flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
-                )
-              }
-            >
-              <span className="flex items-center gap-2.5">
-                <Icon size={16} />
-                {label}
-              </span>
-              {alerts > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                  {alerts}
-                </span>
-              )}
-            </NavLink>
-          </>
-        ))}
+        {beforeAvaliacoes.map(renderLink)}
+
+        <div className="px-3 pt-3 pb-1">
+          <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-tight">Desenvolvido por</p>
+          <p className="text-[11px] font-bold text-gray-500 dark:text-gray-500 leading-tight">H8 Sistemas</p>
+        </div>
+
+        {fromAvaliacoes.map(renderLink)}
       </nav>
     </aside>
   );
