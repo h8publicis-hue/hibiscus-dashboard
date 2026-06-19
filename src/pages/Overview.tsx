@@ -56,21 +56,50 @@ function monthName(offset: number): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function OccupancyMini({ label, current, max }: { label: string; current: number; max: number }) {
-  const pct    = current / max;
-  const bar    = pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
-  const text   = pct >= 0.9 ? 'text-red-600' : pct >= 0.6 ? 'text-yellow-600' : 'text-green-600';
-  const border = pct >= 0.9 ? 'border-red-300' : pct >= 0.6 ? 'border-yellow-300' : 'border-green-300';
+// Linha compacta para Beach e Prime
+function OccupancyRow({ label, current, max }: { label: string; current: number; max: number }) {
+  const pct  = current / max;
+  const bar  = pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
+  const text = pct >= 0.9 ? 'text-red-600' : pct >= 0.6 ? 'text-yellow-600' : 'text-green-600';
   return (
-    <div className={clsx('bg-white dark:bg-gray-800 rounded-xl border p-3 flex flex-col gap-1.5', border)}>
-      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-        <span className="font-medium">{label}</span>
-        <span className={clsx('font-bold', text)}>{Math.round(pct * 100)}%</span>
-      </div>
-      <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
+      <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-16 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
         <div className={clsx('h-full rounded-full transition-all duration-300', bar)} style={{ width: `${Math.round(pct * 100)}%` }} />
       </div>
-      <p className="text-sm font-bold text-gray-800 dark:text-white">{current} <span className="text-xs font-normal text-gray-400">/ {max}</span></p>
+      <span className={clsx('text-xs font-bold w-12 text-right shrink-0', text)}>{current}/{max}</span>
+    </div>
+  );
+}
+
+// Mapa de lounges: cada célula mostra número + ocupação
+function LoungeMap({ lounges }: { lounges: number[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🛋️ Lounges</p>
+      <div className="grid grid-cols-5 gap-1">
+        {lounges.map((v, i) => {
+          const pct = v / SPACE_CONFIGS.lounge.max;
+          const bg  = v === 0
+            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+            : pct >= 0.9
+              ? 'bg-red-100 text-red-700 border border-red-300'
+              : pct >= 0.6
+                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                : 'bg-green-100 text-green-700 border border-green-300';
+          return (
+            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-1 text-center', bg)}>
+              <span className="text-[8px] leading-none opacity-70">{SPACE_CONFIGS.lounge.start + i}</span>
+              <span className="text-[10px] font-bold leading-tight">{v}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-2 mt-0.5">
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-gray-200 inline-block"/>Livre</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-green-200 inline-block"/>Ocupado</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-red-200 inline-block"/>Cheio</span>
+      </div>
     </div>
   );
 }
@@ -194,6 +223,45 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             }
           </div>
 
+          {/* Top produto + status reservas */}
+          {paytour && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">🏆 Top Produto</p>
+              {paytour.topProducts[0] && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-800 dark:text-white truncate max-w-[60%]">{paytour.topProducts[0].name}</span>
+                  <span className="text-xs font-bold text-green-600">R$ {fmtN(Math.round(paytour.topProducts[0].revenue))}</span>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex-1 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase">Confirmadas</p>
+                  <p className="text-sm font-bold text-green-600">{paytour.reservationStatus.confirmed}</p>
+                </div>
+                <div className="flex-1 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase">Pendentes</p>
+                  <p className="text-sm font-bold text-yellow-600">{paytour.reservationStatus.pending}</p>
+                </div>
+                <div className="flex-1 text-center">
+                  <p className="text-[9px] text-gray-400 uppercase">Canceladas</p>
+                  <p className="text-sm font-bold text-red-500">{paytour.reservationStatus.cancelled}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Última avaliação Google */}
+          {google?.recentReviews?.[0] && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">⭐ Última Avaliação</p>
+                <span className="text-[10px] text-yellow-500 font-bold">{'★'.repeat(google.recentReviews[0].rating)}{'☆'.repeat(5 - google.recentReviews[0].rating)}</span>
+              </div>
+              <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2 italic">"{google.recentReviews[0].text}"</p>
+              <p className="text-[10px] text-gray-400 mt-1">— {google.recentReviews[0].author}</p>
+            </div>
+          )}
+
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex-1">
             <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider mb-3">Satisfação &amp; Reputação</h2>
 
@@ -267,19 +335,40 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         </div>
 
         {/* Ocupação */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Users size={14} className="text-gray-500" />
               <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ocupação Atual</h3>
             </div>
             <a href="/ocupacao" className="text-[10px] text-brand-600 hover:underline">detalhes →</a>
           </div>
-          <div className="grid grid-cols-1 gap-2 flex-1">
-            <OccupancyMini label="🏖️ Beach"  current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
-            <OccupancyMini label="🛋️ Lounge" current={occupancy.lounges.reduce((a,b)=>a+b,0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
-            <OccupancyMini label="💎 Prime"  current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
+
+          {/* Beach e Prime compactos */}
+          <div className="flex flex-col gap-1.5">
+            <OccupancyRow label="🏖️ Beach"  current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+            <OccupancyRow label="💎 Prime"  current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
           </div>
+
+          {/* Mapa de lounges */}
+          <LoungeMap lounges={occupancy.lounges} />
+
+          {/* Resumo rápido */}
+          {(() => {
+            const total = occupancy.beach + occupancy.lounges.reduce((a,b)=>a+b,0) + occupancy.prime;
+            const max   = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
+            const pct   = Math.round(total / max * 100);
+            const loungesFull = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
+            return (
+              <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+                <span className="text-gray-500 dark:text-gray-400">Total na casa</span>
+                <span className="font-bold text-gray-800 dark:text-white">{total} <span className="font-normal text-gray-400">/ {max} ({pct}%)</span></span>
+                {loungesFull > 0 && (
+                  <span className="text-red-600 font-semibold">{loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}</span>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
       </div>
