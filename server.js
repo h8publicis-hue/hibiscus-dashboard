@@ -162,49 +162,70 @@ const ptMemCache  = new Map();
 const TTL_TODAY   = 2  * 60 * 1000;
 const TTL_OTHER   = 10 * 60 * 1000;
 
-function paytourGet(apiPath) {
-  const auth = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
-  return new Promise((resolve, reject) => {
-    const req = httpRequest(
-      { hostname: PT_BASE, path: apiPath, method: 'GET', timeout: 30000,
-        headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' } },
-      (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
-          try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-          catch (e) { reject(e); }
-        });
-        res.on('error', reject);
-      });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Paytour timeout')); });
-    req.end();
+// ── Paytour auth (JWT) ────────────────────────────────────────────────────────
+let ptToken = '';
+let ptTokenExpiry = 0;
+
+async function getPtToken() {
+  if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
+  const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
+  const res   = await fetch(`https://${PT_BASE}/v2/lojas/login?grant_type=application`, {
+    method:  'POST',
+    headers: {
+      Authorization:    `Basic ${creds}`,
+      'User-Agent':     'Mozilla/5.0',
+      Origin:           'https://app.paytour.com.br',
+      'Content-Length': '0',
+    },
   });
+  const j = await res.json();
+  if (!j.access_token) throw new Error(`Paytour auth failed: ${JSON.stringify(j)}`);
+  ptToken       = j.access_token;
+  ptTokenExpiry = Date.now() + (j.expires_in ?? 3600) * 1000 - 60_000;
+  console.log('[paytour] token OK');
+  return ptToken;
+}
+
+async function paytourApiGet(urlPath) {
+  const tk  = await getPtToken();
+  const res = await fetch(`https://${PT_BASE}${urlPath}`, {
+    headers: {
+      Authorization: `Bearer ${tk}`,
+      'User-Agent':  'Mozilla/5.0',
+      Origin:        'https://app.paytour.com.br',
+      Referer:       'https://app.paytour.com.br/',
+      Accept:        'application/json',
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  return res.json();
 }
 
 async function fetchPaytourOrders(since, until) {
-  const today   = new Date().toISOString().slice(0, 10);
+  const _n      = new Date();
+  const today   = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
   const isToday = since === today && until === today;
-  const all = [];
-  let page = 1;
-  while (true) {
-    const qp   = `/pedidos?data_inicio=${since}&data_fim=${until}&page=${page}&per_page=100`;
-    const data  = await paytourGet(qp);
-    const batch = data.data ?? data.pedidos ?? [];
-    if (!batch.length) break;
-    if (isToday) {
-      const stale = batch.findIndex((o) => o.data_hora_pedido.slice(0, 10) < today);
-      if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
-      all.push(...batch);
-      if (page >= 10) break;
-    } else {
-      const stale = batch.findIndex((o) => o.data_hora_pedido.slice(0, 10) < since);
-      if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
-      all.push(...batch);
+  const maxPage = isToday ? 10 : 9999;
+  const all     = [];
+
+  for (let page = 1; page <= maxPage; page++) {
+    const data  = await paytourApiGet(`/v2/pedidos?por_pagina=30&pagina=${page}`);
+    const items = data?.itens ?? [];
+    if (!items.length) break;
+
+    let done = false;
+    for (const o of items) {
+      const d = o.data_hora_pedido.slice(0, 10);
+      if (d < since) { done = true; break; }
+      if (d <= until) all.push(o);
     }
-    page++;
+    if (done) break;
+
+    const totalPages = data?.info?.total_paginas ?? page;
+    if (page >= totalPages) break;
   }
+
+  console.log(`[paytour] ${since}→${until}: ${all.length} pedidos`);
   return all;
 }
 
@@ -233,7 +254,7 @@ function ptRevalidate(since, until) {
 
 app.get('/api/paytour-orders', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  if (!PT_KEY || !PT_SECRET) { res.json([]); return; }
+  if (!PT_KEY || !PT_SECRET) { res.json({ orders: [] }); return; }
   const today = new Date().toISOString().slice(0, 10);
   const since = req.query.since ?? today;
   const until = req.query.until ?? today;
@@ -241,16 +262,21 @@ app.get('/api/paytour-orders', async (req, res) => {
   const ttl   = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
   const cached = ptMemCache.get(key);
   if (cached) {
-    if (Date.now() - cached.ts > ttl) ptRevalidate(since, until);
-    res.json(cached.orders); return;
+    const stale = Date.now() - cached.ts > ttl;
+    if (stale) ptRevalidate(since, until);
+    res.json({ orders: cached.orders, stale }); return;
   }
   const disk = readPtDisk(since, until);
-  if (disk) { ptMemCache.set(key, { orders: disk, ts: Date.now() }); ptRevalidate(since, until); res.json(disk); return; }
+  if (disk) {
+    ptMemCache.set(key, { orders: disk, ts: Date.now() });
+    ptRevalidate(since, until);
+    res.json({ orders: disk, stale: true }); return;
+  }
   try {
     const orders = await fetchPaytourOrders(since, until);
     ptMemCache.set(key, { orders, ts: Date.now() });
     if (since !== today || until !== today) writePtDisk(since, until, orders);
-    res.json(orders);
+    res.json({ orders });
   } catch (err) {
     console.error('[paytour]', err.message);
     res.status(500).json({ error: String(err) });

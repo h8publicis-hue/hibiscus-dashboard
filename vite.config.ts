@@ -21,7 +21,10 @@ interface PlaceApiResponse {
   result:         PlaceResult;
 }
 
-// ── HTTP helper for Paytour (via Node built-ins) ─────────────────────────────
+// ── Paytour aggregator plugin ─────────────────────────────────────────────────
+import fs   from 'node:fs';
+import path from 'node:path';
+
 interface PaytourOrder {
   id: string;
   status: string;
@@ -36,176 +39,185 @@ interface PaytourOrder {
   }>;
 }
 
-async function paytourRequest(path: string, appKey: string, appSecret: string): Promise<unknown> {
-  const { request } = await import('node:http');
-  const auth = Buffer.from(`${appKey}:${appSecret}`).toString('base64');
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: '127.0.0.1',
-      port:     3000,
-      path:     `/paytour-api${path}`,
-      method:   'GET',
-      headers: {
-        Authorization: `Basic ${auth}`,
-        Accept:        'application/json',
-      },
-      timeout: 30000,
-    };
-    const req = request(options, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () => {
-        try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-        catch (e) { reject(e); }
-      });
-      res.on('error', reject);
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Paytour timeout')); });
-    req.end();
-  });
-}
-
-// ── Paytour aggregator plugin ─────────────────────────────────────────────────
-import fs   from 'node:fs';
-import path from 'node:path';
-
 function paytourAggregatorPlugin(appKey: string, appSecret: string): Plugin {
-  // ── Disk cache ──────────────────────────────────────────────────────────────
-  const DISK_CACHE_DIR = path.join(process.cwd(), '.paytour-cache');
-  const DISK_TTL       = 12 * 60 * 60 * 1000; // 12h
+  const BASE        = 'https://api-ha.paytour.com.br';
+  const DISK_DIR    = path.join(process.cwd(), '.paytour-cache');
+  const DISK_TTL    = 12 * 60 * 60 * 1000;
+  const TTL_TODAY   = 2  * 60 * 1000;
+  const TTL_OTHER   = 10 * 60 * 1000;
+  // Sequential pagination — never fires more than 1 request at a time
 
-  function diskCachePath(since: string, until: string) {
-    return path.join(DISK_CACHE_DIR, `${since}_${until}.json`);
+  // ── Token cache ─────────────────────────────────────────────────────────────
+  let cachedToken  = '';
+  let tokenExpiry  = 0;
+
+  async function getToken(): Promise<string> {
+    if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+    const creds = Buffer.from(`${appKey}:${appSecret}`).toString('base64');
+    const res   = await fetch(`${BASE}/v2/lojas/login?grant_type=application`, {
+      method:  'POST',
+      headers: {
+        Authorization:  `Basic ${creds}`,
+        'User-Agent':   'Mozilla/5.0',
+        Origin:         'https://app.paytour.com.br',
+        'Content-Length': '0',
+      },
+    });
+    const j = await res.json() as { access_token?: string; expires_in?: number };
+    if (!j.access_token) throw new Error('Paytour auth failed');
+    cachedToken = j.access_token;
+    tokenExpiry = Date.now() + (j.expires_in ?? 3600) * 1000 - 60_000;
+    console.log('[paytour] token OK');
+    return cachedToken;
   }
-  function readDiskCache(since: string, until: string): PaytourOrder[] | null {
+
+  async function apiGet(tk: string, urlPath: string) {
+    const res = await fetch(`${BASE}${urlPath}`, {
+      headers: {
+        Authorization:   `Bearer ${tk}`,
+        'User-Agent':    'Mozilla/5.0',
+        Origin:          'https://app.paytour.com.br',
+        Referer:         'https://app.paytour.com.br/',
+        Accept:          'application/json',
+      },
+      signal: AbortSignal.timeout(30_000),
+    });
+    return res.json();
+  }
+
+  // ── Disk cache ───────────────────────────────────────────────────────────────
+  function diskPath(since: string, until: string) {
+    return path.join(DISK_DIR, `${since}_${until}.json`);
+  }
+  function readDisk(since: string, until: string): PaytourOrder[] | null {
     try {
-      const p    = diskCachePath(since, until);
-      const stat = fs.statSync(p);
-      if (Date.now() - stat.mtimeMs > DISK_TTL) return null;
+      const p = diskPath(since, until);
+      if (Date.now() - fs.statSync(p).mtimeMs > DISK_TTL) return null;
       return JSON.parse(fs.readFileSync(p, 'utf8')) as PaytourOrder[];
     } catch { return null; }
   }
-  function writeDiskCache(since: string, until: string, orders: PaytourOrder[]) {
+  function writeDisk(since: string, until: string, orders: PaytourOrder[]) {
     try {
-      fs.mkdirSync(DISK_CACHE_DIR, { recursive: true });
-      fs.writeFileSync(diskCachePath(since, until), JSON.stringify(orders));
+      fs.mkdirSync(DISK_DIR, { recursive: true });
+      fs.writeFileSync(diskPath(since, until), JSON.stringify(orders));
     } catch { /* ignore */ }
   }
 
-  // ── In-memory cache ─────────────────────────────────────────────────────────
-  const memCache = new Map<string, { orders: PaytourOrder[]; ts: number; fresh: boolean }>();
-  const TTL_TODAY  = 2  * 60 * 1000;
-  const TTL_OTHER  = 10 * 60 * 1000;
+  // ── In-memory cache ──────────────────────────────────────────────────────────
+  const mem = new Map<string, { orders: PaytourOrder[]; ts: number }>();
+  const inflight = new Map<string, Promise<PaytourOrder[]>>();
 
-  // ── Fetch all pages ──────────────────────────────────────────────────────────
+  // ── Fetch orders sequentially — 1 request at a time, stop by date ───────────
   async function fetchOrders(since: string, until: string): Promise<PaytourOrder[]> {
-    const today   = new Date().toISOString().slice(0, 10);
+    const tk      = await getToken();
+    const _n      = new Date();
+    const today   = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
     const isToday = since === today && until === today;
+    const maxPage = isToday ? 10 : 9999;
     const all: PaytourOrder[] = [];
-    let page = 1;
 
-    while (true) {
-      const qp   = `?data_inicio=${since}&data_fim=${until}&page=${page}&per_page=100`;
-      const data  = await paytourRequest(`/pedidos${qp}`, appKey, appSecret) as {
-        data?: PaytourOrder[];
-        pedidos?: PaytourOrder[];
+    for (let page = 1; page <= maxPage; page++) {
+      const data = await apiGet(tk, `/v2/pedidos?por_pagina=30&pagina=${page}`) as {
+        itens?: PaytourOrder[];
+        info?:  { total_paginas?: number };
       };
-      const batch: PaytourOrder[] = data.data ?? data.pedidos ?? [];
-      if (!batch.length) break;
+      const items = data?.itens ?? [];
+      if (!items.length) break;
 
-      // Fast-path for today: stop once order date < today
-      if (isToday) {
-        const stale = batch.findIndex(
-          (o) => o.data_hora_pedido.slice(0, 10) < today
-        );
-        if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
-        all.push(...batch);
-        if (page >= 10) break; // limit to ~10 pages for today
-      } else {
-        const stale = batch.findIndex(
-          (o) => o.data_hora_pedido.slice(0, 10) < since
-        );
-        if (stale !== -1) { all.push(...batch.slice(0, stale)); break; }
-        all.push(...batch);
+      let done = false;
+      for (const o of items) {
+        const d = o.data_hora_pedido.slice(0, 10);
+        if (d < since) { done = true; break; }
+        if (d <= until) all.push(o);
       }
-      page++;
+      if (done) break;
+
+      // Stop if we've passed all pages
+      const totalPages = data?.info?.total_paginas ?? page;
+      if (page >= totalPages) break;
     }
+
+    console.log(`[paytour] ${since}→${until}: ${all.length} pedidos`);
     return all;
   }
 
-  // ── Background revalidation ─────────────────────────────────────────────────
-  function revalidate(since: string, until: string) {
-    const today = new Date().toISOString().slice(0, 10);
-    const key   = `${since}_${until}`;
-    fetchOrders(since, until)
+  function ensureFetch(since: string, until: string): Promise<PaytourOrder[]> {
+    const key = `${since}_${until}`;
+    if (inflight.has(key)) return inflight.get(key)!;
+    const p = fetchOrders(since, until)
       .then((orders) => {
-        memCache.set(key, { orders, ts: Date.now(), fresh: true });
-        if (since !== today || until !== today) writeDiskCache(since, until, orders);
-        console.log(`[paytour] revalidated ${key}: ${orders.length} orders`);
+        mem.set(key, { orders, ts: Date.now() });
+        const today = new Date().toISOString().slice(0, 10);
+        if (since !== today || until !== today) writeDisk(since, until, orders);
+        return orders;
       })
-      .catch((err) => console.error('[paytour] revalidation error:', err));
+      .finally(() => inflight.delete(key));
+    inflight.set(key, p);
+    return p;
   }
 
-  // ── Middleware ───────────────────────────────────────────────────────────────
+  // ── Plugin ───────────────────────────────────────────────────────────────────
   return {
     name: 'paytour-aggregator',
-
     configureServer(server) {
-      // Pre-warm today on startup
       if (appKey && appSecret) {
         setTimeout(() => {
-          console.log('[paytour] pre-warming today cache...');
-          revalidate(
-            new Date().toISOString().slice(0, 10),
-            new Date().toISOString().slice(0, 10),
-          );
+          const today = new Date().toISOString().slice(0, 10);
+          console.log('[paytour] pré-aquecendo hoje…');
+          ensureFetch(today, today).catch(console.error);
         }, 2000);
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       server.middlewares.use('/api/paytour-orders', async (req: any, res: any) => {
         res.setHeader('Content-Type', 'application/json');
-
         if (!appKey || !appSecret) {
-          res.statusCode = 200;
-          res.end(JSON.stringify({ configured: false, orders: [] }));
+          res.end(JSON.stringify({ orders: [] }));
           return;
         }
 
-        const url    = new URL(req.url, 'http://localhost');
-        const since  = url.searchParams.get('since') ?? new Date().toISOString().slice(0, 10);
-        const until  = url.searchParams.get('until') ?? since;
-        const today  = new Date().toISOString().slice(0, 10);
-        const key    = `${since}_${until}`;
-        const ttl    = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
+        const qs    = new URL(req.url, 'http://localhost').searchParams;
+        const since = qs.get('since') ?? new Date().toISOString().slice(0, 10);
+        const until = qs.get('until') ?? since;
+        const today = new Date().toISOString().slice(0, 10);
+        const key   = `${since}_${until}`;
+        const ttl   = since === today && until === today ? TTL_TODAY : TTL_OTHER;
 
-        const cached = memCache.get(key);
+        // Fresh memory cache
+        const cached = mem.get(key);
+        if (cached && Date.now() - cached.ts < ttl) {
+          res.end(JSON.stringify({ orders: cached.orders }));
+          return;
+        }
+
+        // Stale memory — return stale + revalidate
         if (cached) {
-          const age   = Date.now() - cached.ts;
-          const stale = age > ttl;
-          if (stale) revalidate(since, until);
-          res.end(JSON.stringify(cached.orders));
+          res.end(JSON.stringify({ orders: cached.orders, stale: true }));
+          ensureFetch(since, until).catch(console.error);
           return;
         }
 
-        // Try disk cache
-        const disk = readDiskCache(since, until);
+        // Disk cache
+        const disk = readDisk(since, until);
         if (disk) {
-          memCache.set(key, { orders: disk, ts: Date.now(), fresh: false });
-          revalidate(since, until);
-          res.end(JSON.stringify(disk));
+          mem.set(key, { orders: disk, ts: Date.now() });
+          res.end(JSON.stringify({ orders: disk, stale: true }));
+          ensureFetch(since, until).catch(console.error);
           return;
         }
 
-        // First load — fetch live
+        // In-flight — return warmingUp
+        if (inflight.has(key)) {
+          res.end(JSON.stringify({ orders: [], warmingUp: true }));
+          return;
+        }
+
+        // First fetch — wait for it (first call only)
         try {
-          const orders = await fetchOrders(since, until);
-          memCache.set(key, { orders, ts: Date.now(), fresh: true });
-          if (since !== today || until !== today) writeDiskCache(since, until, orders);
-          res.end(JSON.stringify(orders));
+          const orders = await ensureFetch(since, until);
+          res.end(JSON.stringify({ orders }));
         } catch (err) {
-          console.error('[paytour] fetch error:', err);
+          console.error('[paytour]', err);
           res.statusCode = 500;
           res.end(JSON.stringify({ error: String(err) }));
         }

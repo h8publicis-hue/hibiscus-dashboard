@@ -151,6 +151,7 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
   const until = periodEnd(period);
 
   interface Entry {
+    rowIndex: number;
     date:     Date;
     text:     string;
     score:    number;
@@ -161,7 +162,8 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
 
   // Parse every row — keep only those with a valid 1–5 rating
   const allEntries: Entry[] = [];
-  for (const row of rows) {
+  for (let ri = 0; ri < rows.length; ri++) {
+    const row   = rows[ri];
     const score = Number(cellVal(row, COL_RATING));
     if (!score || score < 1 || score > 5) continue;
 
@@ -176,7 +178,7 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     const nome      = [firstName, lastName].filter(Boolean).join(' ');
     const email     = String(cellVal(row, COL_EMAIL)     ?? '').trim();
 
-    allEntries.push({ date, text, score, pulseira, nome, email });
+    allEntries.push({ rowIndex: ri + 1, date, text, score, pulseira, nome, email });
   }
 
   // Total across ALL time (what you see in the sheet total)
@@ -222,6 +224,7 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .map((e, i) => ({
       id:        String(i + 1),
+      rowIndex:  e.rowIndex,
       text:      e.text,
       sentiment: toSentiment(e.score),
       date:      e.date.toISOString().slice(0, 10),

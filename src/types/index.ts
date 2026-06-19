@@ -51,6 +51,7 @@ export interface NpsHistoryEntry {
 
 export interface RecentResponse {
   id: string;
+  rowIndex: number;
   text: string;
   sentiment: 'positive' | 'negative' | 'neutral';
   date: string;

@@ -54,9 +54,10 @@ interface RawOrder {
 
 // ── Map raw orders → PaytourData ─────────────────────────────────────────────
 function mapOrders(orders: RawOrder[], since: string, until: string): PaytourData {
-  const today = new Date().toISOString().slice(0, 10);
+  const _now   = new Date();
+  const today  = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
 
-  const confirmed  = orders.filter((o) => o.status === 'confirmado');
+  const confirmed  = orders.filter((o) => o.status === 'confirmado' || o.status === 'aprovado');
   const pending    = orders.filter((o) => o.status === 'pendente');
   const cancelled  = orders.filter((o) => o.status === 'cancelado' || o.status === 'reprovado');
   const active     = [...confirmed, ...pending];
