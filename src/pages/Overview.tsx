@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
+import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import clsx from 'clsx';
 
@@ -109,6 +110,18 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour(period);
 
+  const [nextMonth, setNextMonth]     = useState<NextMonthVisit | null>(null);
+  const [nextMonthL, setNextMonthL]   = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNextMonthL(true);
+    fetchNextMonthVisitData()
+      .then(d  => { if (!cancelled) { setNextMonth(d);  setNextMonthL(false); } })
+      .catch(() => { if (!cancelled) { setNextMonthL(false); } });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="p-4 h-full overflow-hidden flex flex-col gap-3">
 
@@ -203,19 +216,24 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
                 Já vendido — {monthName(1)}
               </h2>
+              <InfoTooltip text="Pedidos com data de visita no próximo mês, independente de quando foram realizados. Corresponde ao relatório 'Usuários por Período' do Paytour." />
             </div>
-            {ptL
+            {nextMonthL
               ? <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-              : paytour
+              : nextMonth
                 ? (
                   <div className="flex gap-4">
                     <div>
                       <p className="text-[10px] text-gray-400">Receita</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(paytour.totalRevenue))}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(nextMonth.revenue))}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-400">Pedidos</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(paytour.totalSales)}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.pedidos)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400">Atividades</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.atividades)}</p>
                     </div>
                   </div>
                 )

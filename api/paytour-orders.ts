@@ -52,26 +52,59 @@ async function fetchOrders(since: string, until: string) {
   return all;
 }
 
+// Filtra por data de visita (produto_disponibilidade_data) — para "Já Vendido"
+async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
+  // Pedidos podem ser feitos até 6 meses antes da visita
+  const cutoff = new Date(visitSince);
+  cutoff.setMonth(cutoff.getMonth() - 6);
+  const orderCutoff = cutoff.toISOString().slice(0, 10);
+
+  const all: unknown[] = [];
+  for (let page = 1; page <= 9999; page++) {
+    const data  = await paytourGet(`/v2/pedidos?por_pagina=30&pagina=${page}`) as any;
+    const items = data?.itens ?? [];
+    if (!items.length) break;
+    let done = false;
+    for (const o of items) {
+      const d = (o.data_hora_pedido as string).slice(0, 10);
+      if (d < orderCutoff) { done = true; break; }
+      const itens = (o.itens ?? []) as any[];
+      const hasVisit = itens.some((item: any) => {
+        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 10);
+        return vd && vd >= visitSince && vd <= visitUntil;
+      });
+      if (hasVisit) all.push(o);
+    }
+    if (done) break;
+    if (page >= (data?.info?.total_paginas ?? page)) break;
+  }
+  return all;
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   if (!PT_KEY || !PT_SECRET) return res.json({ orders: [] });
 
-  const today = new Date().toISOString().slice(0, 10);
-  const since = (req.query.since as string) ?? today;
-  const until = (req.query.until as string) ?? today;
-  const key   = `${since}_${until}`;
-  const ttl   = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
+  const today  = new Date().toISOString().slice(0, 10);
+  const since  = (req.query.since  as string) ?? today;
+  const until  = (req.query.until  as string) ?? today;
+  const filter = (req.query.filter as string) ?? 'order';
+  const key    = `${filter}:${since}_${until}`;
+  const ttl    = (since === today && until === today) ? TTL_TODAY : TTL_OTHER;
 
   const cached = memCache.get(key);
   if (cached) {
     if (Date.now() - cached.ts > ttl) {
-      fetchOrders(since, until).then((orders) => memCache.set(key, { orders, ts: Date.now() })).catch(() => {});
+      const fn = filter === 'visita' ? fetchOrdersByVisitDate : fetchOrders;
+      fn(since, until).then((orders) => memCache.set(key, { orders, ts: Date.now() })).catch(() => {});
     }
     return res.json({ orders: cached.orders, stale: Date.now() - cached.ts > ttl });
   }
 
   try {
-    const orders = await fetchOrders(since, until);
+    const orders = filter === 'visita'
+      ? await fetchOrdersByVisitDate(since, until)
+      : await fetchOrders(since, until);
     memCache.set(key, { orders, ts: Date.now() });
     return res.json({ orders });
   } catch (err: any) {

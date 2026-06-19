@@ -146,6 +146,7 @@ const TTL_OTHER  = 10 * 60 * 1000;  // 10 min
 
 export function invalidatePaytourCache(): void {
   cache.clear();
+  nextMonthCache = null;
 }
 
 // ── Fetch with warming-up polling ────────────────────────────────────────────
@@ -168,6 +169,50 @@ async function fetchWithPolling(url: string): Promise<RawOrder[]> {
     }
     return (json as { orders?: RawOrder[] }).orders ?? [];
   }
+}
+
+// ── Dados do próximo mês por data de visita ───────────────────────────────────
+export interface NextMonthVisit {
+  revenue:    number;
+  pedidos:    number;
+  atividades: number;
+}
+
+let nextMonthCache: { data: NextMonthVisit; ts: number; key: string } | null = null;
+
+export async function fetchNextMonthVisitData(): Promise<NextMonthVisit> {
+  const pad  = (n: number) => String(n).padStart(2, '0');
+  const fmt  = (d: Date)   => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const now  = new Date();
+  const nm   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  const visitSince = fmt(nm);
+  const visitUntil = fmt(last);
+  const key = `${visitSince}:${visitUntil}`;
+
+  if (nextMonthCache && nextMonthCache.key === key && Date.now() - nextMonthCache.ts < TTL_OTHER) {
+    return nextMonthCache.data;
+  }
+
+  const url    = `/api/paytour-orders?since=${visitSince}&until=${visitUntil}&filter=visita`;
+  const orders = await fetchWithPolling(url) as RawOrder[];
+
+  const active = orders.filter(o =>
+    o.status === 'confirmado' || o.status === 'aprovado' || o.status === 'pendente'
+  );
+  const revenue    = active.reduce((s, o) => s + parseFloat(o.valor || '0'), 0);
+  const pedidos    = active.length;
+  const atividades = active.reduce((s, o) => {
+    const items = (o.itens ?? []).filter(item => {
+      const vd = item.produto_disponibilidade_data?.slice(0, 10);
+      return vd && vd >= visitSince && vd <= visitUntil;
+    });
+    return s + (items.length > 0 ? items.length : 1);
+  }, 0);
+
+  const data = { revenue, pedidos, atividades };
+  nextMonthCache = { data, ts: Date.now(), key };
+  return data;
 }
 
 // ── Public fetch function ─────────────────────────────────────────────────────
