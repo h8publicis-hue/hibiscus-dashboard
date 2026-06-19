@@ -393,6 +393,43 @@ function googleReviewsPlugin(apiKey: string, placeId: string): Plugin {
   };
 }
 
+// ── Vite Plugin — /api/ocupacao ───────────────────────────────────────────────
+function ocupacaoPlugin(): Plugin {
+  let state = { beach: 0, lounges: Array(14).fill(0), prime: 0 };
+  return {
+    name: 'ocupacao-api',
+    configureServer(server) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      server.middlewares.use('/api/ocupacao', (req: any, res: any) => {
+        res.setHeader('Content-Type', 'application/json');
+        if (req.method === 'GET') {
+          res.end(JSON.stringify(state));
+          return;
+        }
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (c: string) => { body += c; });
+          req.on('end', () => {
+            try {
+              const d = JSON.parse(body);
+              const cl = (n: number, min: number, max: number) => Math.min(max, Math.max(min, Number(n) || 0));
+              state = {
+                beach:   cl(d.beach, 0, 500),
+                lounges: Array(14).fill(0).map((_: number, i: number) => cl(d.lounges?.[i], 0, 10)),
+                prime:   cl(d.prime, 0, 10),
+              };
+            } catch { /* ignore */ }
+            res.end(JSON.stringify(state));
+          });
+          return;
+        }
+        res.statusCode = 405;
+        res.end();
+      });
+    },
+  };
+}
+
 // ── Vite config ───────────────────────────────────────────────────────────────
 export default defineConfig(({ mode }) => {
   // loadEnv with '' prefix loads ALL .env vars (including non-VITE_ ones)
@@ -402,6 +439,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      ocupacaoPlugin(),
       googleReviewsPlugin(
         env.GOOGLE_PLACES_API_KEY ?? '',
         env.GOOGLE_PLACE_ID       ?? '',

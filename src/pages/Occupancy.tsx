@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { useRef, useCallback } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Smartphone } from 'lucide-react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
 
@@ -148,14 +148,26 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ocupação em Tempo Real</h2>
-        <button
-          onClick={actions.reset}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title="Zerar todos os contadores"
-        >
-          <RotateCcw size={13} />
-          Zerar tudo
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/entrada"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-sm"
+            title="Abrir controle de ocupação para tablet/celular"
+          >
+            <Smartphone size={13} />
+            Abrir controle
+          </a>
+          <button
+            onClick={actions.reset}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="Zerar todos os contadores"
+          >
+            <RotateCcw size={13} />
+            Zerar tudo
+          </button>
+        </div>
       </div>
 
       {/* Total na casa */}
