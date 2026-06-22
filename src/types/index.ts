@@ -165,3 +165,24 @@ export const SPACE_CONFIGS = {
   lounge: { name: 'Lounge', max: 10,  attention: 0.6, alert: 0.9, count: 18, start: 501 },
   prime:  { name: 'Prime',  max: 2,   attention: 0.5, alert: 1.0 },
 } as const;
+
+// Dados vindos da planilha de ocupação em tempo real
+export interface SheetOccupancyData {
+  date:       string;   // YYYY-MM-DD
+  portaria:   number;   // total de entradas pela portaria
+  beach:      number;   // pax no beach
+  condominio: number;   // pax no condomínio
+  lounge:     number;   // pax nos lounges (agregado)
+  gap:        number;   // portaria - (beach + lounge + condomínio) — pode ser negativo
+  total:      number;   // beach + lounge + condomínio
+  timestamp:  string;   // horário da última atualização
+  isToday:    boolean;
+  stale?:     boolean;
+}
+
+// Capacidades máximas conforme a planilha / operação real
+export const SHEET_CAPS = {
+  beach:      600,
+  lounge:     150,
+  condominio:  30,
+} as const;

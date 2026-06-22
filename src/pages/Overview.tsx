@@ -3,8 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
+import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
-import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
+import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -180,6 +181,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: survey,  loading: smL } = useSurveyMonkey(period);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour(period);
+  const { data: sheetOcc } = useSheetOccupancy();
 
   const [nextMonth, setNextMonth]   = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -399,12 +401,12 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Ocupação ───────────────────────────────────────────────────────
   const blocoOcupacao = (() => {
-    const totalLounges = occupancy.lounges.reduce((a, b) => a + b, 0);
-    const maxLounges   = SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
-    const total = occupancy.beach + totalLounges + occupancy.prime;
-    const max   = SPACE_CONFIGS.beach.max + maxLounges + SPACE_CONFIGS.prime.max;
-    const pct   = Math.round(total / max * 100);
+    const so = sheetOcc;
+    const updatedAt = so?.timestamp
+      ? new Date(so.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : null;
     const loungesFull = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
+
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -414,19 +416,53 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
           <a href="/ocupacao" className="text-[10px] text-brand-600 hover:underline">detalhes →</a>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
-          <OccupancyRow label="🛋️ Lounges" current={totalLounges} max={maxLounges} />
-          <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
-        </div>
+
+        {so ? (
+          <>
+            {/* Portaria + Na Casa + GAP */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-gray-900 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-gray-400 uppercase tracking-wider">🚪 Portaria</p>
+                <p className="text-xl font-black text-white">{so.portaria}</p>
+              </div>
+              <div className="bg-brand-600 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-brand-200 uppercase tracking-wider">👥 Na Casa</p>
+                <p className="text-xl font-black text-white">{so.total}</p>
+              </div>
+              <div className={clsx('rounded-lg p-2 text-center', so.gap >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-orange-50 dark:bg-orange-900/20')}>
+                <p className={clsx('text-[9px] uppercase tracking-wider', so.gap >= 0 ? 'text-green-500' : 'text-orange-500')}>⚡ GAP</p>
+                <p className={clsx('text-xl font-black', so.gap >= 0 ? 'text-green-600' : 'text-orange-600')}>{so.gap}</p>
+              </div>
+            </div>
+
+            {/* Beach / Lounge / Condomínio */}
+            <div className="flex flex-col gap-1.5">
+              <OccupancyRow label="🏖️ Beach"      current={so.beach}      max={SHEET_CAPS.beach} />
+              <OccupancyRow label="🛋️ Lounge"     current={so.lounge}     max={SHEET_CAPS.lounge} />
+              <OccupancyRow label="🏢 Condomínio"  current={so.condominio} max={SHEET_CAPS.condominio} />
+            </div>
+
+            {updatedAt && (
+              <p className="text-[9px] text-gray-400 text-right">
+                {!so.isToday && <span className="text-orange-400">({so.date}) </span>}
+                Atualizado às {updatedAt}
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+            <OccupancyRow label="🛋️ Lounges" current={occupancy.lounges.reduce((a,b)=>a+b,0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
+            <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
+          </div>
+        )}
+
         <LoungeMap lounges={occupancy.lounges} />
-        <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
-          <span className="text-gray-500 dark:text-gray-400">Total na casa</span>
-          <span className="font-bold text-gray-800 dark:text-white">{total} <span className="font-normal text-gray-400">/ {max} ({pct}%)</span></span>
-          {loungesFull > 0 && (
-            <span className="text-red-600 font-semibold">{loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}</span>
-          )}
-        </div>
+        {loungesFull > 0 && (
+          <p className="text-xs text-red-600 font-semibold text-right">
+            {loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}
+          </p>
+        )}
       </div>
     );
   })();
@@ -559,17 +595,40 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             </div>
             <a href="/ocupacao" className="text-[9px] text-brand-600">detalhes →</a>
           </div>
-          <div className="flex flex-col gap-1">
-            <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
-            <OccupancyRow label="🛋️ Lounges" current={occupancy.lounges.reduce((a, b) => a + b, 0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
-            <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
-          </div>
+
+          {sheetOcc ? (
+            <>
+              {/* Portaria / Na Casa / GAP — planilha ao vivo */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-gray-900 rounded-lg p-1.5 text-center">
+                  <p className="text-[8px] text-gray-400">🚪 Portaria</p>
+                  <p className="text-lg font-black text-white leading-tight">{sheetOcc.portaria}</p>
+                </div>
+                <div className="bg-brand-600 rounded-lg p-1.5 text-center">
+                  <p className="text-[8px] text-brand-200">👥 Na Casa</p>
+                  <p className="text-lg font-black text-white leading-tight">{sheetOcc.total}</p>
+                </div>
+                <div className={clsx('rounded-lg p-1.5 text-center', sheetOcc.gap >= 0 ? 'bg-green-50' : 'bg-orange-50')}>
+                  <p className={clsx('text-[8px]', sheetOcc.gap >= 0 ? 'text-green-500' : 'text-orange-500')}>⚡ GAP</p>
+                  <p className={clsx('text-lg font-black leading-tight', sheetOcc.gap >= 0 ? 'text-green-600' : 'text-orange-600')}>{sheetOcc.gap}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <OccupancyRow label="🏖️ Beach"     current={sheetOcc.beach}      max={SHEET_CAPS.beach} />
+                <OccupancyRow label="🛋️ Lounge"    current={sheetOcc.lounge}     max={SHEET_CAPS.lounge} />
+                <OccupancyRow label="🏢 Condomínio" current={sheetOcc.condominio} max={SHEET_CAPS.condominio} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
+              <OccupancyRow label="🛋️ Lounges" current={occupancy.lounges.reduce((a, b) => a + b, 0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
+              <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
+            </div>
+          )}
+
           <LoungeMapMini lounges={occupancy.lounges} />
-          <div className="flex items-center justify-between text-[10px] bg-gray-50 dark:bg-gray-700/40 rounded-lg px-2 py-1.5">
-            <span className="text-gray-500">Total na casa</span>
-            <span className="font-bold text-gray-800 dark:text-white">{occTotal}<span className="font-normal text-gray-400"> / {occMax} ({Math.round(occTotal/occMax*100)}%)</span></span>
-            {loungesFull > 0 && <span className="text-red-600 font-semibold">{loungesFull} cheio{loungesFull > 1 ? 's' : ''}</span>}
-          </div>
+          {loungesFull > 0 && <span className="text-[10px] text-red-600 font-semibold text-right">{loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}</span>}
         </div>
 
         {/* Resumo do período compacto */}
