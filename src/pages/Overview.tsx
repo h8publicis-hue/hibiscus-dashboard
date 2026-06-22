@@ -421,17 +421,17 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <>
             {/* Portaria + Na Casa + GAP */}
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-slate-700 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-slate-300 uppercase tracking-wider">🚪 Portaria</p>
-                <p className="text-xl font-black text-white">{so.portaria}</p>
+              <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">🚪 Portaria</p>
+                <p className="text-xl font-black text-slate-800 dark:text-slate-100">{so.portaria}</p>
               </div>
-              <div className="bg-brand-600 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-brand-200 uppercase tracking-wider">👥 Na Casa</p>
-                <p className="text-xl font-black text-white">{so.total}</p>
+              <div className="border border-brand-400 rounded-lg p-2 text-center">
+                <p className="text-[9px] text-brand-500 dark:text-brand-300 uppercase tracking-wider">👥 Na Casa</p>
+                <p className="text-xl font-black text-brand-700 dark:text-brand-200">{so.total}</p>
               </div>
-              <div className={clsx('rounded-lg p-2 text-center', so.gap >= 0 ? 'bg-emerald-600' : 'bg-red-500')}>
-                <p className="text-[9px] text-white/80 uppercase tracking-wider">⚡ GAP</p>
-                <p className="text-xl font-black text-white">{so.gap}</p>
+              <div className={clsx('rounded-lg p-2 text-center border', so.gap >= 0 ? 'border-emerald-400' : 'border-red-400')}>
+                <p className={clsx('text-[9px] uppercase tracking-wider', so.gap >= 0 ? 'text-emerald-500' : 'text-red-500')}>⚡ GAP</p>
+                <p className={clsx('text-xl font-black', so.gap >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{so.gap}</p>
               </div>
             </div>
 
@@ -600,17 +600,17 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             <>
               {/* Portaria / Na Casa / GAP — planilha ao vivo */}
               <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-slate-700 rounded-lg p-1.5 text-center">
-                  <p className="text-[8px] text-slate-300">🚪 Portaria</p>
-                  <p className="text-lg font-black text-white leading-tight">{sheetOcc.portaria}</p>
+                <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-1.5 text-center">
+                  <p className="text-[8px] text-slate-500 dark:text-slate-400">🚪 Portaria</p>
+                  <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">{sheetOcc.portaria}</p>
                 </div>
-                <div className="bg-brand-600 rounded-lg p-1.5 text-center">
-                  <p className="text-[8px] text-brand-200">👥 Na Casa</p>
-                  <p className="text-lg font-black text-white leading-tight">{sheetOcc.total}</p>
+                <div className="border border-brand-400 rounded-lg p-1.5 text-center">
+                  <p className="text-[8px] text-brand-500 dark:text-brand-300">👥 Na Casa</p>
+                  <p className="text-lg font-black text-brand-700 dark:text-brand-200 leading-tight">{sheetOcc.total}</p>
                 </div>
-                <div className={clsx('rounded-lg p-1.5 text-center', sheetOcc.gap >= 0 ? 'bg-emerald-600' : 'bg-red-500')}>
-                  <p className="text-[8px] text-white/80">⚡ GAP</p>
-                  <p className="text-lg font-black text-white leading-tight">{sheetOcc.gap}</p>
+                <div className={clsx('rounded-lg p-1.5 text-center border', sheetOcc.gap >= 0 ? 'border-emerald-400' : 'border-red-400')}>
+                  <p className={clsx('text-[8px]', sheetOcc.gap >= 0 ? 'text-emerald-500' : 'text-red-500')}>⚡ GAP</p>
+                  <p className={clsx('text-lg font-black leading-tight', sheetOcc.gap >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{sheetOcc.gap}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-1">
