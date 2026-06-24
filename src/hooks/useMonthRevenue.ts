@@ -13,7 +13,7 @@ export function useMonthRevenue() {
     // Delay de 8s para não competir com fetches principais
     const t = setTimeout(async () => {
       try {
-        const r = await fetch('/api/paytour-faturamento', { signal: AbortSignal.timeout(20_000) });
+        const r = await fetch('/api/paytour-faturamento', { signal: AbortSignal.timeout(60_000) });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const j = await r.json() as { revenue: number };
         cache = { revenue: j.revenue, ts: Date.now() };
