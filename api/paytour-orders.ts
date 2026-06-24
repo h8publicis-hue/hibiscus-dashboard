@@ -88,38 +88,30 @@ async function fetchOrders(since: string, until: string) {
   return all;
 }
 
-// ── Busca pedidos por data de visita (para "Já Vendido") ──────────────────────
+// ── Busca pedidos por data de visita via parâmetros nativos da API ────────────
+// O endpoint /v2/pedidos aceita filtro por data de disponibilidade do produto.
+// Isso evita a necessidade de buscar `itens` (que não vem na listagem).
 async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
-  const cutoff = new Date(visitSince);
-  cutoff.setMonth(cutoff.getMonth() - 3);   // lookback máximo 3 meses
-  const orderCutoff = cutoff.toISOString().slice(0, 10);
-
   const all: unknown[] = [];
-  for (let page = 1; page <= 60; page++) {  // max 60 pág × 50 = 3000 pedidos p/ evitar timeout
+
+  // Parâmetros testados com a API do Paytour para filtro por data de visita
+  const dateParams = `disponibilidade_data_de=${visitSince}&disponibilidade_data_ate=${visitUntil}`;
+
+  for (let page = 1; page <= 30; page++) {
     if (page > 1) await sleep(PAGE_DELAY_MS);
-    const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
+    const data  = await paytourGet(
+      `/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}&${dateParams}`
+    ) as any;
     const items = data?.itens ?? [];
-    if (!items.length) break;
-    let done = false;
-    for (const o of items) {
-      const d = (o.data_hora_pedido as string).slice(0, 10);
-      if (d < orderCutoff) { done = true; break; }
-      const itens = (o.itens ?? []) as any[];
-      // Debug: loga estrutura do primeiro pedido para verificar se itens está na resposta
-      if (page === 1 && all.length === 0) {
-        console.log('[visita-debug] primeiro pedido keys:', Object.keys(o));
-        console.log('[visita-debug] itens count:', itens.length, 'exemplo item:', itens[0]);
-      }
-      const hasVisit = itens.some((item: any) => {
-        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 10);
-        return vd && vd >= visitSince && vd <= visitUntil;
-      });
-      if (hasVisit) all.push(o);
+    if (page === 1) {
+      console.log(`[visita] pg1 total_paginas=${data?.info?.total_paginas} count=${items.length} params=${dateParams}`);
     }
-    if (done) break;
+    if (!items.length) break;
+    for (const o of items) all.push(o);
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
-  console.log(`[visita-debug] total encontrado: ${all.length} pedidos entre ${visitSince} e ${visitUntil}`);
+
+  console.log(`[visita] encontrados ${all.length} pedidos para visita ${visitSince}→${visitUntil}`);
   return all;
 }
 
@@ -135,7 +127,7 @@ export default async function handler(req: any, res: any) {
   const isToday = since === today && until === today;
   const ttl     = isToday ? TTL_TODAY : TTL_OTHER;
   const ttlSec  = Math.floor(ttl / 1000);
-  const key     = `pt3:${filter}:${since}_${until}`;
+  const key     = `pt4:${filter}:${since}_${until}`;
 
   // L1: memória (mesma instância serverless)
   const mem = memCache.get(key);
