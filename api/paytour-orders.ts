@@ -69,7 +69,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 async function fetchOrders(since: string, until: string) {
   const today   = new Date().toISOString().slice(0, 10);
   const isToday = since === today && until === today;
-  const maxPage = isToday ? 6 : 9999;   // hoje: max 6 páginas × 50 = 300 pedidos
+  const maxPage = isToday ? 6 : 30;   // hoje: 6 pág; outros: 30 pág max (1500 pedidos) p/ evitar timeout
   const all: unknown[] = [];
   for (let page = 1; page <= maxPage; page++) {
     if (page > 1) await sleep(PAGE_DELAY_MS);

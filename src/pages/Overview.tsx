@@ -4,7 +4,7 @@ import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
-import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
+import { fetchNextMonthVisitData, fetchPaytourData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
 
@@ -178,14 +178,36 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
-  const { data: survey,      loading: smL } = useSurveyMonkey(period);
-  const { data: google,      loading: gL  } = useGoogleBusiness(period);
-  const { data: paytour,     loading: ptL } = usePaytour(period);
-  const { data: paytourMonth, loading: ptmL } = usePaytour('month');
+  const { data: survey,  loading: smL } = useSurveyMonkey(period);
+  const { data: google,  loading: gL  } = useGoogleBusiness(period);
+  const { data: paytour, loading: ptL } = usePaytour(period);
   const { data: sheetOcc } = useSheetOccupancy();
 
-  const [nextMonth, setNextMonth]   = useState<NextMonthVisit | null>(null);
-  const [nextMonthL, setNextMonthL] = useState(true);
+  const [nextMonth,    setNextMonth]    = useState<NextMonthVisit | null>(null);
+  const [nextMonthL,   setNextMonthL]   = useState(true);
+  const [paytourMonth, setPaytourMonth] = useState<import('../types').PaytourData | null>(null);
+  const [ptmL,         setPtmL]         = useState(true);
+
+  // Faturamento do mês: atrasa 6s para não competir com fetches principais
+  useEffect(() => {
+    let cancelled = false;
+    setPtmL(true);
+    setPaytourMonth(null);
+    if (period === 'month') {
+      // Período já é mês — reutiliza os dados quando carregarem
+      return;
+    }
+    const delay = setTimeout(() => {
+      fetchPaytourData('month')
+        .then(d  => { if (!cancelled) { setPaytourMonth(d); setPtmL(false); } })
+        .catch(() => { if (!cancelled) { setPtmL(false); } });
+    }, 6_000);
+    return () => { cancelled = true; clearTimeout(delay); };
+  }, [period]);
+
+  // Quando period='month', usa paytour diretamente
+  const monthData = period === 'month' ? paytour : paytourMonth;
+  const monthDataL = period === 'month' ? ptL : ptmL;
 
   useEffect(() => {
     let cancelled = false;
@@ -229,7 +251,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   );
 
   // ── Bloco: Já Vendido ─────────────────────────────────────────────────────
-  const monthRevenue  = paytourMonth?.totalRevenue ?? 0;
+  const monthRevenue  = monthData?.totalRevenue ?? 0;
   const monthGoal     = _goals.receitaTotal;
   const monthPct      = Math.min(monthRevenue / monthGoal, 1);
   const monthPctLabel = Math.round(monthPct * 100);
@@ -241,9 +263,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           Faturamento — {monthName(0)}
         </h2>
       </div>
-      {ptmL
+      {monthDataL
         ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-2 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
-        : paytourMonth
+        : monthData
           ? (
             <div className="space-y-2">
               <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
