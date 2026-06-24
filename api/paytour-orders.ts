@@ -105,6 +105,11 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
       const d = (o.data_hora_pedido as string).slice(0, 10);
       if (d < orderCutoff) { done = true; break; }
       const itens = (o.itens ?? []) as any[];
+      // Debug: loga estrutura do primeiro pedido para verificar se itens está na resposta
+      if (page === 1 && all.length === 0) {
+        console.log('[visita-debug] primeiro pedido keys:', Object.keys(o));
+        console.log('[visita-debug] itens count:', itens.length, 'exemplo item:', itens[0]);
+      }
       const hasVisit = itens.some((item: any) => {
         const vd = (item.produto_disponibilidade_data as string)?.slice(0, 10);
         return vd && vd >= visitSince && vd <= visitUntil;
@@ -114,6 +119,7 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
     if (done) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
+  console.log(`[visita-debug] total encontrado: ${all.length} pedidos entre ${visitSince} e ${visitUntil}`);
   return all;
 }
 
@@ -129,7 +135,7 @@ export default async function handler(req: any, res: any) {
   const isToday = since === today && until === today;
   const ttl     = isToday ? TTL_TODAY : TTL_OTHER;
   const ttlSec  = Math.floor(ttl / 1000);
-  const key     = `pt2:${filter}:${since}_${until}`;
+  const key     = `pt3:${filter}:${since}_${until}`;
 
   // L1: memória (mesma instância serverless)
   const mem = memCache.get(key);
