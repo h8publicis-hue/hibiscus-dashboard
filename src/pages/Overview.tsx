@@ -278,7 +278,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 </div>
                 <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
-                    className={clsx('h-full rounded-full transition-all', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-500' : 'bg-brand-300')}
+                    className={clsx('h-full rounded-full transition-all', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
                     style={{ width: `${monthPctLabel}%` }}
                   />
                 </div>
@@ -581,7 +581,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                       </div>
                       <div className="h-1 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
-                          className={clsx('h-full rounded-full', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-500' : 'bg-brand-300')}
+                          className={clsx('h-full rounded-full', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
                           style={{ width: `${monthPctLabel}%` }}
                         />
                       </div>
