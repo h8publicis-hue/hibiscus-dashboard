@@ -1,17 +1,15 @@
-// Faturamento do mês corrente — status=aprovado, por data de pedido.
-// O Paytour "Resumo Financeiro" usa data de VISITA, mas a list API /v2/pedidos
-// não filtra por visita de forma confiável — usamos data de pedido como aproximação.
-// Cache Redis 1h — sem impacto no WiFi após primeira carga.
+// Faturamento do mês — scraping do Resumo Financeiro do admin Magento.
+// Autentica em loja.hibiscusbeachclub.com.br/admin, faz POST do relatório
+// e extrai o "Total Movimentado" do HTML retornado.
+// Cache Redis 1h — apenas 1 requisição real por hora.
 
-const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
-const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
-const PT_BASE   = 'https://api-ha.paytour.com.br';
-const KV_URL    = process.env.KV_REST_API_URL   ?? '';
-const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
-const TTL       = 60 * 60 * 1000; // 1 hora
-const PAGE_SIZE = 50;
+const ADMIN_BASE  = 'https://loja.hibiscusbeachclub.com.br/admin';
+const ADMIN_EMAIL = process.env.MAGENTO_ADMIN_EMAIL ?? '';
+const ADMIN_PASS  = process.env.MAGENTO_ADMIN_PASS  ?? '';
+const KV_URL      = process.env.KV_REST_API_URL     ?? '';
+const KV_TOKEN    = process.env.KV_REST_API_TOKEN   ?? '';
+const TTL         = 60 * 60 * 1000; // 1 hora
 
-let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
 
 async function kvGet(key: string) {
@@ -34,84 +32,147 @@ async function kvSet(key: string, value: unknown) {
   } catch { /* ignore */ }
 }
 
-async function getPtToken() {
-  if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
-  const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
-  const res = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${creds}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', 'Content-Length': '0' },
-  });
-  const j = await res.json() as any;
-  if (!j.access_token) throw new Error('Paytour auth failed');
-  ptToken = j.access_token;
-  ptTokenExpiry = Date.now() + (j.expires_in ?? 3600) * 1000 - 60_000;
-  return ptToken;
+// Extrai form_key do HTML da página de login
+function extractFormKey(html: string): string {
+  const m = html.match(/name="form_key"\s+value="([^"]+)"/)
+            ?? html.match(/form_key['"]\s*:\s*['"]([^'"]+)['"]/);
+  return m?.[1] ?? '';
 }
 
-async function paytourGet(path: string) {
-  const tk = await getPtToken();
-  const res = await fetch(`${PT_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${tk}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', Accept: 'application/json' },
+// Extrai o valor total do HTML do relatório.
+// Tenta vários padrões para robustez.
+function extractRevenue(html: string): number {
+  // Padrão: "Total Movimentado" seguido do valor em algum elemento
+  const patterns = [
+    /[Tt]otal\s+[Mm]ovimentado[^0-9R$]*R?\$?\s*([\d.,]+)/,
+    /[Tt]otal\s+[Mm]ovimentado[^<]*<[^>]+>\s*R?\$?\s*([\d.,]+)/,
+    /[Tt]otal[^<]*<\/[^>]+>\s*<[^>]+>\s*R?\$?\s*([\d.,]+)/,
+    /R\$\s*([\d.,]+)/g,
+  ];
+
+  for (const pattern of patterns) {
+    if (pattern.global) continue; // ignora o catch-all por ora
+    const m = html.match(pattern);
+    if (m?.[1]) {
+      const val = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+      if (val > 1000) return val; // valor plausível de faturamento
+    }
+  }
+
+  // Fallback: pega todos os valores R$ do HTML e retorna o maior
+  const all = [...html.matchAll(/R\$\s*([\d]{1,3}(?:\.\d{3})*(?:,\d{2})?)/g)]
+    .map(m => parseFloat(m[1].replace(/\./g, '').replace(',', '.')))
+    .filter(v => v > 1000);
+  if (all.length) {
+    all.sort((a, b) => b - a);
+    console.log('[fat-mag] valores R$ encontrados no HTML:', all.slice(0, 10));
+    return all[0];
+  }
+
+  return 0;
+}
+
+async function fetchResumoFinanceiro(since: string, until: string): Promise<number> {
+  // Formata período no formato esperado pelo Magento: DD/MM/AAAA - DD/MM/AAAA
+  const fmt = (s: string) => s.split('-').reverse().join('/');
+  const periodo = `${fmt(since)} - ${fmt(until)}`;
+
+  // Passo 1: GET página de login → extrai form_key
+  const loginPageRes = await fetch(`${ADMIN_BASE}/`, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    redirect: 'follow',
     signal: AbortSignal.timeout(15_000),
   });
-  return res.json();
-}
+  const loginHtml = await loginPageRes.text();
+  const formKey1  = extractFormKey(loginHtml);
+  const cookies1  = loginPageRes.headers.get('set-cookie') ?? '';
+  console.log(`[fat-mag] login page status=${loginPageRes.status} form_key=${formKey1.slice(0,8)}...`);
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+  if (!formKey1) throw new Error('Não foi possível obter form_key da página de login');
 
-// Soma pedidos aprovados do mês, filtrando por data de pedido (data_hora_pedido).
-// Busca página por página (máx 10 = 500 pedidos) parando ao sair do intervalo.
-// Assume API ordenada por data decrescente (pedidos mais recentes primeiro).
-async function calcRevenueByOrderDate(since: string, until: string): Promise<{ revenue: number; count: number }> {
-  let revenue = 0;
-  let count = 0;
-  for (let page = 1; page <= 10; page++) {
-    if (page > 1) await sleep(200);
-    const data = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
-    const items: any[] = data?.itens ?? [];
-    if (page === 1) {
-      const totalPages = data?.info?.total_paginas ?? '?';
-      console.log(`[fat] pg1 total_pag=${totalPages} count=${items.length}`);
-    }
-    if (!items.length) break;
-    let pastRange = false;
-    for (const o of items) {
-      const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-      if (d < since) { pastRange = true; break; }
-      if (d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
-        revenue += parseFloat(o.valor || '0');
-        count++;
-      }
-    }
-    if (pastRange) break;
-    if (page >= (data?.info?.total_paginas ?? page)) break;
-  }
-  console.log(`[fat] resultado: R$ ${revenue.toFixed(2)} (${count} pedidos aprovados, ${since}→${until})`);
-  return { revenue, count };
+  // Passo 2: POST login → obtém sessão autenticada
+  const loginBody = new URLSearchParams({
+    'login[username]': ADMIN_EMAIL,
+    'login[password]': ADMIN_PASS,
+    'form_key': formKey1,
+  });
+  const loginRes = await fetch(`${ADMIN_BASE}/index/index/`, {
+    method: 'POST',
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Cookie: cookies1,
+    },
+    body: loginBody.toString(),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(15_000),
+  });
+  const cookies2 = [cookies1, loginRes.headers.get('set-cookie') ?? ''].filter(Boolean).join('; ');
+  console.log(`[fat-mag] login POST status=${loginRes.status}`);
+
+  // Passo 3: GET página do relatório → novo form_key autenticado
+  const reportPageRes = await fetch(`${ADMIN_BASE}/custom-report/resumo_financeiro`, {
+    headers: { 'User-Agent': 'Mozilla/5.0', Cookie: cookies2 },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(15_000),
+  });
+  const reportPageHtml = await reportPageRes.text();
+  const formKey2 = extractFormKey(reportPageHtml);
+  const cookies3 = [cookies2, reportPageRes.headers.get('set-cookie') ?? ''].filter(Boolean).join('; ');
+  console.log(`[fat-mag] report page status=${reportPageRes.status} form_key2=${formKey2.slice(0,8)}...`);
+
+  // Passo 4: POST relatório com o período
+  const reportBody = new URLSearchParams({
+    'periodo': periodo,
+    'tipo_item': '',
+    'form_key': formKey2 || formKey1,
+  });
+  const reportRes = await fetch(`${ADMIN_BASE}/custom-report/resumo_financeiro`, {
+    method: 'POST',
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Cookie: cookies3,
+      Referer: `${ADMIN_BASE}/custom-report/resumo_financeiro`,
+    },
+    body: reportBody.toString(),
+    redirect: 'follow',
+    signal: AbortSignal.timeout(20_000),
+  });
+  const reportHtml = await reportRes.text();
+  console.log(`[fat-mag] report POST status=${reportRes.status} html_len=${reportHtml.length}`);
+
+  // Log trecho do HTML para diagnóstico
+  const snippet = reportHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 500);
+  console.log('[fat-mag] html snippet:', snippet);
+
+  const revenue = extractRevenue(reportHtml);
+  console.log(`[fat-mag] revenue extraído: R$ ${revenue}`);
+  return revenue;
 }
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
-  if (!PT_KEY || !PT_SECRET) return res.json({ revenue: 0 });
+  if (!ADMIN_EMAIL || !ADMIN_PASS) return res.json({ revenue: 0, error: 'sem credenciais' });
 
   const now   = new Date();
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf4:${since}_${until}`;
+  const key   = `ptf-mag1:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
   if (kv && Date.now() - kv.ts < TTL) { memCache = kv; return res.json({ revenue: kv.revenue, since, until }); }
 
   try {
-    const { revenue, count } = await calcRevenueByOrderDate(since, until);
-    const entry = { revenue, ts: Date.now() };
+    const revenue = await fetchResumoFinanceiro(since, until);
+    const entry   = { revenue, ts: Date.now() };
     memCache = entry;
     kvSet(key, entry);
-    return res.json({ revenue, since, until, count });
+    return res.json({ revenue, since, until });
   } catch (err: any) {
-    console.error('[faturamento]', err.message);
+    console.error('[fat-mag]', err.message);
     if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true });
     return res.status(500).json({ error: String(err) });
   }
