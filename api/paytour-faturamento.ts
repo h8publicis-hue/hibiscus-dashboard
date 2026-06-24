@@ -34,9 +34,19 @@ async function kvSet(key: string, value: unknown) {
 
 // Extrai form_key do HTML da página de login
 function extractFormKey(html: string): string {
-  const m = html.match(/name="form_key"\s+value="([^"]+)"/)
-            ?? html.match(/form_key['"]\s*:\s*['"]([^'"]+)['"]/);
-  return m?.[1] ?? '';
+  const patterns = [
+    /name="form_key"\s+[^>]*value="([^"]+)"/,
+    /value="([^"]+)"\s+[^>]*name="form_key"/,
+    /name='form_key'\s+[^>]*value='([^']+)'/,
+    /form_key['"]\s*[,:]\s*['"]([a-zA-Z0-9]+)['"]/,
+    /FORM_KEY\s*=\s*['"]([^'"]+)['"]/,
+    /form_key['"]\s*value['"]\s*:\s*['"]([^'"]+)['"]/,
+  ];
+  for (const p of patterns) {
+    const m = html.match(p);
+    if (m?.[1]) return m[1];
+  }
+  return '';
 }
 
 // Extrai o valor total do HTML do relatório.
@@ -86,7 +96,9 @@ async function fetchResumoFinanceiro(since: string, until: string): Promise<numb
   const loginHtml = await loginPageRes.text();
   const formKey1  = extractFormKey(loginHtml);
   const cookies1  = loginPageRes.headers.get('set-cookie') ?? '';
-  console.log(`[fat-mag] login page status=${loginPageRes.status} form_key=${formKey1.slice(0,8)}...`);
+  // Log do HTML da página de login para diagnóstico
+  const loginSnippet = loginHtml.replace(/\s+/g, ' ').slice(0, 800);
+  console.log(`[fat-mag] login page status=${loginPageRes.status} html_snippet: ${loginSnippet}`);
 
   if (!formKey1) throw new Error('Não foi possível obter form_key da página de login');
 
