@@ -178,9 +178,10 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
-  const { data: survey,  loading: smL } = useSurveyMonkey(period);
-  const { data: google,  loading: gL  } = useGoogleBusiness(period);
-  const { data: paytour, loading: ptL } = usePaytour(period);
+  const { data: survey,      loading: smL } = useSurveyMonkey(period);
+  const { data: google,      loading: gL  } = useGoogleBusiness(period);
+  const { data: paytour,     loading: ptL } = usePaytour(period);
+  const { data: paytourMonth, loading: ptmL } = usePaytour('month');
   const { data: sheetOcc } = useSheetOccupancy();
 
   const [nextMonth, setNextMonth]   = useState<NextMonthVisit | null>(null);
@@ -228,31 +229,37 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   );
 
   // ── Bloco: Já Vendido ─────────────────────────────────────────────────────
+  const monthRevenue  = paytourMonth?.totalRevenue ?? 0;
+  const monthGoal     = _goals.receitaTotal;
+  const monthPct      = Math.min(monthRevenue / monthGoal, 1);
+  const monthPctLabel = Math.round(monthPct * 100);
   const blocoJaVendido = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-1.5 mb-3">
         <Target size={14} className="text-brand-600" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
-          Já vendido — {monthName(1)}
+          Faturamento — {monthName(0)}
         </h2>
-        <InfoTooltip text="Pedidos com data de visita no próximo mês, independente de quando foram realizados. Corresponde ao relatório 'Usuários por Período' do Paytour." />
       </div>
-      {nextMonthL
-        ? <div className="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-        : nextMonth
+      {ptmL
+        ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-2 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
+        : paytourMonth
           ? (
-            <div className="flex gap-4">
+            <div className="space-y-2">
+              <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
+                R$ {fmtN(Math.round(monthRevenue))}
+              </p>
               <div>
-                <p className="text-[10px] text-gray-400">Receita</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {fmtN(Math.round(nextMonth.revenue))}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400">Pedidos</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.pedidos)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400">Atividades</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{fmtN(nextMonth.atividades)}</p>
+                <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                  <span>Meta: R$ {fmtN(monthGoal)}</span>
+                  <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className={clsx('h-full rounded-full transition-all', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-500' : 'bg-brand-300')}
+                    style={{ width: `${monthPctLabel}%` }}
+                  />
+                </div>
               </div>
             </div>
           )
@@ -521,31 +528,32 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         {/* Já Vendido + Ocupação lado a lado */}
         <div className="grid grid-cols-2 gap-2.5">
 
-          {/* Já Vendido */}
+          {/* Faturamento do mês */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-1 mb-1.5">
               <Target size={11} className="text-brand-600 shrink-0" />
               <p className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide leading-tight">
-                Já vendido<br />{monthName(1).split(' ')[0]}
+                {monthName(0).split(' ')[0]}
               </p>
             </div>
-            {nextMonthL
+            {ptmL
               ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
-              : nextMonth
+              : paytourMonth
                 ? (
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-base font-black text-brand-600 dark:text-brand-400 leading-tight">
+                      R$ {fmtN(Math.round(monthRevenue))}
+                    </p>
                     <div>
-                      <p className="text-[8px] text-gray-400">Receita</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">R${fmtN(Math.round(nextMonth.revenue))}</p>
-                    </div>
-                    <div className="flex gap-2 mt-0.5">
-                      <div>
-                        <p className="text-[8px] text-gray-400">Pedidos</p>
-                        <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{fmtN(nextMonth.pedidos)}</p>
+                      <div className="flex justify-between text-[8px] text-gray-400 mb-0.5">
+                        <span>Meta</span>
+                        <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
                       </div>
-                      <div>
-                        <p className="text-[8px] text-gray-400">Ativ.</p>
-                        <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{fmtN(nextMonth.atividades)}</p>
+                      <div className="h-1 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className={clsx('h-full rounded-full', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-500' : 'bg-brand-300')}
+                          style={{ width: `${monthPctLabel}%` }}
+                        />
                       </div>
                     </div>
                   </div>
