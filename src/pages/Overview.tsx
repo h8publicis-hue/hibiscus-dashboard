@@ -4,6 +4,7 @@ import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
+import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
@@ -182,14 +183,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour(period);
   const { data: sheetOcc } = useSheetOccupancy();
+  const { revenue: monthRevRaw, loading: monthRevL } = useMonthRevenue();
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
-
-  // Faturamento do mês: usa paytour já carregado quando period='month' (zero chamadas extras)
-  const isMonthPeriod = period === 'month';
-  const monthRevRaw   = isMonthPeriod ? (paytour?.totalRevenue ?? null) : null;
-  const monthRevL     = isMonthPeriod ? ptL : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -245,11 +242,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           Faturamento — {monthName(0)}
         </h2>
       </div>
-      {!isMonthPeriod
-        ? <p className="text-xs text-gray-400 italic">Selecione o período <strong>Mês</strong> para ver o faturamento acumulado.</p>
-        : monthRevL
-          ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-2 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
-          : monthRevRaw !== null
+      {monthRevL
+        ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-2 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
+        : monthRevRaw !== null
             ? (
               <div className="space-y-2">
                 <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
@@ -550,11 +545,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 {monthName(0).split(' ')[0]}
               </p>
             </div>
-            {!isMonthPeriod
-              ? <p className="text-[9px] text-gray-400 italic leading-tight">Selecione<br/><strong>Mês</strong></p>
-              : monthRevL
-                ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
-                : monthRevRaw !== null
+            {monthRevL
+              ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+              : monthRevRaw !== null
                   ? (
                     <div className="flex flex-col gap-1.5">
                       <p className="text-base font-black text-brand-600 dark:text-brand-400 leading-tight">
