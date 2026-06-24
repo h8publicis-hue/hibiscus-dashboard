@@ -62,10 +62,11 @@ function mapOrders(orders: RawOrder[], since: string, until: string): PaytourDat
   const cancelled  = orders.filter((o) => o.status === 'cancelado' || o.status === 'reprovado');
   const active     = [...confirmed, ...pending];
 
-  const totalRevenue = active.reduce((s, o) => s + parseFloat(o.valor || '0'), 0);
-  const totalSales   = active.length;
-  const totalItems   = active.reduce((s, o) => s + (o.itens?.length ?? 1), 0);
-  const averageTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
+  // Receita e totais contam apenas confirmados/aprovados (igual ao Paytour)
+  const totalRevenue  = confirmed.reduce((s, o) => s + parseFloat(o.valor || '0'), 0);
+  const totalSales    = active.length;
+  const totalItems    = confirmed.reduce((s, o) => s + (o.itens?.length ?? 1), 0);
+  const averageTicket = confirmed.length > 0 ? totalRevenue / confirmed.length : 0;
 
   // Today sub-totals
   const todayOrders  = confirmed.filter((o) => o.data_hora_pedido.slice(0, 10) === today);
