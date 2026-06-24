@@ -129,7 +129,7 @@ export default async function handler(req: any, res: any) {
   const isToday = since === today && until === today;
   const ttl     = isToday ? TTL_TODAY : TTL_OTHER;
   const ttlSec  = Math.floor(ttl / 1000);
-  const key     = `pt:${filter}:${since}_${until}`;
+  const key     = `pt2:${filter}:${since}_${until}`;
 
   // L1: memória (mesma instância serverless)
   const mem = memCache.get(key);
