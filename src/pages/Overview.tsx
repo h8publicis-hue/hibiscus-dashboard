@@ -4,7 +4,7 @@ import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
-import { fetchNextMonthVisitData, fetchCurrentMonthRevenue, NextMonthVisit } from '../services/paytour';
+import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
 
@@ -183,23 +183,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: paytour, loading: ptL } = usePaytour(period);
   const { data: sheetOcc } = useSheetOccupancy();
 
-  const [nextMonth,     setNextMonth]     = useState<NextMonthVisit | null>(null);
-  const [nextMonthL,    setNextMonthL]    = useState(true);
-  const [monthRevRaw,   setMonthRevRaw]   = useState<number | null>(null);
-  const [monthRevL,     setMonthRevL]     = useState(true);
+  const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
+  const [nextMonthL, setNextMonthL] = useState(true);
 
-  // Faturamento do mês por data de visita: atrasa 6s para não competir com fetches principais
-  useEffect(() => {
-    let cancelled = false;
-    setMonthRevL(true);
-    setMonthRevRaw(null);
-    const delay = setTimeout(() => {
-      fetchCurrentMonthRevenue()
-        .then(r  => { if (!cancelled) { setMonthRevRaw(r); setMonthRevL(false); } })
-        .catch(() => { if (!cancelled) { setMonthRevL(false); } });
-    }, 6_000);
-    return () => { cancelled = true; clearTimeout(delay); };
-  }, []);
+  // Faturamento do mês: usa paytour já carregado quando period='month' (zero chamadas extras)
+  const isMonthPeriod = period === 'month';
+  const monthRevRaw   = isMonthPeriod ? (paytour?.totalRevenue ?? null) : null;
+  const monthRevL     = isMonthPeriod ? ptL : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -255,29 +245,31 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           Faturamento — {monthName(0)}
         </h2>
       </div>
-      {monthRevL
-        ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-2 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
-        : monthRevRaw !== null
-          ? (
-            <div className="space-y-2">
-              <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
-                R$ {fmtN(Math.round(monthRevenue))}
-              </p>
-              <div>
-                <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                  <span>Meta: R$ {fmtN(monthGoal)}</span>
-                  <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={clsx('h-full rounded-full transition-all', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
-                    style={{ width: `${monthPctLabel}%` }}
-                  />
+      {!isMonthPeriod
+        ? <p className="text-xs text-gray-400 italic">Selecione o período <strong>Mês</strong> para ver o faturamento acumulado.</p>
+        : monthRevL
+          ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-2 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /></div>
+          : monthRevRaw !== null
+            ? (
+              <div className="space-y-2">
+                <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
+                  R$ {fmtN(Math.round(monthRevenue))}
+                </p>
+                <div>
+                  <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                    <span>Meta: R$ {fmtN(monthGoal)}</span>
+                    <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={clsx('h-full rounded-full transition-all', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
+                      style={{ width: `${monthPctLabel}%` }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-          : <p className="text-xs text-gray-400">Sem dados</p>
+            )
+            : <p className="text-xs text-gray-400">Sem dados</p>
       }
     </div>
   );
@@ -558,29 +550,31 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 {monthName(0).split(' ')[0]}
               </p>
             </div>
-            {monthRevL
-              ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
-              : monthRevRaw !== null
-                ? (
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-base font-black text-brand-600 dark:text-brand-400 leading-tight">
-                      R$ {fmtN(Math.round(monthRevenue))}
-                    </p>
-                    <div>
-                      <div className="flex justify-between text-[8px] text-gray-400 mb-0.5">
-                        <span>Meta</span>
-                        <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
-                      </div>
-                      <div className="h-1 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className={clsx('h-full rounded-full', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
-                          style={{ width: `${monthPctLabel}%` }}
-                        />
+            {!isMonthPeriod
+              ? <p className="text-[9px] text-gray-400 italic leading-tight">Selecione<br/><strong>Mês</strong></p>
+              : monthRevL
+                ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+                : monthRevRaw !== null
+                  ? (
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-base font-black text-brand-600 dark:text-brand-400 leading-tight">
+                        R$ {fmtN(Math.round(monthRevenue))}
+                      </p>
+                      <div>
+                        <div className="flex justify-between text-[8px] text-gray-400 mb-0.5">
+                          <span>Meta</span>
+                          <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
+                        </div>
+                        <div className="h-1 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className={clsx('h-full rounded-full', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
+                            style={{ width: `${monthPctLabel}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-                : <p className="text-[10px] text-gray-400">—</p>
+                  )
+                  : <p className="text-[10px] text-gray-400">—</p>
             }
           </div>
 
