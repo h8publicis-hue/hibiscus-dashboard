@@ -95,7 +95,7 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
   const orderCutoff = cutoff.toISOString().slice(0, 10);
 
   const all: unknown[] = [];
-  for (let page = 1; page <= 9999; page++) {
+  for (let page = 1; page <= 60; page++) {  // max 60 pág × 50 = 3000 pedidos p/ evitar timeout
     if (page > 1) await sleep(PAGE_DELAY_MS);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
     const items = data?.itens ?? [];

@@ -171,6 +171,40 @@ export interface NextMonthVisit {
 let nextMonthCache:    { data: NextMonthVisit; ts: number; key: string } | null = null;
 let nextMonthInflight: Promise<NextMonthVisit> | null = null;
 
+// ── Receita do mês corrente por data de visita ────────────────────────────────
+let currentMonthCache:    { revenue: number; ts: number; key: string } | null = null;
+let currentMonthInflight: Promise<number> | null = null;
+
+export async function fetchCurrentMonthRevenue(): Promise<number> {
+  const pad  = (n: number) => String(n).padStart(2, '0');
+  const fmt  = (d: Date)   => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const now  = new Date();
+  const visitSince = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
+  const visitUntil = fmt(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const key = `${visitSince}:${visitUntil}`;
+
+  if (currentMonthCache && currentMonthCache.key === key && Date.now() - currentMonthCache.ts < TTL_OTHER) {
+    return currentMonthCache.revenue;
+  }
+  if (currentMonthInflight) return currentMonthInflight;
+
+  currentMonthInflight = (async () => {
+    try {
+      const url    = `/api/paytour-orders?since=${visitSince}&until=${visitUntil}&filter=visita`;
+      const orders = await apiFetch(url) as RawOrder[];
+      const revenue = orders
+        .filter(o => o.status === 'confirmado' || o.status === 'aprovado')
+        .reduce((s, o) => s + parseFloat(o.valor || '0'), 0);
+      currentMonthCache = { revenue, ts: Date.now(), key };
+      return revenue;
+    } finally {
+      currentMonthInflight = null;
+    }
+  })();
+
+  return currentMonthInflight;
+}
+
 export async function fetchNextMonthVisitData(): Promise<NextMonthVisit> {
   const pad  = (n: number) => String(n).padStart(2, '0');
   const fmt  = (d: Date)   => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
