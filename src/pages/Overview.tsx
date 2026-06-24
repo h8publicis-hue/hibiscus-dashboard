@@ -365,7 +365,15 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const surveyVol    = survey?.totalResponses ?? 0;
     const googleRating = google?.averageRating ?? null;
     const googleVol    = google?.totalReviews ?? 0;
-    const googleNPS    = googleRating !== null ? Math.round((googleRating - 3) / 2 * 100) : null;
+    const googleNPS    = (() => {
+      const dist = google?.ratingDistribution;
+      if (!dist) return null;
+      const tot = dist.reduce((s, e) => s + e.count, 0);
+      if (!tot) return null;
+      const p = dist.filter(e => e.stars >= 4).reduce((s, e) => s + e.count, 0);
+      const d = dist.filter(e => e.stars <= 2).reduce((s, e) => s + e.count, 0);
+      return Math.round((p / tot - d / tot) * 100);
+    })();
     const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
     const combined     = totalVol > 0
       ? Math.round(
