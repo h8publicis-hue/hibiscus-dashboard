@@ -645,167 +645,34 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   return (
     <>
-      {/* ── MOBILE: layout compacto estático ─────────────────────────────── */}
-      <div className="lg:hidden overflow-y-auto p-3 flex flex-col gap-2.5 pb-4">
+      {/* ── MOBILE: mesma estrutura do desktop em scroll vertical ────────── */}
+      <div className="lg:hidden overflow-y-auto p-3 flex flex-col gap-3 pb-20">
 
-        {/* Ao Vivo */}
-        <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-3 text-white shadow">
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider opacity-80">Ao vivo — Hoje</span>
-            {ptL && <span className="text-[9px] opacity-50 animate-pulse ml-auto">Carregando...</span>}
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {[
-              { label: 'Receita',    val: paytour ? `R$ ${fmtN(Math.round(paytour.todayRevenue))}` : '—' },
-              { label: 'Atividades', val: paytour ? fmtN(paytour.todayItems) : '—' },
-              { label: 'Reservas',   val: paytour ? fmtN(paytour.todayOrders) : '—' },
-              { label: 'Ticket',     val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
-            ].map(({ label, val }) => (
-              <div key={label} className="bg-white/10 rounded-lg px-2 py-1.5">
-                <p className="text-[8px] opacity-60 leading-none mb-0.5">{label}</p>
-                {ptL
-                  ? <div className="h-4 w-full bg-white/20 rounded animate-pulse" />
-                  : <p className="text-xs font-bold leading-tight truncate">{val}</p>
-                }
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* RECEITA */}
+        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1">Receita</p>
 
-        {/* Já Vendido + Ocupação lado a lado */}
-        <div className="grid grid-cols-2 gap-2.5">
+        {blocoAoVivo}
 
-          {/* Faturamento do mês */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-1 mb-1.5">
-              <Target size={11} className="text-brand-600 shrink-0" />
-              <p className="text-[9px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide leading-tight">
-                {monthName(0).split(' ')[0]}
-              </p>
-            </div>
-            {monthRevL
-              ? <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
-              : monthRevRaw !== null
-                  ? (
-                    <div className="flex flex-col gap-1.5">
-                      <p className="text-base font-black text-brand-600 dark:text-brand-400 leading-tight">
-                        R$ {fmtN(Math.round(monthRevenue))}
-                      </p>
-                      <div>
-                        <div className="flex justify-between text-[8px] text-gray-400 mb-0.5">
-                          <span>Meta</span>
-                          <span className={monthPct >= 1 ? 'text-green-600 font-semibold' : ''}>{monthPctLabel}%</span>
-                        </div>
-                        <div className="h-1 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className={clsx('h-full rounded-full', monthPct >= 1 ? 'bg-green-500' : monthPct >= 0.6 ? 'bg-brand-600' : 'bg-brand-400')}
-                            style={{ width: `${monthPctLabel}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )
-                  : <p className="text-[10px] text-gray-400">—</p>
-            }
-          </div>
+        {blocoJaVendido}
 
-          {/* Satisfação compacta */}
-          <div className={clsx(
-            'rounded-xl p-3 border flex flex-col justify-between',
-            satColor === 'green'  && 'bg-green-50 dark:bg-green-900/20 border-green-200',
-            satColor === 'orange' && 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200',
-            satColor === 'red'    && 'bg-red-50 dark:bg-red-900/20 border-red-200',
-            satColor === 'gray'   && 'bg-gray-50 dark:bg-gray-700/30 border-gray-200',
-          )}>
-            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Satisfação</p>
-            <div>
-              {(smL || gL)
-                ? <div className="h-6 w-12 bg-gray-200 rounded animate-pulse" />
-                : <p className={clsx('text-2xl font-bold',
-                    satColor === 'green'  && 'text-green-600',
-                    satColor === 'orange' && 'text-yellow-600',
-                    satColor === 'red'    && 'text-red-600',
-                    satColor === 'gray'   && 'text-gray-400',
-                  )}>{combined ?? '—'}</p>
-              }
-              <p className="text-[9px] text-gray-400 mt-0.5">
-                {google ? `${google.averageRating}★ Google` : ''}{survey && google ? ' · ' : ''}{survey ? `NPS ${survey.npsScore}` : ''}
-              </p>
-            </div>
-            <p className={clsx('text-[10px] font-semibold',
-              satColor === 'green'  && 'text-green-600',
-              satColor === 'orange' && 'text-yellow-600',
-              satColor === 'red'    && 'text-red-600',
-              satColor === 'gray'   && 'text-gray-400',
-            )}>{satLabel}</p>
-          </div>
-        </div>
+        {blocoReceitaABS}
 
-        {/* Ocupação compacta */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <Users size={11} className="text-gray-400" />
-              <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide">Ocupação Atual</p>
-            </div>
-            <a href="/ocupacao" className="text-[9px] text-brand-600">detalhes →</a>
-          </div>
+        {blocoTotalDia}
 
-          {sheetOcc ? (
-            <>
-              {/* Portaria / Na Casa / GAP — planilha ao vivo */}
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-1.5 text-center">
-                  <p className="text-[8px] text-slate-500 dark:text-slate-400">🚪 Portaria</p>
-                  <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">{sheetOcc.portaria}</p>
-                </div>
-                <div className="border border-brand-400 rounded-lg p-1.5 text-center">
-                  <p className="text-[8px] text-brand-500 dark:text-brand-300">👥 Na Casa</p>
-                  <p className="text-lg font-black text-brand-700 dark:text-brand-200 leading-tight">{sheetOcc.total}</p>
-                </div>
-                <div className={clsx('rounded-lg p-1.5 text-center border', sheetOcc.gap >= 0 ? 'border-emerald-400' : 'border-red-400')}>
-                  <p className={clsx('text-[8px]', sheetOcc.gap >= 0 ? 'text-emerald-500' : 'text-red-500')}>⚡ GAP</p>
-                  <p className={clsx('text-lg font-black leading-tight', sheetOcc.gap >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{sheetOcc.gap}</p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <OccupancyRow label="🏖️ Beach"     current={sheetOcc.beach}      max={SHEET_CAPS.beach} />
-                <OccupancyRow label="🛋️ Lounge"    current={sheetOcc.lounge}     max={SHEET_CAPS.lounge} />
-                <OccupancyRow label="🏢 Condomínio" current={sheetOcc.condominio} max={SHEET_CAPS.condominio} />
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
-              <OccupancyRow label="🛋️ Lounges" current={occupancy.lounges.reduce((a, b) => a + b, 0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
-              <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
-            </div>
-          )}
+        {/* OCUPAÇÃO */}
+        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1 mt-1">Ocupação</p>
 
-          <LoungeMapMini lounges={occupancy.lounges} />
-          {loungesFull > 0 && <span className="text-[10px] text-red-600 font-semibold text-right">{loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}</span>}
-        </div>
+        {blocoOcupacao}
 
-        {/* Resumo do período compacto */}
-        {paytour && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Resumo do Período</p>
-            <div className="grid grid-cols-4 gap-1 text-center">
-              {[
-                { l: 'Receita',   v: `R$${fmtN(Math.round(paytour.totalRevenue))}` },
-                { l: 'Pedidos',   v: fmtN(paytour.totalSales) },
-                { l: 'Ativid.',   v: fmtN(paytour.totalItems) },
-                { l: 'Ticket',    v: `R$${fmtN(Math.round(paytour.averageTicket))}` },
-              ].map(({ l, v }) => (
-                <div key={l}>
-                  <p className="text-[8px] text-gray-400">{l}</p>
-                  <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">{v}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {blocoCheckin}
+
+        {/* REPUTAÇÃO */}
+        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1 mt-1">Reputação</p>
+
+        {blocoSatisfacao}
+
+        {blocoNPS}
+
       </div>
 
       {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
