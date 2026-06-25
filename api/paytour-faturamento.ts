@@ -135,8 +135,9 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
     // IDs do XLS: já filtrados por visita em junho pelo relatório da Paytour
     const xlsRevenue = await sumOrderIds(JUNE_2026_IDS, null);
-    // Novos IDs: filtra por visita em junho para excluir reservas para julho+
-    const extraRevenue = extraIds.length > 0 ? await sumOrderIds(extraIds, month) : 0;
+    // Novos IDs: conta todos aprovados em junho, igual ao Resumo Financeiro da Paytour
+    // (que conta por data do pedido, não por data de visita)
+    const extraRevenue = extraIds.length > 0 ? await sumOrderIds(extraIds, null) : 0;
     return xlsRevenue + extraRevenue;
   }
 
@@ -175,7 +176,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v11:${since}_${until}`;
+  const key   = `ptf-v12:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
