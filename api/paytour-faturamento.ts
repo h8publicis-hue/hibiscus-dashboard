@@ -70,7 +70,10 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     if (page > 1) await sleep(150);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=50&pagina=${page}`) as any;
     const items: any[] = data?.itens ?? [];
-    if (page === 1) console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
+    if (page === 1) {
+      console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
+      if (items[0]) console.log('[fat] campos pg1[0]:', JSON.stringify(Object.fromEntries(Object.entries(items[0]).filter(([k]) => !k.startsWith('cliente')))).slice(0, 600));
+    }
     if (!items.length) break;
     let pastRange = false;
     for (const o of items) {
@@ -117,7 +120,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v4:${since}_${until}`;
+  const key   = `ptf-v5:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
