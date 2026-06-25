@@ -352,6 +352,85 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     </div>
   ) : null;
 
+  // ── Bloco: Receita A&BS (placeholder) ────────────────────────────────────
+  const blocoReceitaABS = (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-dashed border-gray-300 dark:border-gray-600">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Target size={14} className="text-gray-400" />
+        <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receita A&amp;BS</h2>
+        <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full">em breve</span>
+      </div>
+      <p className="text-2xl font-black text-gray-300 dark:text-gray-600">R$ —</p>
+      <p className="text-[10px] text-gray-400 mt-1">A&B + Serviços adicionais</p>
+    </div>
+  );
+
+  // ── Bloco: Arretado / Em cima do muro / Putz ──────────────────────────────
+  const blocoNPS = (() => {
+    const promoters  = survey?.promoters  ?? null;
+    const neutrals   = survey?.neutrals   ?? null;
+    const detractors = survey?.detractors ?? null;
+    const total      = survey?.totalResponses ?? 0;
+
+    // Dias sem Putz: calcula desde o último detrator (sentiment=negative)
+    const lastNeg = survey?.recentResponses
+      .filter(r => r.sentiment === 'negative')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const daysSinceNeg = lastNeg
+      ? Math.floor((Date.now() - new Date(lastNeg.date).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Avaliações NPS</h2>
+        {smL
+          ? <div className="h-12 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+          : (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 text-center">
+                  <p className="text-lg font-black text-green-700 dark:text-green-400">
+                    {promoters !== null ? `${promoters}%` : '—'}
+                  </p>
+                  <p className="text-[9px] text-green-600 dark:text-green-500 font-medium mt-0.5">Arretado</p>
+                  {promoters !== null && total > 0 && (
+                    <p className="text-[8px] text-green-500 mt-0.5">{Math.round(promoters / 100 * total)} pessoas</p>
+                  )}
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 text-center">
+                  <p className="text-lg font-black text-amber-700 dark:text-amber-400">
+                    {neutrals !== null ? `${neutrals}%` : '—'}
+                  </p>
+                  <p className="text-[9px] text-amber-600 dark:text-amber-500 font-medium mt-0.5">Em cima do muro</p>
+                  {neutrals !== null && total > 0 && (
+                    <p className="text-[8px] text-amber-500 mt-0.5">{Math.round(neutrals / 100 * total)} pessoas</p>
+                  )}
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-2 text-center">
+                  <p className="text-lg font-black text-red-600 dark:text-red-400">
+                    {detractors !== null ? `${detractors}%` : '—'}
+                  </p>
+                  <p className="text-[9px] text-red-500 dark:text-red-400 font-medium mt-0.5">Putz</p>
+                  {detractors !== null && total > 0 && (
+                    <p className="text-[8px] text-red-400 mt-0.5">{Math.round(detractors / 100 * total)} pessoas</p>
+                  )}
+                </div>
+              </div>
+              {daysSinceNeg !== null && (
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                  <p className="text-2xl font-black text-green-600 dark:text-green-400">{daysSinceNeg}</p>
+                  <p className="text-[10px] text-green-600 dark:text-green-500 font-medium">
+                    {daysSinceNeg === 1 ? 'dia sem Putz' : 'dias sem Putz'}
+                  </p>
+                </div>
+              )}
+            </>
+          )
+        }
+      </div>
+    );
+  })();
+
   // ── Bloco: Satisfação ─────────────────────────────────────────────────────
   const blocoSatisfacao = (() => {
     const surveyNPS    = survey?.npsScore ?? null;
@@ -420,7 +499,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             info="Net Promoter Score da pesquisa interna. Vai de -100 a +100. Acima de 50 é considerado Excelente. Calculado como % Promotores (nota 4-5) menos % Detratores (nota 1-2)." />
           <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL}
             info="Média das avaliações públicas no Google Maps. Escala de 1 a 5 estrelas. Nota acima de 4.5 coloca o negócio no top 10% da categoria." />
-          <MiniKPI icon={<Smile size={14} />} label="Promotores" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL}
+          <MiniKPI icon={<Smile size={14} />} label="Arretados" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL}
             info="Percentual de clientes que deram nota 4 ou 5 na pesquisa. São os mais propensos a indicar o Hibiscus para amigos e família." />
           <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL}
             info="Quantidade de avaliações do Google que ainda não receberam resposta da equipe. Responder avaliações (positivas e negativas) melhora o posicionamento no Google e demonstra cuidado com o cliente." />
@@ -688,15 +767,17 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         {blocoAoVivo}
 
         <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
-          {/* Coluna 1: Resumo */}
+          {/* Coluna 1: Resumo + Receita A&BS */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoResumo}
+            {blocoReceitaABS}
           </div>
 
-          {/* Coluna 2: Já Vendido + Satisfação */}
+          {/* Coluna 2: Faturamento + Satisfação + NPS lúdico */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoJaVendido}
             {blocoSatisfacao}
+            {blocoNPS}
           </div>
 
           {/* Coluna 3: Ocupação */}

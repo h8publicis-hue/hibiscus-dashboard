@@ -226,7 +226,7 @@ const sentimentStyle: Record<string, string> = {
   neutral:  'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
 };
 const sentimentLabel: Record<string, string> = {
-  positive: 'Promotor', negative: 'Detrator', neutral: 'Neutro',
+  positive: 'Arretado', negative: 'Putz', neutral: 'Em cima do muro',
 };
 const scoreColor = (s: number) =>
   s >= 4 ? 'bg-green-500' : s === 3 ? 'bg-yellow-400' : 'bg-red-500';
@@ -234,10 +234,10 @@ const scoreColor = (s: number) =>
 type FilterTab = 'all' | 'positive' | 'neutral' | 'negative';
 
 const filterTabs: { value: FilterTab; label: string; color: string }[] = [
-  { value: 'all',      label: 'Todos',      color: 'bg-brand-600' },
-  { value: 'positive', label: 'Promotores', color: 'bg-green-500' },
-  { value: 'neutral',  label: 'Neutros',    color: 'bg-yellow-400' },
-  { value: 'negative', label: 'Detratores', color: 'bg-red-500'   },
+  { value: 'all',      label: 'Todos',             color: 'bg-brand-600' },
+  { value: 'positive', label: 'Arretados',          color: 'bg-green-500' },
+  { value: 'neutral',  label: 'Em cima do muro',   color: 'bg-yellow-400' },
+  { value: 'negative', label: 'Putz',               color: 'bg-red-500'   },
 ];
 
 // ── PDF export ────────────────────────────────────────────────────────────────
@@ -318,9 +318,9 @@ function exportToPDF(
 
   const statCards = [
     { label: 'NPS Score',          value: String(npsScore),    bg: '#f5f3ff', color: npsScore >= 50 ? '#16a34a' : npsScore >= 0 ? '#d97706' : '#dc2626' },
-    { label: 'Promotores',         value: `${promoters}%`,     bg: '#f0fdf4', color: '#16a34a' },
-    { label: 'Neutros',            value: `${neutrals}%`,      bg: '#fefce8', color: '#ca8a04' },
-    { label: 'Detratores',         value: `${detractors}%`,    bg: '#fef2f2', color: '#dc2626' },
+    { label: 'Arretados',          value: `${promoters}%`,     bg: '#f0fdf4', color: '#16a34a' },
+    { label: 'Em cima do muro',   value: `${neutrals}%`,      bg: '#fefce8', color: '#ca8a04' },
+    { label: 'Putz',              value: `${detractors}%`,    bg: '#fef2f2', color: '#dc2626' },
     { label: 'Respostas período',  value: String(totalPeriod), bg: '#f9fafb', color: '#374151' },
   ];
   const cardW = (CW - 4 * 3) / 5;
@@ -535,9 +535,9 @@ export function Satisfaction({ period }: SatisfactionProps) {
   }, []);
 
   const distribution = useMemo(() => data ? [
-    { label: 'Promotores', pct: data.promoters,  color: '#22c55e' },
-    { label: 'Neutros',    pct: data.neutrals,   color: '#f59e0b' },
-    { label: 'Detratores', pct: data.detractors, color: '#ef4444' },
+    { label: 'Arretados',        pct: data.promoters,  color: '#22c55e' },
+    { label: 'Em cima do muro', pct: data.neutrals,   color: '#f59e0b' },
+    { label: 'Putz',             pct: data.detractors, color: '#ef4444' },
   ] : [], [data]);
 
   const allResponses     = useMemo(() => data?.recentResponses    ?? [], [data]);
@@ -641,9 +641,9 @@ export function Satisfaction({ period }: SatisfactionProps) {
               <>
                 <NPSGauge score={data?.npsScore ?? 0} />
                 <div className="grid grid-cols-3 gap-1 mt-2 text-center text-xs border-t border-gray-100 dark:border-gray-700 pt-3">
-                  <div><div className="text-lg font-bold text-green-600">{data?.promoters}%</div><div className="text-gray-400">Promotores</div></div>
-                  <div><div className="text-lg font-bold text-yellow-500">{data?.neutrals}%</div><div className="text-gray-400">Neutros</div></div>
-                  <div><div className="text-lg font-bold text-red-500">{data?.detractors}%</div><div className="text-gray-400">Detratores</div></div>
+                  <div><div className="text-lg font-bold text-green-600">{data?.promoters}%</div><div className="text-gray-400">Arretados</div></div>
+                  <div><div className="text-lg font-bold text-yellow-500">{data?.neutrals}%</div><div className="text-gray-400 text-[10px]">Em cima do muro</div></div>
+                  <div><div className="text-lg font-bold text-red-500">{data?.detractors}%</div><div className="text-gray-400">Putz</div></div>
                 </div>
               </>
             )}
