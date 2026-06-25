@@ -201,31 +201,38 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   }, []);
 
   // ── Bloco: Ao Vivo ────────────────────────────────────────────────────────
+  const todayRevenue = paytour?.todayRevenue ?? 0;
   const blocoAoVivo = (
-    <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-3 text-white shadow-lg">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Ao vivo — Hoje</h2>
-        </div>
-        {ptL && <span className="text-[10px] opacity-60 animate-pulse">Carregando...</span>}
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center gap-1.5 mb-3">
+        <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
+          Ao vivo — Hoje
+        </h2>
+        {ptL && <span className="text-[10px] text-gray-400 animate-pulse ml-auto">Carregando...</span>}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { label: 'Receita',     val: paytour ? `R$ ${fmtN(Math.round(paytour.todayRevenue))}` : '—' },
-          { label: 'Atividades',  val: paytour ? fmtN(paytour.todayItems) : '—' },
-          { label: 'Reservas',    val: paytour ? fmtN(paytour.todayOrders) : '—' },
-          { label: 'Ticket médio',val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
-        ].map(({ label, val }) => (
-          <div key={label} className="bg-white/10 rounded-lg px-3 py-2">
-            <p className="text-[10px] opacity-70">{label}</p>
-            {ptL
-              ? <div className="h-6 w-16 bg-white/20 rounded animate-pulse mt-1" />
-              : <p className="text-lg font-bold leading-tight">{val}</p>
-            }
+      {ptL
+        ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-3 w-24 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" /></div>
+        : (
+          <div className="space-y-3">
+            <p className="text-2xl font-black text-gray-900 dark:text-white">
+              R$ {fmtN(Math.round(todayRevenue))}
+            </p>
+            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+              {[
+                { label: 'Atividades',   val: paytour ? fmtN(paytour.todayItems)  : '—' },
+                { label: 'Reservas',     val: paytour ? fmtN(paytour.todayOrders) : '—' },
+                { label: 'Ticket médio', val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
+              ].map(({ label, val }) => (
+                <div key={label} className="text-center">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-white">{val}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        )
+      }
     </div>
   );
 
@@ -351,6 +358,20 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       <p className="text-[10px] text-gray-400 mt-1">— {google.recentReviews[0].author}</p>
     </div>
   ) : null;
+
+  // ── Bloco: Total do Dia ───────────────────────────────────────────────────
+  const blocoTotalDia = (
+    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Target size={14} className="text-brand-600" />
+        <h2 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total do dia</h2>
+      </div>
+      <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
+        R$ {fmtN(Math.round(todayRevenue))}
+      </p>
+      <p className="text-[10px] text-gray-400 mt-1">Paytour + A&amp;BS (quando disponível)</p>
+    </div>
+  );
 
   // ── Bloco: Receita A&BS (placeholder) ────────────────────────────────────
   const blocoReceitaABS = (
@@ -763,27 +784,28 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       </div>
 
       {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
-      <div className="hidden lg:flex p-4 h-full overflow-hidden flex-col gap-3">
-        {blocoAoVivo}
+      <div className="hidden lg:flex p-4 h-full overflow-hidden">
+        <div className="grid grid-cols-3 gap-3 w-full min-h-0">
 
-        <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
-          {/* Coluna 1: Resumo + Receita A&BS */}
+          {/* Coluna 1 — Receita: Ao Vivo + Faturamento + A&BS + Total */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
-            {blocoResumo}
+            {blocoAoVivo}
+            {blocoJaVendido}
             {blocoReceitaABS}
+            {blocoTotalDia}
           </div>
 
-          {/* Coluna 2: Faturamento + Satisfação + NPS lúdico */}
+          {/* Coluna 2 — Ocupação */}
+          <div className="min-h-0 overflow-y-auto">
+            {blocoOcupacao}
+          </div>
+
+          {/* Coluna 3 — Reputação */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
-            {blocoJaVendido}
             {blocoSatisfacao}
             {blocoNPS}
           </div>
 
-          {/* Coluna 3: Ocupação */}
-          <div className="min-h-0 overflow-y-auto">
-            {blocoOcupacao}
-          </div>
         </div>
       </div>
     </>
