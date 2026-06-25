@@ -1,7 +1,9 @@
-// Faturamento do mês — vendas realizadas no mês corrente (por data do pedido).
-// Soma (valor - desconto) de pedidos aprovados/confirmados com data_hora_pedido no mês.
-// Para no momento em que os pedidos saem do intervalo — sem limite fixo de páginas.
-// Cache Redis 1h. Chamadas Vercel→Paytour, não passam pelo WiFi local.
+// Faturamento do mês — pedidos aprovados com VISITA no mês corrente.
+// Fluxo:
+//  1. Busca 8 páginas de pedidos recentes (aprovado, data_hora_pedido no mês)
+//  2. Busca detalhe de cada pedido em lotes paralelos de 10
+//  3. Conta apenas pedidos onde algum item tem produto_disponibilidade_data no mês
+// Cache Redis 1h. Chamadas são Vercel→Paytour (não passam pelo WiFi local).
 
 const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
@@ -9,7 +11,7 @@ const PT_BASE   = 'https://api-ha.paytour.com.br';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
 const TTL       = 60 * 60 * 1000;
-const PAGE_SIZE = 50;
+const BATCH     = 10;
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -61,35 +63,59 @@ async function paytourGet(path: string) {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 async function computeRevenue(since: string, until: string): Promise<number> {
-  let revenue = 0;
-  let count   = 0;
+  // Passo 1: coleta pedidos aprovados das 8 páginas mais recentes com data no mês
+  const candidates: { id: string; valor: number; desconto: number }[] = [];
 
-  // Limita a 8 páginas (240 pedidos recentes).
-  // O Paytour atualiza data_hora_pedido ao mudar status — pedidos antigos aprovados
-  // em Junho aparecem com data Junho nas páginas posteriores, inflando o total.
-  // Os pedidos genuínos de Junho ficam nas primeiras páginas (mais recentes).
   for (let page = 1; page <= 8; page++) {
     if (page > 1) await sleep(150);
-    const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
+    const data  = await paytourGet(`/v2/pedidos?por_pagina=50&pagina=${page}`) as any;
     const items: any[] = data?.itens ?? [];
     if (page === 1) console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
     if (!items.length) break;
-
     let pastRange = false;
     for (const o of items) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d < since) { pastRange = true; break; }
       if (d <= until && o.status === 'aprovado') {
-        revenue += parseFloat(o.valor    || '0')
-                 - parseFloat(o.desconto || '0');
-        count++;
+        candidates.push({
+          id:       String(o.id),
+          valor:    parseFloat(o.valor    || '0'),
+          desconto: parseFloat(o.desconto || '0'),
+        });
       }
     }
     if (pastRange) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
 
-  console.log(`[fat] ${count} pedidos (aprovado+confirmado) em ${since}→${until} = R$ ${revenue.toFixed(2)}`);
+  console.log(`[fat] ${candidates.length} candidatos aprovados — buscando detalhes para filtrar por visita`);
+
+  // Passo 2: busca detalhe em lotes paralelos de BATCH e filtra por data de visita
+  let revenue = 0;
+  let matched = 0;
+
+  for (let i = 0; i < candidates.length; i += BATCH) {
+    const batch = candidates.slice(i, i + BATCH);
+    const details = await Promise.all(
+      batch.map(c => paytourGet(`/v2/pedidos/${c.id}`).catch(() => null))
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const detail = details[j] as any;
+      if (!detail) continue;
+      const itens: any[] = detail?.itens ?? detail?.pedido?.itens ?? [];
+      const hasVisit = itens.some((item: any) => {
+        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 10) ?? '';
+        return vd >= since && vd <= until;
+      });
+      if (hasVisit) {
+        revenue += batch[j].valor - batch[j].desconto;
+        matched++;
+      }
+    }
+    if (i + BATCH < candidates.length) await sleep(50);
+  }
+
+  console.log(`[fat] ${matched}/${candidates.length} pedidos com visita em ${since}→${until} = R$ ${revenue.toFixed(2)}`);
   return revenue;
 }
 
@@ -101,7 +127,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-ord3:${since}_${until}`;
+  const key   = `ptf-v3:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
