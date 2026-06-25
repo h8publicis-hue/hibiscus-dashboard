@@ -64,7 +64,11 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   let revenue = 0;
   let count   = 0;
 
-  for (let page = 1; page <= 50; page++) {
+  // Limita a 8 páginas (240 pedidos recentes).
+  // O Paytour atualiza data_hora_pedido ao mudar status — pedidos antigos aprovados
+  // em Junho aparecem com data Junho nas páginas posteriores, inflando o total.
+  // Os pedidos genuínos de Junho ficam nas primeiras páginas (mais recentes).
+  for (let page = 1; page <= 8; page++) {
     if (page > 1) await sleep(150);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
     const items: any[] = data?.itens ?? [];
@@ -97,7 +101,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-ord1:${since}_${until}`;
+  const key   = `ptf-ord2:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
