@@ -79,7 +79,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     for (const o of items) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d < since) { pastRange = true; break; }
-      if (d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
+      if (d <= until && o.status === 'aprovado') {
         revenue += parseFloat(o.valor    || '0')
                  - parseFloat(o.desconto || '0');
         count++;
@@ -101,7 +101,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-ord2:${since}_${until}`;
+  const key   = `ptf-ord3:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
