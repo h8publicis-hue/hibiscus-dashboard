@@ -1,22 +1,15 @@
-// Faturamento do mês por DATA DE VISITA — igual ao Paytour "Resumo Financeiro".
-//
-// Fluxo (apenas em cache miss, ~1x por hora):
-//  1. Busca lista de pedidos dos últimos 60 dias (por data de pedido)
-//  2. Para pedidos aprovados/confirmados, busca detalhe individual /v2/pedidos/{id}
-//     em lotes paralelos de 10 — chamadas são Vercel→Paytour, não passam pelo WiFi local
-//  3. Soma (valor - desconto) dos pedidos com algum item no mês corrente
-//  4. Armazena no Redis por 1h
-//
-// Em cache HIT: resposta imediata, zero chamadas à Paytour.
+// Faturamento do mês — vendas realizadas no mês corrente (por data do pedido).
+// Soma (valor - desconto) de pedidos aprovados/confirmados com data_hora_pedido no mês.
+// Para no momento em que os pedidos saem do intervalo — sem limite fixo de páginas.
+// Cache Redis 1h. Chamadas Vercel→Paytour, não passam pelo WiFi local.
 
 const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
 const PT_BASE   = 'https://api-ha.paytour.com.br';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
-const TTL       = 60 * 60 * 1000; // 1 hora
+const TTL       = 60 * 60 * 1000;
 const PAGE_SIZE = 50;
-const BATCH     = 10; // detalhe: até 10 chamadas em paralelo
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -67,66 +60,32 @@ async function paytourGet(path: string) {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function computeRevenue(visitSince: string, visitUntil: string): Promise<number> {
-  const now    = new Date();
-  const pad    = (n: number) => String(n).padStart(2, '0');
-  // Busca pedidos dos últimos 60 dias (cobre pedidos feitos antes do mês com visita no mês)
-  const listSince = new Date(now);
-  listSince.setDate(listSince.getDate() - 60);
-  const listSinceStr = `${listSince.getFullYear()}-${pad(listSince.getMonth() + 1)}-${pad(listSince.getDate())}`;
+async function computeRevenue(since: string, until: string): Promise<number> {
+  let revenue = 0;
+  let count   = 0;
 
-  // Passo 1: lista de pedidos aprovados nos últimos 60 dias
-  const approvedIds: string[] = [];
-  const orderValores: Record<string, { valor: number; desconto: number }> = {};
-
-  for (let page = 1; page <= 15; page++) {
+  for (let page = 1; page <= 50; page++) {
+    if (page > 1) await sleep(150);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
     const items: any[] = data?.itens ?? [];
+    if (page === 1) console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
     if (!items.length) break;
+
     let pastRange = false;
     for (const o of items) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-      if (d < listSinceStr) { pastRange = true; break; }
-      if (o.status === 'aprovado') {
-        approvedIds.push(String(o.id));
-        orderValores[o.id] = {
-          valor:    parseFloat(o.valor    || '0'),
-          desconto: parseFloat(o.desconto || '0'),
-        };
+      if (d < since) { pastRange = true; break; }
+      if (d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
+        revenue += parseFloat(o.valor    || '0')
+                 - parseFloat(o.desconto || '0');
+        count++;
       }
     }
     if (pastRange) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
 
-  console.log(`[fat] ${approvedIds.length} pedidos aprovados nos últimos 60 dias`);
-
-  // Passo 2: busca detalhe em lotes paralelos de BATCH
-  let revenue = 0;
-  let matched = 0;
-
-  for (let i = 0; i < approvedIds.length; i += BATCH) {
-    const batch = approvedIds.slice(i, i + BATCH);
-    const details = await Promise.all(
-      batch.map(id => paytourGet(`/v2/pedidos/${id}`).catch(() => null))
-    );
-    for (const detail of details) {
-      if (!detail) continue;
-      const itens: any[] = detail?.itens ?? detail?.pedido?.itens ?? [];
-      const hasVisitInMonth = itens.some((item: any) => {
-        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 10) ?? '';
-        return vd >= visitSince && vd <= visitUntil;
-      });
-      if (hasVisitInMonth) {
-        const id  = String(detail?.id ?? detail?.pedido?.id ?? '');
-        const ov  = orderValores[id] ?? orderValores[Number(id)];
-        if (ov) { revenue += ov.valor - ov.desconto; matched++; }
-      }
-    }
-    if (i + BATCH < approvedIds.length) await sleep(50); // pequena pausa entre lotes
-  }
-
-  console.log(`[fat] ${matched} pedidos com visita em ${visitSince}→${visitUntil} = R$ ${revenue.toFixed(2)}`);
+  console.log(`[fat] ${count} pedidos (aprovado+confirmado) em ${since}→${until} = R$ ${revenue.toFixed(2)}`);
   return revenue;
 }
 
@@ -138,23 +97,15 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v2:${since}_${until}`;
+  const key   = `ptf-ord1:${since}_${until}`;
 
-  // Cache L1 (memória)
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
-
-  // Cache L2 (Redis)
   const kv = await kvGet(key);
   if (kv && Date.now() - kv.ts < TTL) { memCache = kv; return res.json({ revenue: kv.revenue, since, until }); }
 
-  // Deduplicação: se já existe cálculo em andamento, aguarda o mesmo resultado
   if (inflight) {
-    try {
-      const revenue = await inflight;
-      return res.json({ revenue, since, until });
-    } catch {
-      if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true });
-    }
+    try { const revenue = await inflight; return res.json({ revenue, since, until }); }
+    catch { if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true }); }
   }
 
   inflight = computeRevenue(since, until).finally(() => { inflight = null; });
