@@ -234,6 +234,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const monthGoal     = _goals.receitaTotal;
   const monthPct      = Math.min(monthRevenue / monthGoal, 1);
   const monthPctLabel = Math.round(monthPct * 100);
+  const monthAbove    = monthRevenue > monthGoal ? Math.round((monthRevenue / monthGoal - 1) * 100) : 0;
   const blocoJaVendido = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-1.5 mb-3">
@@ -247,9 +248,22 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         : monthRevRaw !== null
             ? (
               <div className="space-y-2">
-                <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
-                  R$ {fmtN(Math.round(monthRevenue))}
-                </p>
+                <div className="flex items-end gap-2">
+                  <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
+                    R$ {fmtN(Math.round(monthRevenue))}
+                  </p>
+                  {monthAbove > 0 && (
+                    <span className="mb-0.5 text-xs font-bold text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded-full animate-bounce">
+                      +{monthAbove}% acima
+                    </span>
+                  )}
+                </div>
+                {monthAbove > 0 && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-green-600 dark:text-green-400">
+                    <span className="animate-ping inline-block w-2 h-2 rounded-full bg-green-500 opacity-75" />
+                    <span>🏆 Meta batida!</span>
+                  </div>
+                )}
                 <div>
                   <div className="flex justify-between text-[10px] text-gray-400 mb-1">
                     <span>Meta: R$ {fmtN(monthGoal)}</span>
