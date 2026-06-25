@@ -86,10 +86,12 @@ async function paytourGet(path: string) {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-// Busca detalhes de uma lista de IDs em lotes e soma valor-desconto dos aprovados
-async function sumOrderIds(ids: number[]): Promise<number> {
+// Busca detalhes de uma lista de IDs em lotes e soma valor-desconto dos aprovados.
+// visitMonth (ex: "2026-06"): quando informado, exige pelo menos 1 item com visita no mês.
+// Quando null, confia nos IDs fornecidos (XLS já filtrou por visita).
+async function sumOrderIds(ids: number[], visitMonth: string | null): Promise<number> {
   let total = 0;
-  let fetched = 0; let approved = 0;
+  let fetched = 0; let approved = 0; let excluded = 0;
   for (let i = 0; i < ids.length; i += BATCH) {
     const batch = ids.slice(i, i + BATCH);
     const results = await Promise.allSettled(batch.map(id => paytourGet(`/v2/pedidos/${id}`)));
@@ -97,14 +99,17 @@ async function sumOrderIds(ids: number[]): Promise<number> {
       if (r.status !== 'fulfilled') continue;
       const d = r.value as any;
       fetched++;
-      if (d?.status === 'aprovado') {
-        total += parseFloat(d.valor || '0') - parseFloat(d.desconto || '0');
-        approved++;
+      if (d?.status !== 'aprovado') continue;
+      if (visitMonth) {
+        const hasVisit = (d.itens ?? []).some((it: any) => (it.produto_disponibilidade_data as string)?.slice(0, 7) === visitMonth);
+        if (!hasVisit) { excluded++; continue; }
       }
+      total += parseFloat(d.valor || '0') - parseFloat(d.desconto || '0');
+      approved++;
     }
     if (i + BATCH < ids.length) await sleep(100);
   }
-  console.log(`[fat] sumOrderIds: ${fetched} buscados, ${approved} aprovados, total=R$${total.toFixed(2)}`);
+  console.log(`[fat] sumOrderIds: ${fetched} buscados, ${approved} aprovados, ${excluded} sem visita no mês, total=R$${total.toFixed(2)}`);
   return total;
 }
 
@@ -115,18 +120,24 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   if (month === '2026-06') {
     console.log(`[fat] junho/2026: buscando ${JUNE_2026_IDS.length} IDs conhecidos do XLS`);
 
-    // Inclui também novos pedidos aprovados no mês que apareceram DEPOIS da exportação do XLS
+    // Descobre pedidos aprovados em junho criados APÓS a exportação do XLS
     const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
-    const recentIds = new Set(JUNE_2026_IDS);
+    const xlsSet = new Set(JUNE_2026_IDS);
+    const extraIds: number[] = [];
     for (const o of page?.itens ?? []) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d >= since && d <= until && o.status === 'aprovado') {
-        recentIds.add(Number(o.id));
+        const id = Number(o.id);
+        if (!xlsSet.has(id)) extraIds.push(id);
       }
     }
-    const allIds = Array.from(recentIds);
-    console.log(`[fat] junho/2026: ${allIds.length} IDs total (${allIds.length - JUNE_2026_IDS.length} novos pós-XLS)`);
-    return sumOrderIds(allIds);
+    console.log(`[fat] junho/2026: ${JUNE_2026_IDS.length} XLS + ${extraIds.length} novos pós-XLS`);
+
+    // IDs do XLS: já filtrados por visita em junho pelo relatório da Paytour
+    const xlsRevenue = await sumOrderIds(JUNE_2026_IDS, null);
+    // Novos IDs: filtra por visita em junho para excluir reservas para julho+
+    const extraRevenue = extraIds.length > 0 ? await sumOrderIds(extraIds, month) : 0;
+    return xlsRevenue + extraRevenue;
   }
 
   // ── Estratégia B: Acumulador Redis para meses futuros ────────────────────────
