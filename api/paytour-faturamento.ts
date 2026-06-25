@@ -85,9 +85,10 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   }
   console.log(`[fat] ${candidates.length} candidatos aprovados com pedido no mês`);
 
-  // Passo 2: filtra por data de visita no mês (produto_disponibilidade_data)
-  // O Resumo Financeiro da Paytour conta por data de visita, não por data do pedido.
-  // Pedidos feitos em junho para visitas em julho/agosto são excluídos.
+  // Passo 2: filtra por data de CRIAÇÃO no mês via logsStatus
+  // data_hora_pedido é atualizado quando o status muda — pedidos antigos aprovados
+  // em junho aparecem com data de junho. logsStatus[último].data_hora = criação real.
+  const month = since.slice(0, 7); // "2026-06"
   const confirmed: typeof candidates = [];
   for (let i = 0; i < candidates.length; i += BATCH) {
     const batch = candidates.slice(i, i + BATCH);
@@ -98,16 +99,15 @@ async function computeRevenue(since: string, until: string): Promise<number> {
       const r = results[j];
       if (r.status !== 'fulfilled') continue;
       const detail = r.value as any;
-      const itens: any[] = detail?.itens ?? [];
-      const hasJuneVisit = itens.some((item: any) => {
-        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 7) ?? '';
-        return vd === since.slice(0, 7);
-      });
-      if (hasJuneVisit) confirmed.push(batch[j]);
+      // logsStatus é ordenado decrescente por id — o último item é o "Criado"
+      const logs: any[] = detail?.logsStatus ?? [];
+      const criado = logs[logs.length - 1];
+      const criacao = (criado?.data_hora as string)?.slice(0, 7) ?? '';
+      if (criacao === month) confirmed.push(batch[j]);
     }
     if (i + BATCH < candidates.length) await sleep(100);
   }
-  console.log(`[fat] ${confirmed.length} com visita no mês de ${candidates.length} candidatos`);
+  console.log(`[fat] ${confirmed.length} criados no mês de ${candidates.length} candidatos`);
 
   const revenue = confirmed.reduce((s, c) => s + c.valor - c.desconto, 0);
   console.log(`[fat] resultado: ${confirmed.length} pedidos = R$ ${revenue.toFixed(2)}`);
@@ -122,7 +122,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v6:${since}_${until}`;
+  const key   = `ptf-v7:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
