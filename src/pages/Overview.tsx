@@ -183,7 +183,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour(period);
   const { data: sheetOcc } = useSheetOccupancy();
-  const { revenue: monthRevRaw, loading: monthRevL } = useMonthRevenue();
+  const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -279,6 +279,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     />
                   </div>
                 </div>
+                {monthRevTs && (
+                  <p className="text-[10px] text-gray-400 text-right">
+                    Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
             )
             : <p className="text-xs text-gray-400">Sem dados</p>
