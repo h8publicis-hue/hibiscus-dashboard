@@ -1,5 +1,4 @@
-// Endpoint temporário de diagnóstico — descobre estrutura da API Paytour.
-// Acesse /api/paytour-debug para ver os dados.
+// Debug: descobre estrutura e filtros da API Paytour para faturamento.
 
 const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
@@ -30,46 +29,72 @@ async function paytourGet(path: string) {
   return res.json();
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    // 1) Busca primeira página de pedidos
+    // 1) Amostra dos primeiros pedidos da lista (ver estrutura e datas)
     const list = await paytourGet('/v2/pedidos?por_pagina=5&pagina=1') as any;
-    const firstOrder = list?.itens?.[0];
-    if (!firstOrder) return res.json({ error: 'nenhum pedido encontrado', list });
+    const sample = (list?.itens ?? []).map((o: any) => ({
+      id: o.id,
+      status: o.status,
+      valor: o.valor,
+      desconto: o.desconto,
+      data_hora_pedido: o.data_hora_pedido,
+      allKeys: Object.keys(o),
+    }));
 
-    const orderId = firstOrder.id;
+    // 2) Detalhe completo do primeiro pedido aprovado
+    const firstApproved = (list?.itens ?? []).find((o: any) => o.status === 'aprovado');
+    let detailFull: any = null;
+    if (firstApproved) {
+      detailFull = await paytourGet(`/v2/pedidos/${firstApproved.id}`);
+    }
 
-    // 2) Busca detalhe do pedido individual
-    const detail = await paytourGet(`/v2/pedidos/${orderId}`) as any;
-
-    // 3) Tenta outros endpoints de relatório
-    const endpointsToTry = [
-      `/v2/relatorios/vendas?data_inicio=2026-06-01&data_fim=2026-06-30`,
-      `/v2/relatorios/resumo?data_inicio=2026-06-01&data_fim=2026-06-30`,
-      `/v2/dashboard`,
-      `/v2/vendas?data_inicio=2026-06-01&data_fim=2026-06-30`,
-      `/v2/lojas/resumo`,
+    // 3) Testa filtros nativos de data de pedido
+    const dateFilters: Record<string, any> = {};
+    const filterTests = [
+      `data_de=2026-06-01&data_ate=2026-06-25&status=aprovado`,
+      `data_pedido_de=2026-06-01&data_pedido_ate=2026-06-25`,
+      `criado_em_de=2026-06-01&criado_em_ate=2026-06-25`,
+      `data_inicio=2026-06-01&data_fim=2026-06-25&status=aprovado`,
+      `por_pagina=5&status=aprovado`,
     ];
-
-    const probes: Record<string, any> = {};
-    for (const ep of endpointsToTry) {
+    for (const f of filterTests) {
+      await sleep(200);
       try {
-        const r = await paytourGet(ep) as any;
-        probes[ep] = { keys: Object.keys(r ?? {}), snippet: JSON.stringify(r)?.slice(0, 200) };
+        const r = await paytourGet(`/v2/pedidos?por_pagina=5&pagina=1&${f}`) as any;
+        dateFilters[f] = {
+          total_paginas: r?.info?.total_paginas,
+          total_itens: r?.info?.total,
+          count: (r?.itens ?? []).length,
+          firstDate: r?.itens?.[0]?.data_hora_pedido,
+          firstStatus: r?.itens?.[0]?.status,
+        };
       } catch (e: any) {
-        probes[ep] = { error: e.message };
+        dateFilters[f] = { error: e.message };
       }
     }
 
+    // 4) Analisa estrutura completa do detalhe para entender itens
+    const itensSample = (detailFull?.itens ?? detailFull?.pedido?.itens ?? []).slice(0, 3).map((item: any) => ({
+      allKeys: Object.keys(item),
+      produto_disponibilidade_data: item.produto_disponibilidade_data,
+      data_utilizacao: item.data_utilizacao,
+      nome_produto: item.nome_produto,
+      valor: item.valor,
+    }));
+
     return res.json({
-      firstOrderKeys: Object.keys(firstOrder),
-      firstOrderSample: firstOrder,
-      detailKeys: Object.keys(detail ?? {}),
-      detailItens: detail?.itens?.slice(0, 2),
-      detailSample: JSON.stringify(detail)?.slice(0, 1000),
-      endpointProbes: probes,
+      listTotal: list?.info,
+      sampleOrders: sample,
+      firstApprovedId: firstApproved?.id,
+      detailTopKeys: Object.keys(detailFull ?? {}),
+      detailWrapped: detailFull?.pedido ? 'sim (detail.pedido.itens)' : 'não (detail.itens)',
+      itensSample,
+      dateFilterTests: dateFilters,
     });
   } catch (err: any) {
     return res.status(500).json({ error: String(err) });
