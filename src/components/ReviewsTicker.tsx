@@ -21,8 +21,8 @@ interface ReviewsTickerProps {
 
 const INTERVAL   = 6000;
 const MAX_TEXT   = 160;
-const MAX_DAYS   = 7;   // janela principal
-const MIN_ITEMS  = 3;   // se tiver menos, expande para 30 dias
+const MAX_DAYS   = 0;   // janela principal: hoje
+const MIN_ITEMS  = 3;   // se tiver menos, expande para 7 dias
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -64,9 +64,9 @@ export function ReviewsTicker({ googleData, surveyData, intervalMs = INTERVAL }:
       return list;
     }
 
-    // Tenta janela de MAX_DAYS; se poucos resultados expande para 30 dias
+    // Tenta hoje; se poucos resultados expande para 7 dias, depois 30 dias
     const recent = buildList(MAX_DAYS);
-    const final  = recent.length >= MIN_ITEMS ? recent : buildList(30);
+    const final  = recent.length >= MIN_ITEMS ? recent : (buildList(7).length >= MIN_ITEMS ? buildList(7) : buildList(30));
     return final.sort(() => Math.random() - 0.5);
   }, [googleData, surveyData]);
 

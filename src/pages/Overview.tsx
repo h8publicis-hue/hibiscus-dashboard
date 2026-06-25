@@ -693,11 +693,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             {blocoResumo}
           </div>
 
-          {/* Coluna 2: Já Vendido + Top + Avaliação + Satisfação */}
+          {/* Coluna 2: Já Vendido + Satisfação */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoJaVendido}
-            {blocoTopProduto}
-            {blocoAvaliacao}
             {blocoSatisfacao}
           </div>
 
