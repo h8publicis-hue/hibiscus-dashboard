@@ -1,4 +1,4 @@
-// Debug: descobre estrutura e filtros da API Paytour para faturamento.
+// Debug: descobre ordenação real das páginas da API Paytour
 
 const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
@@ -35,67 +35,41 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    // 1) Amostra dos primeiros pedidos da lista (ver estrutura e datas)
-    const list = await paytourGet('/v2/pedidos?por_pagina=5&pagina=1') as any;
-    const sample = (list?.itens ?? []).map((o: any) => ({
-      id: o.id,
-      status: o.status,
-      valor: o.valor,
-      desconto: o.desconto,
-      data_hora_pedido: o.data_hora_pedido,
-      allKeys: Object.keys(o),
-    }));
+    const pages: Record<string, any> = {};
 
-    // 2) Detalhe completo do primeiro pedido aprovado
-    const firstApproved = (list?.itens ?? []).find((o: any) => o.status === 'aprovado');
-    let detailFull: any = null;
-    if (firstApproved) {
-      detailFull = await paytourGet(`/v2/pedidos/${firstApproved.id}`);
-    }
-
-    // 3) Testa filtros nativos de data de pedido
-    const dateFilters: Record<string, any> = {};
-    const filterTests = [
-      `data_de=2026-06-01&data_ate=2026-06-25&status=aprovado`,
-      `data_pedido_de=2026-06-01&data_pedido_ate=2026-06-25`,
-      `criado_em_de=2026-06-01&criado_em_ate=2026-06-25`,
-      `data_inicio=2026-06-01&data_fim=2026-06-25&status=aprovado`,
-      `por_pagina=5&status=aprovado`,
-    ];
-    for (const f of filterTests) {
+    // Amostra das páginas 1, 5, 10, 20, 30 para ver distribuição de datas
+    for (const pg of [1, 5, 10, 20, 30]) {
       await sleep(200);
-      try {
-        const r = await paytourGet(`/v2/pedidos?por_pagina=5&pagina=1&${f}`) as any;
-        dateFilters[f] = {
-          total_paginas: r?.info?.total_paginas,
-          total_itens: r?.info?.total,
-          count: (r?.itens ?? []).length,
-          firstDate: r?.itens?.[0]?.data_hora_pedido,
-          firstStatus: r?.itens?.[0]?.status,
-        };
-      } catch (e: any) {
-        dateFilters[f] = { error: e.message };
-      }
+      const data = await paytourGet(`/v2/pedidos?por_pagina=50&pagina=${pg}`) as any;
+      const items: any[] = data?.itens ?? [];
+      pages[`pg${pg}`] = {
+        count: items.length,
+        dates: items.map((o: any) => ({
+          id: o.id,
+          data_hora_pedido: o.data_hora_pedido,
+          status: o.status,
+          valor: o.valor,
+        })).slice(0, 5), // primeiros 5 de cada página
+      };
     }
 
-    // 4) Analisa estrutura completa do detalhe para entender itens
-    const itensSample = (detailFull?.itens ?? detailFull?.pedido?.itens ?? []).slice(0, 3).map((item: any) => ({
-      allKeys: Object.keys(item),
-      produto_disponibilidade_data: item.produto_disponibilidade_data,
-      data_utilizacao: item.data_utilizacao,
-      nome_produto: item.nome_produto,
-      valor: item.valor,
-    }));
+    // Detalhe do primeiro pedido aprovado — todos os campos para descobrir campo de data de criação
+    const pg1 = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+    const firstApproved = (pg1?.itens ?? []).find((o: any) => o.status === 'aprovado' || o.status === 'confirmado');
+    let detailAllKeys: any = null;
+    if (firstApproved) {
+      await sleep(200);
+      const detail = await paytourGet(`/v2/pedidos/${firstApproved.id}`) as any;
+      detailAllKeys = {
+        topKeys: Object.keys(detail ?? {}),
+        topValues: Object.fromEntries(
+          Object.entries(detail ?? {}).filter(([k]) => !['itens','cliente'].includes(k))
+        ),
+        itensKeys: Object.keys((detail?.itens ?? [])[0] ?? {}),
+      };
+    }
 
-    return res.json({
-      listTotal: list?.info,
-      sampleOrders: sample,
-      firstApprovedId: firstApproved?.id,
-      detailTopKeys: Object.keys(detailFull ?? {}),
-      detailWrapped: detailFull?.pedido ? 'sim (detail.pedido.itens)' : 'não (detail.itens)',
-      itensSample,
-      dateFilterTests: dateFilters,
-    });
+    return res.json({ pages, detailAllKeys });
   } catch (err: any) {
     return res.status(500).json({ error: String(err) });
   }
