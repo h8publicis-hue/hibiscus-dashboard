@@ -72,17 +72,19 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     if (page > 1) await sleep(150);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=50&pagina=${page}`) as any;
     const items: any[] = data?.itens ?? [];
-    if (page === 1) console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
     if (!items.length) break;
     let pastRange = false;
+    let pageAprov = 0;
     for (const o of items) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d < since) { pastRange = true; break; }
       if (d <= until && o.status === 'aprovado') {
         const id = String(o.id);
-        if (!seen.has(id)) seen.set(id, { id, valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') });
+        if (!seen.has(id)) { seen.set(id, { id, valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') }); pageAprov++; }
       }
     }
+    console.log(`[fat] pg${page} itens=${items.length} novos_aprovados=${pageAprov} total_uniq=${seen.size} pastRange=${pastRange} data0=${(items[0]?.data_hora_pedido as string)?.slice(0,10)} dataN=${(items[items.length-1]?.data_hora_pedido as string)?.slice(0,10)}`);
+    if (page === 1) console.log(`[fat] total_pag=${data?.info?.total_paginas}`);
     if (pastRange) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
@@ -126,7 +128,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v8:${since}_${until}`;
+  const key   = `ptf-v9:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
