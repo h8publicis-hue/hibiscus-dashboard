@@ -39,12 +39,12 @@ export default async function handler(req: any, res: any) {
     const since = '2026-06-01';
     const until = '2026-06-25';
     const paramSets: Record<string, string> = {
-      nenhum:            `/v2/pedidos?por_pagina=50&pagina=1`,
-      data_de:           `/v2/pedidos?por_pagina=50&pagina=1&data_de=${since}&data_ate=${until}`,
-      data_pedido_de:    `/v2/pedidos?por_pagina=50&pagina=1&data_pedido_de=${since}&data_pedido_ate=${until}`,
-      criacao_de:        `/v2/pedidos?por_pagina=50&pagina=1&criacao_de=${since}&criacao_ate=${until}`,
-      data_hora_de:      `/v2/pedidos?por_pagina=50&pagina=1&data_hora_de=${since}&data_hora_ate=${until}`,
-      status_aprovado:   `/v2/pedidos?por_pagina=50&pagina=1&status=aprovado`,
+      pg1:               `/v2/pedidos?por_pagina=30&pagina=1`,
+      pg50:              `/v2/pedidos?por_pagina=30&pagina=50`,
+      pg100:             `/v2/pedidos?por_pagina=30&pagina=100`,
+      pg200:             `/v2/pedidos?por_pagina=30&pagina=200`,
+      pp200:             `/v2/pedidos?por_pagina=200&pagina=1`,
+      pp500:             `/v2/pedidos?por_pagina=500&pagina=1`,
     };
 
     const results: Record<string, any> = {};
