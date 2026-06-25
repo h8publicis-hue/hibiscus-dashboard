@@ -203,30 +203,26 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   // ── Bloco: Ao Vivo ────────────────────────────────────────────────────────
   const todayRevenue = paytour?.todayRevenue ?? 0;
   const blocoAoVivo = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-4 shadow-sm text-white">
       <div className="flex items-center gap-1.5 mb-3">
         <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
-          Ao vivo — Hoje
-        </h2>
-        {ptL && <span className="text-[10px] text-gray-400 animate-pulse ml-auto">Carregando...</span>}
+        <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Ao vivo — Hoje</h2>
+        {ptL && <span className="text-[10px] opacity-60 animate-pulse ml-auto">Carregando...</span>}
       </div>
       {ptL
-        ? <div className="space-y-2"><div className="h-6 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" /><div className="h-3 w-24 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" /></div>
+        ? <div className="space-y-2"><div className="h-6 w-32 bg-white/20 rounded animate-pulse" /><div className="h-3 w-24 bg-white/10 rounded animate-pulse" /></div>
         : (
           <div className="space-y-3">
-            <p className="text-2xl font-black text-gray-900 dark:text-white">
-              R$ {fmtN(Math.round(todayRevenue))}
-            </p>
-            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-2xl font-black">R$ {fmtN(Math.round(todayRevenue))}</p>
+            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/20">
               {[
                 { label: 'Atividades',   val: paytour ? fmtN(paytour.todayItems)  : '—' },
                 { label: 'Reservas',     val: paytour ? fmtN(paytour.todayOrders) : '—' },
                 { label: 'Ticket médio', val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
               ].map(({ label, val }) => (
                 <div key={label} className="text-center">
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-white">{val}</p>
+                  <p className="text-[9px] opacity-60 uppercase tracking-wide">{label}</p>
+                  <p className="text-sm font-bold">{val}</p>
                 </div>
               ))}
             </div>
