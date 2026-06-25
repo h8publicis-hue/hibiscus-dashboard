@@ -39,12 +39,15 @@ export default async function handler(req: any, res: any) {
     const since = '2026-06-01';
     const until = '2026-06-25';
     const paramSets: Record<string, string> = {
-      pg1:               `/v2/pedidos?por_pagina=30&pagina=1`,
-      pg50:              `/v2/pedidos?por_pagina=30&pagina=50`,
-      pg100:             `/v2/pedidos?por_pagina=30&pagina=100`,
-      pg200:             `/v2/pedidos?por_pagina=30&pagina=200`,
-      pp200:             `/v2/pedidos?por_pagina=200&pagina=1`,
-      pp500:             `/v2/pedidos?por_pagina=500&pagina=1`,
+      // Tenta diferentes parâmetros de ordenação
+      ord_id_asc:        `/v2/pedidos?por_pagina=30&pagina=1&ordenar=id&direcao=asc`,
+      ord_id_desc:       `/v2/pedidos?por_pagina=30&pagina=1&ordenar=id&direcao=desc`,
+      ord_data_asc:      `/v2/pedidos?por_pagina=30&pagina=1&orderby=data_hora_pedido&order=asc`,
+      sort_asc:          `/v2/pedidos?por_pagina=30&pagina=1&sort=asc`,
+      // Tenta filtro por status
+      status_aprov:      `/v2/pedidos?por_pagina=30&pagina=1&status=aprovado`,
+      // Tenta filtro por ID mínimo (pedidos mais antigos de junho)
+      id_min:            `/v2/pedidos?por_pagina=30&pagina=1&id_de=4063190&id_ate=4070000`,
     };
 
     const results: Record<string, any> = {};
