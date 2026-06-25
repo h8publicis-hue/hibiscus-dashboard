@@ -87,7 +87,7 @@ async function computeRevenue(visitSince: string, visitUntil: string): Promise<n
     for (const o of items) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d < listSinceStr) { pastRange = true; break; }
-      if (o.status === 'aprovado' || o.status === 'confirmado') {
+      if (o.status === 'aprovado') {
         approvedIds.push(String(o.id));
         orderValores[o.id] = {
           valor:    parseFloat(o.valor    || '0'),
@@ -118,8 +118,8 @@ async function computeRevenue(visitSince: string, visitUntil: string): Promise<n
         return vd >= visitSince && vd <= visitUntil;
       });
       if (hasVisitInMonth) {
-        const id  = detail?.id ?? detail?.pedido?.id;
-        const ov  = orderValores[id];
+        const id  = String(detail?.id ?? detail?.pedido?.id ?? '');
+        const ov  = orderValores[id] ?? orderValores[Number(id)];
         if (ov) { revenue += ov.valor - ov.desconto; matched++; }
       }
     }
@@ -138,7 +138,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v:${since}_${until}`;
+  const key   = `ptf-v2:${since}_${until}`;
 
   // Cache L1 (memória)
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });

@@ -67,7 +67,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 // ── Busca pedidos por data de pedido ──────────────────────────────────────────
 async function fetchOrders(since: string, until: string) {
-  const today   = new Date().toISOString().slice(0, 10);
+  // Paytour armazena datas em BRT (UTC-3); usamos a mesma referência
+  const today   = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const isToday = since === today && until === today;
   const maxPage = isToday ? 6 : 30;   // hoje: 6 pág; outros: 30 pág max (1500 pedidos) p/ evitar timeout
   const all: unknown[] = [];
@@ -120,14 +121,15 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   if (!PT_KEY || !PT_SECRET) return res.json({ orders: [] });
 
-  const today   = new Date().toISOString().slice(0, 10);
+  // Paytour armazena datas em BRT (UTC-3); usamos a mesma referência
+  const today   = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const since   = (req.query.since  as string) ?? today;
   const until   = (req.query.until  as string) ?? today;
   const filter  = (req.query.filter as string) ?? 'order';
   const isToday = since === today && until === today;
   const ttl     = isToday ? TTL_TODAY : TTL_OTHER;
   const ttlSec  = Math.floor(ttl / 1000);
-  const key     = `pt4:${filter}:${since}_${until}`;
+  const key     = `pt5:${filter}:${since}_${until}`;
 
   // L1: memória (mesma instância serverless)
   const mem = memCache.get(key);
