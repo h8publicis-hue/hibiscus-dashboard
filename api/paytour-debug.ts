@@ -35,41 +35,34 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const pages: Record<string, any> = {};
+    // Testa diferentes parâmetros de filtro de data para ver quais a API respeita
+    const since = '2026-06-01';
+    const until = '2026-06-25';
+    const paramSets: Record<string, string> = {
+      nenhum:            `/v2/pedidos?por_pagina=50&pagina=1`,
+      data_de:           `/v2/pedidos?por_pagina=50&pagina=1&data_de=${since}&data_ate=${until}`,
+      data_pedido_de:    `/v2/pedidos?por_pagina=50&pagina=1&data_pedido_de=${since}&data_pedido_ate=${until}`,
+      criacao_de:        `/v2/pedidos?por_pagina=50&pagina=1&criacao_de=${since}&criacao_ate=${until}`,
+      data_hora_de:      `/v2/pedidos?por_pagina=50&pagina=1&data_hora_de=${since}&data_hora_ate=${until}`,
+      status_aprovado:   `/v2/pedidos?por_pagina=50&pagina=1&status=aprovado`,
+    };
 
-    // Amostra das páginas 1, 5, 10, 20, 30 para ver distribuição de datas
-    for (const pg of [1, 5, 10, 20, 30]) {
-      await sleep(200);
-      const data = await paytourGet(`/v2/pedidos?por_pagina=50&pagina=${pg}`) as any;
+    const results: Record<string, any> = {};
+    for (const [name, path] of Object.entries(paramSets)) {
+      await sleep(300);
+      const data = await paytourGet(path) as any;
       const items: any[] = data?.itens ?? [];
-      pages[`pg${pg}`] = {
+      results[name] = {
+        total_paginas: data?.info?.total_paginas,
         count: items.length,
-        dates: items.map((o: any) => ({
-          id: o.id,
-          data_hora_pedido: o.data_hora_pedido,
-          status: o.status,
-          valor: o.valor,
-        })).slice(0, 5), // primeiros 5 de cada página
+        first_id: items[0]?.id,
+        first_date: items[0]?.data_hora_pedido?.slice(0, 10),
+        last_date: items[items.length - 1]?.data_hora_pedido?.slice(0, 10),
+        status_sample: items.slice(0, 3).map((o: any) => o.status),
       };
     }
 
-    // Detalhe do primeiro pedido aprovado — todos os campos para descobrir campo de data de criação
-    const pg1 = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
-    const firstApproved = (pg1?.itens ?? []).find((o: any) => o.status === 'aprovado' || o.status === 'confirmado');
-    let detailAllKeys: any = null;
-    if (firstApproved) {
-      await sleep(200);
-      const detail = await paytourGet(`/v2/pedidos/${firstApproved.id}`) as any;
-      detailAllKeys = {
-        topKeys: Object.keys(detail ?? {}),
-        topValues: Object.fromEntries(
-          Object.entries(detail ?? {}).filter(([k]) => !['itens','cliente'].includes(k))
-        ),
-        itensKeys: Object.keys((detail?.itens ?? [])[0] ?? {}),
-      };
-    }
-
-    return res.json({ pages, detailAllKeys });
+    return res.json({ results });
   } catch (err: any) {
     return res.status(500).json({ error: String(err) });
   }
