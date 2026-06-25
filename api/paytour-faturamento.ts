@@ -78,9 +78,11 @@ async function computeRevenue(since: string, until: string): Promise<number> {
       if (d < since) { pastRange = true; break; }
       if (d <= until && o.status === 'aprovado') {
         candidates.push({
-          id:       String(o.id),
-          valor:    parseFloat(o.valor    || '0'),
-          desconto: parseFloat(o.desconto || '0'),
+          id:              String(o.id),
+          valor:           parseFloat(o.valor    || '0'),
+          desconto:        parseFloat(o.desconto || '0'),
+          status_pagamento: String(o.status_pagamento ?? ''),
+          pagamento_pendente: o.pagamento_pendente,
         });
       }
     }
@@ -88,34 +90,22 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
 
-  console.log(`[fat] ${candidates.length} candidatos aprovados — buscando detalhes para filtrar por visita`);
+  // Log distribuição de status_pagamento para diagnóstico
+  const spCounts: Record<string, number> = {};
+  for (const c of candidates) spCounts[c.status_pagamento || 'vazio'] = (spCounts[c.status_pagamento || 'vazio'] ?? 0) + 1;
+  console.log(`[fat] ${candidates.length} candidatos aprovados — status_pagamento:`, JSON.stringify(spCounts));
 
-  // Passo 2: busca detalhe em lotes paralelos de BATCH e filtra por data de visita
-  let revenue = 0;
-  let matched = 0;
+  // Conta só pedidos com pagamento confirmado (exclui pendente)
+  const pagos = candidates.filter(c =>
+    c.status_pagamento === 'pago' ||
+    c.status_pagamento === 'aprovado' ||
+    (!c.pagamento_pendente && c.status_pagamento !== 'pendente')
+  );
+  console.log(`[fat] ${pagos.length} com pagamento confirmado de ${candidates.length}`);
 
-  for (let i = 0; i < candidates.length; i += BATCH) {
-    const batch = candidates.slice(i, i + BATCH);
-    const details = await Promise.all(
-      batch.map(c => paytourGet(`/v2/pedidos/${c.id}`).catch(() => null))
-    );
-    for (let j = 0; j < batch.length; j++) {
-      const detail = details[j] as any;
-      if (!detail) continue;
-      const itens: any[] = detail?.itens ?? detail?.pedido?.itens ?? [];
-      const hasVisit = itens.some((item: any) => {
-        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 10) ?? '';
-        return vd >= since && vd <= until;
-      });
-      if (hasVisit) {
-        revenue += batch[j].valor - batch[j].desconto;
-        matched++;
-      }
-    }
-    if (i + BATCH < candidates.length) await sleep(50);
-  }
-
-  console.log(`[fat] ${matched}/${candidates.length} pedidos com visita em ${since}→${until} = R$ ${revenue.toFixed(2)}`);
+  // Passo 2: soma pedidos com pagamento confirmado (sem filtro de visita)
+  const revenue = pagos.reduce((s, c) => s + c.valor - c.desconto, 0);
+  console.log(`[fat] resultado: ${pagos.length} pedidos aprovados+pagos = R$ ${revenue.toFixed(2)}`);
   return revenue;
 }
 
@@ -127,7 +117,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v3:${since}_${until}`;
+  const key   = `ptf-v4:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
