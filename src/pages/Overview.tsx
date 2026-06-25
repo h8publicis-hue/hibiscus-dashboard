@@ -355,6 +355,35 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     </div>
   ) : null;
 
+  // ── Bloco: Check-in Online (placeholder) ─────────────────────────────────
+  const blocoCheckin = (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-dashed border-gray-300 dark:border-gray-600">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <Users size={14} className="text-gray-400" />
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Check-in Online</h2>
+        </div>
+        <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full">em breve</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Realizados',  val: '—', color: 'text-green-600 dark:text-green-400' },
+          { label: 'Pendentes',   val: '—', color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Total',       val: '—', color: 'text-gray-400' },
+        ].map(({ label, val, color }) => (
+          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+            <p className={`text-lg font-black ${color}`}>{val}</p>
+            <p className="text-[9px] text-gray-400 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-full w-0 bg-green-500 rounded-full" />
+      </div>
+      <p className="text-[9px] text-gray-400 mt-1 text-center">0% concluídos</p>
+    </div>
+  );
+
   // ── Bloco: Total do Dia ───────────────────────────────────────────────────
   const blocoTotalDia = (
     <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
@@ -791,9 +820,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             {blocoTotalDia}
           </div>
 
-          {/* Coluna 2 — Ocupação */}
-          <div className="min-h-0 overflow-y-auto">
+          {/* Coluna 2 — Ocupação + Check-in */}
+          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoOcupacao}
+            {blocoCheckin}
           </div>
 
           {/* Coluna 3 — Reputação */}
