@@ -63,52 +63,54 @@ async function paytourGet(path: string) {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 async function computeRevenue(since: string, until: string): Promise<number> {
-  // Passo 1: coleta pedidos aprovados das 8 páginas mais recentes com data no mês
+  // Passo 1: coleta pedidos aprovados com data_hora_pedido no mês (8 páginas mais recentes)
   const candidates: { id: string; valor: number; desconto: number }[] = [];
 
   for (let page = 1; page <= 8; page++) {
     if (page > 1) await sleep(150);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=50&pagina=${page}`) as any;
     const items: any[] = data?.itens ?? [];
-    if (page === 1) {
-      console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
-      if (items[0]) console.log('[fat] campos pg1[0]:', JSON.stringify(Object.fromEntries(Object.entries(items[0]).filter(([k]) => !k.startsWith('cliente')))).slice(0, 600));
-    }
+    if (page === 1) console.log(`[fat] pg1 total_pag=${data?.info?.total_paginas} count=${items.length}`);
     if (!items.length) break;
     let pastRange = false;
     for (const o of items) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d < since) { pastRange = true; break; }
       if (d <= until && o.status === 'aprovado') {
-        candidates.push({
-          id:              String(o.id),
-          valor:           parseFloat(o.valor    || '0'),
-          desconto:        parseFloat(o.desconto || '0'),
-          status_pagamento: String(o.status_pagamento ?? ''),
-          pagamento_pendente: o.pagamento_pendente,
-        });
+        candidates.push({ id: String(o.id), valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') });
       }
     }
     if (pastRange) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
+  console.log(`[fat] ${candidates.length} candidatos aprovados com pedido no mês`);
 
-  // Log distribuição de status_pagamento para diagnóstico
-  const spCounts: Record<string, number> = {};
-  for (const c of candidates) spCounts[c.status_pagamento || 'vazio'] = (spCounts[c.status_pagamento || 'vazio'] ?? 0) + 1;
-  console.log(`[fat] ${candidates.length} candidatos aprovados — status_pagamento:`, JSON.stringify(spCounts));
+  // Passo 2: filtra por data de visita no mês (produto_disponibilidade_data)
+  // O Resumo Financeiro da Paytour conta por data de visita, não por data do pedido.
+  // Pedidos feitos em junho para visitas em julho/agosto são excluídos.
+  const confirmed: typeof candidates = [];
+  for (let i = 0; i < candidates.length; i += BATCH) {
+    const batch = candidates.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(c => paytourGet(`/v2/pedidos/${c.id}`))
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const r = results[j];
+      if (r.status !== 'fulfilled') continue;
+      const detail = r.value as any;
+      const itens: any[] = detail?.itens ?? [];
+      const hasJuneVisit = itens.some((item: any) => {
+        const vd = (item.produto_disponibilidade_data as string)?.slice(0, 7) ?? '';
+        return vd === since.slice(0, 7);
+      });
+      if (hasJuneVisit) confirmed.push(batch[j]);
+    }
+    if (i + BATCH < candidates.length) await sleep(100);
+  }
+  console.log(`[fat] ${confirmed.length} com visita no mês de ${candidates.length} candidatos`);
 
-  // Conta só pedidos com pagamento confirmado (exclui pendente)
-  const pagos = candidates.filter(c =>
-    c.status_pagamento === 'pago' ||
-    c.status_pagamento === 'aprovado' ||
-    (!c.pagamento_pendente && c.status_pagamento !== 'pendente')
-  );
-  console.log(`[fat] ${pagos.length} com pagamento confirmado de ${candidates.length}`);
-
-  // Passo 2: soma pedidos com pagamento confirmado (sem filtro de visita)
-  const revenue = pagos.reduce((s, c) => s + c.valor - c.desconto, 0);
-  console.log(`[fat] resultado: ${pagos.length} pedidos aprovados+pagos = R$ ${revenue.toFixed(2)}`);
+  const revenue = confirmed.reduce((s, c) => s + c.valor - c.desconto, 0);
+  console.log(`[fat] resultado: ${confirmed.length} pedidos = R$ ${revenue.toFixed(2)}`);
   return revenue;
 }
 
@@ -120,7 +122,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v5:${since}_${until}`;
+  const key   = `ptf-v6:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
