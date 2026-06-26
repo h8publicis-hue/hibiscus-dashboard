@@ -127,9 +127,12 @@ function Dashboard() {
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
 
-      <footer className="text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none">
-        Desenvolvido por h8 Sistemas
-      </footer>
+      {!kdsMode && (
+        <footer className="text-center pb-16 lg:pb-3 pt-1 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight">
+          <span className="opacity-70">Desenvolvido por</span>{' '}
+          <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Sistemas</span>
+        </footer>
+      )}
     </>
   );
 }

@@ -211,7 +211,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-4 shadow-sm text-white">
       <div className="flex items-center gap-1.5 mb-3">
         <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-        <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Ao vivo — Hoje</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Paytour — Ao Vivo</h2>
         {ptL && <span className="text-[10px] opacity-60 animate-pulse ml-auto">Carregando...</span>}
       </div>
       {ptL
