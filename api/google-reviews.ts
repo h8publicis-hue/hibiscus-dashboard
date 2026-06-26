@@ -69,7 +69,7 @@ export default async function handler(req: any, res: any) {
         id: String(i+1), author: r.author_name, rating: r.rating,
         text: r.text, date: new Date(r.time*1000).toISOString().slice(0,10), replied: false,
       })),
-      unansweredCount: reviews.length,
+      unansweredCount: reviews.filter((r: any) => r.text?.trim()).length,
     };
     cache = { data, ts: Date.now() };
     return res.json(data);
