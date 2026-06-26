@@ -121,6 +121,10 @@ function Dashboard() {
       {goalsOpen && (
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
+
+      <footer className="text-center py-2 text-[10px] text-gray-400 dark:text-gray-600 select-none">
+        Desenvolvido por h8 Sistemas
+      </footer>
     </>
   );
 }
