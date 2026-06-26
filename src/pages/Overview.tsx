@@ -95,7 +95,7 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
           return (
             <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-1 text-center', bg)}>
               <span className="text-[8px] leading-none opacity-70">{SPACE_CONFIGS.lounge.start + i}</span>
-              <span className="text-[10px] font-bold leading-tight">{v}</span>
+              <span className="text-[11px] font-black leading-tight">{v}</span>
             </div>
           );
         })}
@@ -165,7 +165,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
           return (
             <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-0.5 text-center', bg)}>
               <span className="text-[7px] leading-none opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
-              <span className="text-[9px] font-bold leading-tight">{v}</span>
+              <span className="text-[10px] font-black leading-tight">{v}</span>
             </div>
           );
         })}
@@ -247,7 +247,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       <div className="flex items-center gap-1.5 mb-3">
         <Target size={14} className="text-brand-600" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
-          Faturamento — {monthName(0)}
+          Paytour — {monthName(0)}
         </h2>
       </div>
       {monthRevL
@@ -423,7 +423,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-1.5 mb-2">
         <Target size={14} className="text-brand-500" />
-        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Receita A&amp;BS</h2>
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Receita Vendas</h2>
       </div>
       {absL ? (
         <div className="h-8 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
@@ -483,7 +483,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   <p className="text-lg font-black text-amber-700 dark:text-amber-400">
                     {neutrals !== null ? `${neutrals}%` : '—'}
                   </p>
-                  <p className="text-[9px] text-amber-600 dark:text-amber-500 font-medium mt-0.5">Em cima do muro</p>
+                  <p className="text-[9px] text-amber-600 dark:text-amber-500 font-medium mt-0.5">Oxente</p>
                   {neutrals !== null && total > 0 && (
                     <p className="text-[8px] text-amber-500 mt-0.5">{Math.round(neutrals / 100 * total)} pessoas</p>
                   )}

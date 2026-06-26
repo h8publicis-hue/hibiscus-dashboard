@@ -145,7 +145,7 @@ export interface Goals {
 }
 
 export const DEFAULT_GOALS: Goals = {
-  receitaTotal:  220000,
+  receitaTotal:  33361,
   atividadesMes: 2000,
   numeroVendas:  1400,
   npsScore:      65,

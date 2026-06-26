@@ -18,9 +18,7 @@ interface Field {
 }
 
 const FIELDS: Field[] = [
-  { key: 'receitaTotal',   label: 'Receita Total',          unit: 'R$ / mês',          step: 1000, min: 0,    max: 10000000 },
-  { key: 'atividadesMes',  label: 'Atividades Vendidas',    unit: 'atividades / mês',  step: 100,  min: 0,    max: 100000   },
-  { key: 'numeroVendas',   label: 'Nº de Reservas',         unit: 'reservas / mês',    step: 10,   min: 0,    max: 100000   },
+  { key: 'receitaTotal',   label: 'Receita Total Paytour',  unit: 'R$ / mês',          step: 1000, min: 0,    max: 10000000 },
   { key: 'npsScore',       label: 'NPS Score',              unit: 'pontos',            step: 1,    min: -100, max: 100      },
   { key: 'notaGoogle',     label: 'Nota Google',            unit: 'estrelas',          step: 0.1,  min: 1,    max: 5        },
   { key: 'taxaSatisfacao', label: 'Taxa de Satisfação',     unit: '% promotores',      step: 1,    min: 0,    max: 100      },
