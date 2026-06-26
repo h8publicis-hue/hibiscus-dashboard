@@ -6,6 +6,7 @@ import { usePaytour } from '../hooks/usePaytour';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
+import { useCheckin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
@@ -186,6 +187,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: sheetOcc } = useSheetOccupancy();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
+  const { data: checkinData, loading: checkinL } = useCheckin();
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -364,19 +366,19 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Check-in Online (placeholder) ─────────────────────────────────
   const blocoCheckin = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-dashed border-gray-300 dark:border-gray-600">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5">
-          <Users size={14} className="text-gray-400" />
-          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Check-in Online</h2>
-        </div>
-        <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full">em breve</span>
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Users size={14} className="text-brand-500" />
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Check-in Online</h2>
       </div>
+      {checkinL ? (
+        <div className="h-16 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+      ) : (
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Realizados',  val: '—', color: 'text-green-600 dark:text-green-400' },
-          { label: 'Pendentes',   val: '—', color: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Total',       val: '—', color: 'text-gray-400' },
+          { label: 'Realizados', val: checkinData?.realizados ?? '—', color: 'text-green-600 dark:text-green-400' },
+          { label: 'Pendentes',  val: checkinData?.pendentes  ?? '—', color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Total',      val: checkinData?.total      ?? '—', color: 'text-gray-500 dark:text-gray-300' },
         ].map(({ label, val, color }) => (
           <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
             <p className={`text-lg font-black ${color}`}>{val}</p>
@@ -384,10 +386,20 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
         ))}
       </div>
-      <div className="mt-3 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-        <div className="h-full w-0 bg-green-500 rounded-full" />
-      </div>
-      <p className="text-[9px] text-gray-400 mt-1 text-center">0% concluídos</p>
+      )}
+      {checkinData && (
+        <>
+          <div className="mt-3 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full transition-all duration-500"
+              style={{ width: checkinData.total > 0 ? `${Math.round((checkinData.realizados / checkinData.total) * 100)}%` : '0%' }}
+            />
+          </div>
+          <p className="text-[9px] text-gray-400 mt-1 text-center">
+            {checkinData.total > 0 ? Math.round((checkinData.realizados / checkinData.total) * 100) : 0}% concluídos
+          </p>
+        </>
+      )}
     </div>
   );
 
