@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 
+const LOUNGE_GROUPS = [
+  { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
+  { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
+  { label: 'Anexo',      ids: [14] },
+  { label: 'Gramado',    ids: [15, 16, 17] },
+] as const;
+
 const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 };
 
 function clamp(n: number, min: number, max: number) {
@@ -152,27 +159,72 @@ function LoungeModal({
 function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: OccupancyState) => void }) {
   const [editing, setEditing] = useState<number | null>(null);
 
+  function cellColor(v: number, p: number) {
+    if (v === 0) return 'bg-gray-50 border-gray-200 text-gray-400';
+    if (p >= 0.9) return 'bg-red-100 border-red-400 text-red-700';
+    if (p >= 0.6) return 'bg-yellow-100 border-yellow-400 text-yellow-700';
+    return 'bg-green-100 border-green-400 text-green-700';
+  }
+
   return (
     <>
-      <div className="grid grid-cols-5 gap-1.5 pt-1">
-        {occ.lounges.map((v, i) => {
-          const p = v / SPACE_CONFIGS.lounge.max;
-          return (
-            <button
-              key={i}
-              onClick={() => setEditing(i)}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center text-[10px] font-bold border-2 transition-colors ${
-                p >= 0.9 ? 'bg-red-100 border-red-300 text-red-700' :
-                p >= 0.6 ? 'bg-yellow-100 border-yellow-300 text-yellow-700' :
-                p > 0    ? 'bg-green-100 border-green-300 text-green-700' :
-                           'bg-gray-50 border-gray-200 text-gray-400'
-              }`}
-            >
-              <span className="text-[9px] opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
-              <span>{v}</span>
-            </button>
-          );
-        })}
+      <div className="flex flex-col gap-3 pt-1">
+        {/* Frente Mar + Atrás: duas fileiras de 7 */}
+        {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
+          <div key={group.label}>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label}</p>
+            <div className="grid grid-cols-7 gap-1.5">
+              {group.ids.map((idx) => {
+                const v = occ.lounges[idx];
+                const p = v / SPACE_CONFIGS.lounge.max;
+                const num = SPACE_CONFIGS.lounge.start + idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setEditing(idx)}
+                    className={`rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p)}`}
+                  >
+                    <span className="text-[9px] opacity-60 leading-none">{num}</span>
+                    <span className="text-xl font-black leading-tight">{v}</span>
+                    {/* mini barra de ocupação */}
+                    <div className="w-5 h-0.5 bg-black/10 rounded-full mt-1 overflow-hidden">
+                      <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Anexo + Gramado */}
+        <div className="flex gap-4">
+          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3]].map((group) => (
+            <div key={group.label}>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label}</p>
+              <div className="flex gap-1.5">
+                {group.ids.map((idx) => {
+                  const v = occ.lounges[idx];
+                  const p = v / SPACE_CONFIGS.lounge.max;
+                  const num = SPACE_CONFIGS.lounge.start + idx;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setEditing(idx)}
+                      className={`w-14 rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p)}`}
+                    >
+                      <span className="text-[9px] opacity-60 leading-none">{num}</span>
+                      <span className="text-xl font-black leading-tight">{v}</span>
+                      <div className="w-5 h-0.5 bg-black/10 rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {editing !== null && (
