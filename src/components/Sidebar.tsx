@@ -51,8 +51,8 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
       </nav>
 
       <div className="mt-auto px-3 pt-3 pb-[76px] border-t border-gray-100 dark:border-gray-700">
-        <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-tight">Desenvolvido por</p>
-        <p className="text-[11px] font-bold text-gray-500 dark:text-gray-500 leading-tight">H8 Sistemas</p>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight">Desenvolvido por</p>
+        <p className="text-[11px] font-bold text-gray-600 dark:text-gray-300 leading-tight">H8 Sistemas</p>
       </div>
     </aside>
   );

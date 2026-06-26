@@ -96,13 +96,18 @@ function Dashboard() {
                 Modo Mock ativo — dados simulados para desenvolvimento
               </div>
             )}
-            <Routes>
-              <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
-              <Route path="/vendas"     element={<Sales period={period} />} />
-              <Route path="/satisfacao" element={<Satisfaction period={period} />} />
-              <Route path="/avaliacoes" element={<Reviews period={period} />} />
-              <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
-            </Routes>
+            {kdsMode
+              ? <Overview period={period} goals={goals} occupancy={occupancy} />
+              : (
+                <Routes>
+                  <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
+                  <Route path="/vendas"     element={<Sales period={period} />} />
+                  <Route path="/satisfacao" element={<Satisfaction period={period} />} />
+                  <Route path="/avaliacoes" element={<Reviews period={period} />} />
+                  <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
+                </Routes>
+              )
+            }
           </main>
         </div>
         <KdsProgressBar active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
@@ -122,7 +127,7 @@ function Dashboard() {
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
 
-      <footer className="text-center py-2 text-[10px] text-gray-400 dark:text-gray-600 select-none">
+      <footer className="text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none">
         Desenvolvido por h8 Sistemas
       </footer>
     </>

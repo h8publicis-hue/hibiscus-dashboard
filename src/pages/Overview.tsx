@@ -87,24 +87,24 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
         {lounges.map((v, i) => {
           const pct = v / SPACE_CONFIGS.lounge.max;
           const bg  = v === 0
-            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
             : pct >= 0.9
-              ? 'bg-red-100 text-red-700 border border-red-300'
+              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600'
               : pct >= 0.6
-                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                : 'bg-green-100 text-green-700 border border-green-300';
+                ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600'
+                : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600';
           return (
-            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-1 text-center', bg)}>
+            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-1.5 text-center', bg)}>
               <span className="text-[8px] leading-none opacity-70">{SPACE_CONFIGS.lounge.start + i}</span>
-              <span className="text-[11px] font-black leading-tight">{v}</span>
+              <span className="text-base font-black leading-tight">{v}</span>
             </div>
           );
         })}
       </div>
       <div className="flex gap-2 mt-0.5">
-        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-gray-200 inline-block"/>Livre</span>
-        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-green-200 inline-block"/>Ocupado</span>
-        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-red-200 inline-block"/>Cheio</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-600 inline-block"/>Livre</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-green-200 dark:bg-green-800 inline-block"/>Ocupado</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-red-200 dark:bg-red-800 inline-block"/>Cheio</span>
       </div>
     </div>
   );
@@ -157,24 +157,24 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
         {lounges.map((v, i) => {
           const pct = v / SPACE_CONFIGS.lounge.max;
           const bg  = v === 0
-            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
             : pct >= 0.9
-              ? 'bg-red-100 text-red-700 border border-red-300'
+              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600'
               : pct >= 0.6
-                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                : 'bg-green-100 text-green-700 border border-green-300';
+                ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600'
+                : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600';
           return (
-            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-0.5 text-center', bg)}>
+            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-1 text-center', bg)}>
               <span className="text-[7px] leading-none opacity-60">{SPACE_CONFIGS.lounge.start + i}</span>
-              <span className="text-[10px] font-black leading-tight">{v}</span>
+              <span className="text-sm font-black leading-tight">{v}</span>
             </div>
           );
         })}
       </div>
       <div className="flex gap-2 mt-0.5">
-        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-gray-200 inline-block"/>Livre</span>
-        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-green-200 inline-block"/>Ocupado</span>
-        <span className="flex items-center gap-1 text-[8px] text-gray-400"><span className="w-2 h-2 rounded-sm bg-red-200 inline-block"/>Cheio</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-600 inline-block"/>Livre</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-green-200 dark:bg-green-800 inline-block"/>Ocupado</span>
+        <span className="flex items-center gap-1 text-[8px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-red-200 dark:bg-red-800 inline-block"/>Cheio</span>
       </div>
     </div>
   );
