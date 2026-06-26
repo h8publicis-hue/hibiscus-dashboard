@@ -498,14 +498,21 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   )}
                 </div>
               </div>
-              {daysSinceNeg !== null && (
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
-                  <p className="text-2xl font-black text-green-600 dark:text-green-400">{daysSinceNeg}</p>
-                  <p className="text-[10px] text-green-600 dark:text-green-500 font-medium">
-                    {daysSinceNeg === 1 ? 'dia sem Putz' : 'dias sem Putz'}
-                  </p>
-                </div>
-              )}
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                {daysSinceNeg !== null ? (
+                  <>
+                    <p className="text-2xl font-black text-green-600 dark:text-green-400">{daysSinceNeg}</p>
+                    <p className="text-[10px] text-green-600 dark:text-green-500 font-medium">
+                      {daysSinceNeg === 1 ? 'dia sem Putz' : 'dias sem Putz'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-black text-green-600 dark:text-green-400">🏆</p>
+                    <p className="text-[10px] text-green-600 dark:text-green-500 font-medium">Sem registros de Putz</p>
+                  </>
+                )}
+              </div>
             </>
           )
         }
