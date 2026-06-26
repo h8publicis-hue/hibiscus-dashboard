@@ -94,9 +94,9 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
                 ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600'
                 : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600';
           return (
-            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-1.5 text-center', bg)}>
-              <span className="text-[8px] leading-none opacity-70">{SPACE_CONFIGS.lounge.start + i}</span>
-              <span className="text-base font-black leading-tight">{v}</span>
+            <div key={i} className={clsx('rounded flex flex-col items-center justify-center py-2 text-center', bg)}>
+              <span className="text-[9px] leading-none opacity-70 mb-0.5">{SPACE_CONFIGS.lounge.start + i}</span>
+              <span className="text-2xl font-black leading-none">{v}</span>
             </div>
           );
         })}
