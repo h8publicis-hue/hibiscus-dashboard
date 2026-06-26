@@ -253,20 +253,22 @@ export function Header({
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between gap-3 sticky top-0 z-30">
       {/* Brand */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Logo modo light */}
         <img
           src="/logo.png"
           alt="Hibiscus Beach Club"
-          className="h-9 w-auto object-contain"
-          onError={(e) => {
-            const el = e.currentTarget;
-            el.style.display = 'none';
-            const fallback = el.nextElementSibling as HTMLElement | null;
-            if (fallback) fallback.style.display = 'flex';
-          }}
+          className="dark:hidden h-9 w-auto object-contain"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
-        <div className="hidden w-9 h-9 bg-brand-600 rounded-lg items-center justify-center text-white font-bold text-sm">H</div>
+        {/* Logo modo dark */}
+        <img
+          src="https://static.wixstatic.com/media/d9d863_f674498abfa44751886e72f0229c5f17~mv2.png/v1/crop/x_22,y_1,w_340,h_84/fill/w_476,h_117,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/Prancheta%201%20c%C3%B3pia.png"
+          alt="Hibiscus Beach Club"
+          className="hidden dark:block h-9 w-auto object-contain"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        />
         <div className="hidden sm:block">
-          <h1 className="text-sm font-bold text-brand-600 leading-tight">Hibiscus Beach Club</h1>
+          <h1 className="text-sm font-bold text-brand-600 dark:text-white leading-tight">Hibiscus Beach Club</h1>
           <p className="text-xs text-gray-400">Dashboard Integrado</p>
         </div>
       </div>

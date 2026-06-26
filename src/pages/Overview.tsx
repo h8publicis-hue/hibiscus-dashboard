@@ -613,7 +613,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             <Users size={14} className="text-gray-500" />
             <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ocupação Atual</h3>
           </div>
-          <a href="/ocupacao" className="text-[10px] text-brand-600 hover:underline">detalhes →</a>
+          <a href="/ocupacao" className="text-[10px] text-brand-600 dark:text-white hover:underline">detalhes →</a>
         </div>
 
         {so ? (
@@ -625,8 +625,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 <p className="text-xl font-black text-slate-800 dark:text-slate-100">{so.portaria}</p>
               </div>
               <div className="border border-brand-400 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-brand-500 dark:text-brand-300 uppercase tracking-wider">👥 Na Casa</p>
-                <p className="text-xl font-black text-brand-700 dark:text-brand-200">{so.total}</p>
+                <p className="text-[9px] text-brand-500 dark:text-orange-300 uppercase tracking-wider">👥 Na Casa</p>
+                <p className="text-xl font-black text-brand-700 dark:text-orange-400">{so.total}</p>
               </div>
               <div className={clsx('rounded-lg p-2 text-center border', so.gap >= 0 ? 'border-emerald-400' : 'border-red-400')}>
                 <p className={clsx('text-[9px] uppercase tracking-wider', so.gap >= 0 ? 'text-emerald-500' : 'text-red-500')}>⚡ GAP</p>
