@@ -5,6 +5,7 @@ import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
+import { useReceitaABS } from '../hooks/useReceitaABS';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
@@ -184,6 +185,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: paytour, loading: ptL } = usePaytour(period);
   const { data: sheetOcc } = useSheetOccupancy();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
+  const { data: absData, loading: absL } = useReceitaABS();
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -403,16 +405,32 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     </div>
   );
 
-  // ── Bloco: Receita A&BS (placeholder) ────────────────────────────────────
+  // ── Bloco: Receita A&BS ───────────────────────────────────────────────────
   const blocoReceitaABS = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-dashed border-gray-300 dark:border-gray-600">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-1.5 mb-2">
-        <Target size={14} className="text-gray-400" />
-        <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Receita A&amp;BS</h2>
-        <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full">em breve</span>
+        <Target size={14} className="text-brand-500" />
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Receita A&amp;BS</h2>
       </div>
-      <p className="text-2xl font-black text-gray-300 dark:text-gray-600">R$ —</p>
-      <p className="text-[10px] text-gray-400 mt-1">A&B + Serviços adicionais</p>
+      {absL ? (
+        <div className="h-8 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+      ) : absData?.receita_abs != null ? (
+        <>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">
+            {absData.receita_abs.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </p>
+          {absData.atualizado_em && (
+            <p className="text-[10px] text-gray-400 mt-1">
+              Atualizado às {new Date(absData.atualizado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="text-2xl font-black text-gray-300 dark:text-gray-600">R$ —</p>
+          <p className="text-[10px] text-gray-400 mt-1">Aguardando envio do Power BI</p>
+        </>
+      )}
     </div>
   );
 
