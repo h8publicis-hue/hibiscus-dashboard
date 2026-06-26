@@ -339,7 +339,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 {monthAbove > 0 && (
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-green-600 dark:text-green-400">
                     <span className="animate-ping inline-block w-2 h-2 rounded-full bg-green-500 opacity-75" />
-                    <span>🏆 Meta batida!</span>
+                    <span>🏆 Meta arretada!</span>
                   </div>
                 )}
                 <div>
