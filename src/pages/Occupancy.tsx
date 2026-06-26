@@ -11,6 +11,7 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Gramado',    ids: [15, 16, 17] },
+  { label: 'Prime ★',    ids: [18] },
 ] as const;
 
 function useLongPress(callback: () => void) {
@@ -408,9 +409,9 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             </div>
           ))}
 
-          {/* Anexo + Gramado */}
+          {/* Anexo + Gramado + Prime */}
           <div className="flex gap-4 flex-wrap">
-            {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3]].map((group) => (
+            {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
               <div key={group.label}>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{group.label}</p>
                 <div className="flex gap-1.5">
