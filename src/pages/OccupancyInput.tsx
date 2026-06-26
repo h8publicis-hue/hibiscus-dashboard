@@ -6,7 +6,7 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Gramado',    ids: [15, 16, 17] },
-  { label: 'Prime ★',    ids: [18] },
+  { label: 'Prime ⭐',    ids: [18] },
 ] as const;
 
 const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 };

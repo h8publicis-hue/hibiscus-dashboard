@@ -11,7 +11,7 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Gramado',    ids: [15, 16, 17] },
-  { label: 'Prime ★',    ids: [18] },
+  { label: 'Prime ⭐',    ids: [18] },
 ] as const;
 
 function useLongPress(callback: () => void) {
