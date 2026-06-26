@@ -87,6 +87,35 @@ const LOUNGE_GROUPS = [
   { label: 'Prime ★',    ids: [18] },
 ] as const;
 
+const MONTH_REV_TTL = 60 * 60 * 1000; // 1h — igual ao hook
+
+function SyncCountdown({ ts }: { ts: number }) {
+  const [pct, setPct] = useState(() => Math.max(0, 1 - (Date.now() - ts) / MONTH_REV_TTL));
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const p = Math.max(0, 1 - (Date.now() - ts) / MONTH_REV_TTL);
+      setPct(p);
+    }, 10_000); // atualiza a cada 10s
+    return () => clearInterval(id);
+  }, [ts]);
+
+  const mins = Math.ceil((ts + MONTH_REV_TTL - Date.now()) / 60_000);
+  const color = pct > 0.5 ? 'bg-green-400' : pct > 0.2 ? 'bg-yellow-400' : 'bg-red-400';
+
+  return (
+    <div className="mt-1">
+      <div className="flex justify-between text-[9px] text-gray-400 mb-0.5">
+        <span>Próxima atualização</span>
+        <span>{mins > 0 ? `em ${mins} min` : 'atualizando...'}</span>
+      </div>
+      <div className="h-0.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className={clsx('h-full rounded-full transition-all duration-[10s]', color)} style={{ width: `${Math.round(pct * 100)}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function LoungeLabel({ label, className }: { label: string; className?: string }) {
   if (!label.includes('★')) return <span className={className}>{label}</span>;
   const [before] = label.split('★');
@@ -361,9 +390,12 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   </div>
                 </div>
                 {monthRevTs && (
-                  <p className="text-[10px] text-gray-400 text-right">
-                    Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                  <>
+                    <p className="text-[10px] text-gray-400 text-right">
+                      Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <SyncCountdown ts={monthRevTs} />
+                  </>
                 )}
               </div>
             )
