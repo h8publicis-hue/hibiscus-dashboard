@@ -84,8 +84,14 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Gramado',    ids: [15, 16, 17] },
-  { label: 'Prime ⭐',    ids: [18] },
+  { label: 'Prime ★',    ids: [18] },
 ] as const;
+
+function LoungeLabel({ label, className }: { label: string; className?: string }) {
+  if (!label.includes('★')) return <span className={className}>{label}</span>;
+  const [before] = label.split('★');
+  return <span className={className}>{before}<span className="text-yellow-400">★</span></span>;
+}
 
 function loungeBg(v: number, pct: number) {
   if (v === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
@@ -104,7 +110,7 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
       <div className="flex flex-col gap-1">
         {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
           <div key={group.label} className="flex gap-1 items-center">
-            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 w-16 shrink-0 leading-tight">{group.label}</span>
+            <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 w-16 shrink-0 leading-tight" />
             <div className="flex flex-1 gap-1">
               {group.ids.map((idx) => {
                 const v = lounges[idx];
@@ -129,7 +135,7 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
       <div className="flex gap-3 items-start">
         {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
           <div key={group.label} className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{group.label}</span>
+            <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
             <div className="flex gap-1">
               {group.ids.map((idx) => {
                 const v = lounges[idx];
@@ -203,7 +209,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
 
       {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
         <div key={group.label} className="flex gap-1 items-center">
-          <span className="text-[7px] text-gray-400 dark:text-gray-500 w-12 shrink-0 leading-tight">{group.label}</span>
+          <LoungeLabel label={group.label} className="text-[7px] text-gray-400 dark:text-gray-500 w-12 shrink-0 leading-tight" />
           <div className="flex flex-1 gap-0.5">
             {group.ids.map((idx) => {
               const v = lounges[idx];
@@ -223,7 +229,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
       <div className="flex gap-2 items-start">
         {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
           <div key={group.label} className="flex flex-col gap-0.5">
-            <span className="text-[7px] font-semibold text-gray-500 dark:text-gray-400">{group.label}</span>
+            <LoungeLabel label={group.label} className="text-[7px] font-semibold text-gray-500 dark:text-gray-400" />
             <div className="flex gap-0.5">
               {group.ids.map((idx) => {
                 const v = lounges[idx];

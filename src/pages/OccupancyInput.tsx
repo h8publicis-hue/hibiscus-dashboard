@@ -6,7 +6,7 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Gramado',    ids: [15, 16, 17] },
-  { label: 'Prime ⭐',    ids: [18] },
+  { label: 'Prime ★',    ids: [18] },
 ] as const;
 
 const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 };
@@ -173,7 +173,7 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
         {/* Frente Mar + Atrás: duas fileiras de 7 */}
         {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
           <div key={group.label}>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label}</p>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label.includes('★') ? <>{group.label.replace('★','')}<span className="text-yellow-400">★</span></> : group.label}</p>
             <div className="grid grid-cols-7 gap-1.5">
               {group.ids.map((idx) => {
                 const v = occ.lounges[idx];
@@ -202,7 +202,7 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
         <div className="flex gap-4">
           {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
             <div key={group.label}>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label}</p>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label.includes('★') ? <>{group.label.replace('★','')}<span className="text-yellow-400">★</span></> : group.label}</p>
               <div className="flex gap-1.5">
                 {group.ids.map((idx) => {
                   const v = occ.lounges[idx];
