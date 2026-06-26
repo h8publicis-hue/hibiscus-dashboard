@@ -87,10 +87,10 @@ const LOUNGE_GROUPS = [
 ] as const;
 
 function loungeBg(v: number, pct: number) {
-  if (v === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500';
-  if (pct >= 0.9) return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600';
-  if (pct >= 0.6) return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600';
-  return 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600';
+  if (v === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
+  if (pct >= 0.9) return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-600';
+  if (pct >= 0.6) return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-600';
+  return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-600';
 }
 
 // ── Mapa de lounges — desktop ────────────────────────────────────────────────
