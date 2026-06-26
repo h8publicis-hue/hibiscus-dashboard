@@ -1,4 +1,5 @@
 import { Users, Star, Target, MessageSquare, Smile, Info } from 'lucide-react';
+import { ReviewsTicker } from '../components/ReviewsTicker';
 import { useState, useRef, useEffect } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
@@ -716,6 +717,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
         {blocoNPS}
 
+        <ReviewsTicker googleData={google} surveyData={survey} />
+
       </div>
 
       {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
@@ -740,6 +743,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoSatisfacao}
             {blocoNPS}
+            <ReviewsTicker googleData={google} surveyData={survey} />
           </div>
 
         </div>

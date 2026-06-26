@@ -10,7 +10,6 @@ import { Occupancy } from './pages/Occupancy';
 import { OccupancyInput } from './pages/OccupancyInput';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
-import { ReviewsTicker } from './components/ReviewsTicker';
 import { BottomNav } from './components/BottomNav';
 import { Period, ApiStatus } from './types';
 import { useMockMode } from './hooks/useMockMode';
@@ -110,7 +109,6 @@ function Dashboard() {
         <KdsBadge active={kdsMode} />
       </div>
 
-      <ReviewsTicker googleData={gData} surveyData={smData} />
       {!kdsMode && (
         <BottomNav
           occupancyAlerts={occupancyAlerts}
