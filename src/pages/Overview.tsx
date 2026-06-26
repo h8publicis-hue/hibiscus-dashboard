@@ -390,12 +390,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   </div>
                 </div>
                 {monthRevTs && (
-                  <>
-                    <p className="text-[10px] text-gray-400 text-right">
-                      Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <SyncCountdown ts={monthRevTs} />
-                  </>
+                  <p className="text-[10px] text-gray-400 text-right">
+                    Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 )}
               </div>
             )
