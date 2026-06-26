@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 
-interface CheckinData {
-  realizados: number;
-  total: number;
+export interface CheckinData {
+  reservados: number;
+  disponiveis: number;
+  checkins: number;
   pendentes: number;
-  produtos: { nome: string; realizados: number; total: number }[];
+  total: number;
   ts: number;
 }
 
 let cache: (CheckinData & { fetchedAt: number }) | null = null;
-const TTL = 5 * 60 * 1000; // 5 min
+const TTL = 5 * 60 * 1000;
 
 export function useCheckin() {
   const [data, setData]       = useState<CheckinData | null>(cache ?? null);

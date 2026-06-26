@@ -364,7 +364,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     </div>
   ) : null;
 
-  // ── Bloco: Check-in Online (placeholder) ─────────────────────────────────
+  // ── Bloco: Check-in Online ────────────────────────────────────────────────
   const blocoCheckin = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center gap-1.5 mb-3">
@@ -374,29 +374,30 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       {checkinL ? (
         <div className="h-16 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
       ) : (
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: 'Realizados', val: checkinData?.realizados ?? '—', color: 'text-green-600 dark:text-green-400' },
-          { label: 'Pendentes',  val: checkinData?.pendentes  ?? '—', color: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Total',      val: checkinData?.total      ?? '—', color: 'text-gray-500 dark:text-gray-300' },
-        ].map(({ label, val, color }) => (
-          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-            <p className={`text-lg font-black ${color}`}>{val}</p>
-            <p className="text-[9px] text-gray-400 mt-0.5">{label}</p>
-          </div>
-        ))}
-      </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'Reservados',  val: checkinData?.reservados  ?? '—', color: 'text-purple-600 dark:text-purple-400' },
+            { label: 'Disponíveis', val: checkinData?.disponiveis ?? '—', color: 'text-amber-500 dark:text-amber-400' },
+            { label: 'Checkins',    val: checkinData?.checkins    ?? '—', color: 'text-green-600 dark:text-green-400' },
+            { label: 'Pendentes',   val: checkinData?.pendentes   ?? '—', color: 'text-red-500 dark:text-red-400' },
+          ].map(({ label, val, color }) => (
+            <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+              <p className={`text-lg font-black ${color}`}>{val}</p>
+              <p className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider">{label}</p>
+            </div>
+          ))}
+        </div>
       )}
       {checkinData && (
         <>
           <div className="mt-3 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-green-500 rounded-full transition-all duration-500"
-              style={{ width: checkinData.total > 0 ? `${Math.round((checkinData.realizados / checkinData.total) * 100)}%` : '0%' }}
+              style={{ width: checkinData.reservados > 0 ? `${Math.round((checkinData.checkins / checkinData.reservados) * 100)}%` : '0%' }}
             />
           </div>
           <p className="text-[9px] text-gray-400 mt-1 text-center">
-            {checkinData.total > 0 ? Math.round((checkinData.realizados / checkinData.total) * 100) : 0}% concluídos
+            {checkinData.reservados > 0 ? Math.round((checkinData.checkins / checkinData.reservados) * 100) : 0}% check-ins concluídos
           </p>
         </>
       )}

@@ -1,20 +1,21 @@
 // Check-in online via painel Paytour (loja.hibiscusbeachclub.com.br).
 // Usa PHPSESSID armazenado como env var — renovar quando a sessão expirar.
 
-const LOJA_BASE   = 'https://loja.hibiscusbeachclub.com.br';
-const PHPSESSID   = process.env.PAYTOUR_LOJA_SESSION ?? '';
-const KV_URL      = process.env.KV_REST_API_URL      ?? '';
-const KV_TOKEN    = process.env.KV_REST_API_TOKEN    ?? '';
-const CACHE_TTL   = 5 * 60 * 1000;   // 5 min em memória
-const KV_TTL_SEC  = 5 * 60;
+const LOJA_BASE  = 'https://loja.hibiscusbeachclub.com.br';
+const PHPSESSID  = process.env.PAYTOUR_LOJA_SESSION ?? '';
+const KV_URL     = process.env.KV_REST_API_URL      ?? '';
+const KV_TOKEN   = process.env.KV_REST_API_TOKEN    ?? '';
+const CACHE_TTL  = 5 * 60 * 1000;
+const KV_TTL_SEC = 5 * 60;
 
 let memCache: { data: CheckinData; ts: number } | null = null;
 
-interface CheckinData {
-  realizados: number;
-  total: number;
+export interface CheckinData {
+  reservados: number;
+  disponiveis: number;
+  checkins: number;
   pendentes: number;
-  produtos: { nome: string; realizados: number; total: number }[];
+  total: number;
   ts: number;
 }
 
@@ -43,63 +44,65 @@ async function kvSet(key: string, value: unknown) {
 }
 
 function todayBRT(): string {
-  const now = new Date();
-  const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
   return brt.toISOString().slice(0, 10);
+}
+
+function lojaFetch(path: string) {
+  return fetch(`${LOJA_BASE}${path}`, {
+    headers: {
+      Cookie: `PHPSESSID=${PHPSESSID}`,
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      Accept: 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      Referer: `${LOJA_BASE}/admin/checkin`,
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
 }
 
 async function fetchCheckin(): Promise<CheckinData> {
   const today = todayBRT();
   const start = `${today}T00:00:00.000-03:00`;
   const end   = `${today}T23:59:59.000-03:00`;
-  const url   = `${LOJA_BASE}/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`;
 
-  const res = await fetch(url, {
-    headers: {
-      Cookie: `PHPSESSID=${PHPSESSID}`,
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'application/json, text/plain, */*',
-      'X-Requested-With': 'XMLHttpRequest',
-      Referer: `${LOJA_BASE}/admin/checkin`,
-    },
-    signal: AbortSignal.timeout(10_000),
-  });
+  // Step 1: busca o calendário para pegar disponibilidadeId e capacidade do Day use
+  const calRes = await lojaFetch(`/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`);
+  if (!calRes.ok) throw new Error(`Calendario HTTP ${calRes.status}`);
+  const items = await calRes.json() as any[];
+  if (!Array.isArray(items)) throw new Error('Sessão expirada — renovar PAYTOUR_LOJA_SESSION');
 
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const items = await res.json() as any[];
+  // Pega apenas o Day use principal (tipo faixa = período fixo de dia)
+  const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
+  if (!dayuse) throw new Error('Nenhum item de day use encontrado');
 
-  if (!Array.isArray(items)) throw new Error('Session expirada — renovar PAYTOUR_LOJA_SESSION');
+  const disponibilidadeId = dayuse.id;
+  const total    = Number(dayuse.total ?? 0);
+  const reservados = Number(dayuse.reservados ?? 0);
+  const disponiveis = total - reservados;
 
-  // Filtra só produtos de day use (exclui massagens e itens sem total relevante)
-  // Agrupa por produto para mostrar no bloco
-  const map: Record<string, { realizados: number; total: number }> = {};
-  for (const item of items) {
-    const nome = String(item.nome ?? '');
-    if (!map[nome]) map[nome] = { realizados: 0, total: 0 };
-    map[nome].realizados += Number(item.reservados ?? 0);
-    map[nome].total      += Number(item.total ?? 0);
+  // Step 2: busca vouchers individuais para contar checkins realizados
+  const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${disponibilidadeId}`);
+  let checkins = 0;
+  if (vRes.ok) {
+    const vData = await vRes.json() as any;
+    const vouchers: any[] = vData?.vouchers ?? [];
+    checkins = vouchers.filter((v: any) => v.utilizado === true).length;
   }
 
-  const produtos = Object.entries(map).map(([nome, v]) => ({ nome, ...v }));
-  const realizados = produtos.reduce((s, p) => s + p.realizados, 0);
-  const total      = produtos.reduce((s, p) => s + p.total, 0);
+  const pendentes = reservados - checkins;
 
-  return { realizados, total, pendentes: total - realizados, produtos, ts: Date.now() };
+  return { reservados, disponiveis, checkins, pendentes, total, ts: Date.now() };
 }
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
-
   if (!PHPSESSID) return res.status(503).json({ error: 'PAYTOUR_LOJA_SESSION não configurado' });
 
   const cacheKey = `checkin:${todayBRT()}`;
 
-  // Memória
-  if (memCache && Date.now() - memCache.ts < CACHE_TTL) {
-    return res.json(memCache.data);
-  }
+  if (memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
 
-  // Redis
   const kv = await kvGet(cacheKey) as CheckinData | null;
   if (kv && Date.now() - kv.ts < CACHE_TTL) {
     memCache = { data: kv, ts: kv.ts };
