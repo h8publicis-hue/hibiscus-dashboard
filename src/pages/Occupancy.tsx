@@ -6,6 +6,13 @@ import { OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
 
+const LOUNGE_GROUPS = [
+  { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
+  { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
+  { label: 'Anexo',      ids: [14] },
+  { label: 'Gramado',    ids: [15, 16, 17] },
+] as const;
+
 function useLongPress(callback: () => void) {
   const cbRef = useRef(callback);
   cbRef.current = callback;
@@ -359,9 +366,9 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
         />
       </div>
 
-      {/* Lounges */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
-        <div className="flex items-center justify-between mb-4">
+      {/* Lounges — agrupados */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
+        <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">🛋️ Lounges</h3>
           <span className="text-xs text-gray-400">
             {totalLounge} / {SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} ocupados
@@ -369,40 +376,65 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
           </span>
         </div>
         {selectedLounge !== null && (
-          <p className="text-xs text-brand-400 mb-3 font-medium">
-            Lounge {SPACE_CONFIGS.lounge.start + selectedLounge} selecionado — clique no card novamente para desselecionar
+          <p className="text-xs text-brand-400 mb-2 font-medium">
+            Lounge {SPACE_CONFIGS.lounge.start + selectedLounge} selecionado
           </p>
         )}
-        <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-5 xl:grid-cols-10 gap-2">
-          {occupancy.lounges.map((count, idx) => (
-            <div
-              key={idx}
-              onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)}
-              className="cursor-pointer"
-            >
-              <OccupancyCounter
-                name={`${SPACE_CONFIGS.lounge.start + idx}`}
-                current={count}
-                max={SPACE_CONFIGS.lounge.max}
-                selected={selectedLounge === idx}
-                onIncrement={() => {
-                  if (selectedLounge !== idx) {
-                    showToast('Selecione o lounge antes de alterar a quantidade');
-                    return;
-                  }
-                  actions.setLounge(idx, count + 1);
-                }}
-                onDecrement={() => {
-                  if (selectedLounge !== idx) {
-                    showToast('Selecione o lounge antes de alterar a quantidade');
-                    return;
-                  }
-                  actions.setLounge(idx, count - 1);
-                }}
-                compact
-              />
+
+        <div className="flex flex-col gap-3">
+          {/* Frente Mar + Atrás: 2 fileiras de 7 */}
+          {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
+            <div key={group.label}>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{group.label}</p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {group.ids.map((idx) => {
+                  const count = occupancy.lounges[idx];
+                  const isSelected = selectedLounge === idx;
+                  return (
+                    <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
+                      <OccupancyCounter
+                        name={`${SPACE_CONFIGS.lounge.start + idx}`}
+                        current={count}
+                        max={SPACE_CONFIGS.lounge.max}
+                        selected={isSelected}
+                        onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                        onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                        compact
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
+
+          {/* Anexo + Gramado */}
+          <div className="flex gap-4 flex-wrap">
+            {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3]].map((group) => (
+              <div key={group.label}>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{group.label}</p>
+                <div className="flex gap-1.5">
+                  {group.ids.map((idx) => {
+                    const count = occupancy.lounges[idx];
+                    const isSelected = selectedLounge === idx;
+                    return (
+                      <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer w-16">
+                        <OccupancyCounter
+                          name={`${SPACE_CONFIGS.lounge.start + idx}`}
+                          current={count}
+                          max={SPACE_CONFIGS.lounge.max}
+                          selected={isSelected}
+                          onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                          onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                          compact
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

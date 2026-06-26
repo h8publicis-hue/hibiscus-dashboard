@@ -103,16 +103,16 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
       <div className="flex flex-col gap-1">
         {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
           <div key={group.label} className="flex gap-1 items-center">
-            <span className="text-[8px] text-gray-400 dark:text-gray-500 w-14 shrink-0 leading-tight">{group.label}</span>
+            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 w-16 shrink-0 leading-tight">{group.label}</span>
             <div className="flex flex-1 gap-1">
               {group.ids.map((idx) => {
                 const v = lounges[idx];
                 const pct = v / SPACE_CONFIGS.lounge.max;
                 const num = SPACE_CONFIGS.lounge.start + idx;
                 return (
-                  <div key={idx} className={clsx('flex-1 rounded flex flex-col items-center justify-center py-1.5 text-center', loungeBg(v, pct))}>
-                    <span className="text-[8px] leading-none opacity-60">{num}</span>
-                    <span className="text-lg font-black leading-tight">{v}</span>
+                  <div key={idx} className={clsx('flex-1 rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct))}>
+                    <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
+                    <span className="text-2xl font-black leading-tight">{v}</span>
                   </div>
                 );
               })}
@@ -135,9 +135,9 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
                 const pct = v / SPACE_CONFIGS.lounge.max;
                 const num = SPACE_CONFIGS.lounge.start + idx;
                 return (
-                  <div key={idx} className={clsx('w-10 rounded flex flex-col items-center justify-center py-1.5 text-center', loungeBg(v, pct))}>
-                    <span className="text-[8px] leading-none opacity-60">{num}</span>
-                    <span className="text-lg font-black leading-tight">{v}</span>
+                  <div key={idx} className={clsx('w-11 rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct))}>
+                    <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
+                    <span className="text-2xl font-black leading-tight">{v}</span>
                   </div>
                 );
               })}
