@@ -68,8 +68,10 @@ async function fetchCheckin(): Promise<CheckinData> {
 
   // Step 1: busca o calendário para pegar disponibilidadeId e capacidade do Day use
   const calRes = await lojaFetch(`/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`);
-  if (!calRes.ok) throw new Error(`Calendario HTTP ${calRes.status}`);
-  const items = await calRes.json() as any[];
+  if (!calRes.ok) throw new Error(`Sessão expirada — renovar PAYTOUR_LOJA_SESSION`);
+  const rawText = await calRes.text();
+  if (rawText.trim().startsWith('<')) throw new Error('Sessão expirada — renovar PAYTOUR_LOJA_SESSION');
+  const items = JSON.parse(rawText) as any[];
   if (!Array.isArray(items)) throw new Error('Sessão expirada — renovar PAYTOUR_LOJA_SESSION');
 
   // Pega apenas o Day use principal (tipo faixa = período fixo de dia)
