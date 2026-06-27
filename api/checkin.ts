@@ -117,6 +117,10 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('[checkin]', err.message);
     if (memCache) return res.json({ ...memCache.data, stale: true });
-    return res.status(500).json({ error: err.message });
+    const sessionExpired = err.message?.includes('Sessão expirada') || err.message?.includes('expirada');
+    return res.status(503).json({
+      error: err.message,
+      sessionExpired: sessionExpired,
+    });
   }
 }

@@ -293,7 +293,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: sheetOcc } = useSheetOccupancy();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
-  const { data: checkinData, loading: checkinL } = useCheckin();
+  const { data: checkinData, loading: checkinL, sessionExpired: checkinExpired } = useCheckin();
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -479,6 +479,16 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       </div>
       {checkinL ? (
         <div className="h-16 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+      ) : checkinExpired ? (
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
+          <p className="text-2xl">🔐</p>
+          <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">Sessão expirada</p>
+          <p className="text-[10px] text-gray-400">Acesse o painel e renove o acesso</p>
+          <a href="https://loja.hibiscusbeachclub.com.br/admin/checkin" target="_blank" rel="noopener noreferrer"
+            className="text-[10px] text-brand-600 dark:text-brand-400 underline">
+            Abrir painel →
+          </a>
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {[

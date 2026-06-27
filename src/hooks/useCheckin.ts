@@ -13,8 +13,9 @@ let cache: (CheckinData & { fetchedAt: number }) | null = null;
 const TTL = 5 * 60 * 1000;
 
 export function useCheckin() {
-  const [data, setData]       = useState<CheckinData | null>(cache ?? null);
-  const [loading, setLoading] = useState(!cache);
+  const [data, setData]               = useState<CheckinData | null>(cache ?? null);
+  const [loading, setLoading]         = useState(!cache);
+  const [sessionExpired, setExpired]  = useState(false);
 
   useEffect(() => {
     if (cache && Date.now() - cache.fetchedAt < TTL) { setData(cache); setLoading(false); return; }
@@ -22,10 +23,13 @@ export function useCheckin() {
     (async () => {
       try {
         const r = await fetch('/api/checkin');
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const j = await r.json() as CheckinData;
+        const j = await r.json() as any;
+        if (!r.ok || j?.sessionExpired) {
+          if (!cancelled) { setExpired(true); setLoading(false); }
+          return;
+        }
         cache = { ...j, fetchedAt: Date.now() };
-        if (!cancelled) { setData(j); setLoading(false); }
+        if (!cancelled) { setData(j); setLoading(false); setExpired(false); }
       } catch {
         if (!cancelled) setLoading(false);
       }
@@ -33,5 +37,5 @@ export function useCheckin() {
     return () => { cancelled = true; };
   }, []);
 
-  return { data, loading };
+  return { data, loading, sessionExpired };
 }

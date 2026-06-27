@@ -4,5 +4,8 @@
   "rewrites": [
     { "source": "/sheets-api/:path*", "destination": "/api/sheets-proxy?p=:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/checkin-keepalive", "schedule": "0 */2 * * *" }
   ]
 }
