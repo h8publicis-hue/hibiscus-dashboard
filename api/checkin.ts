@@ -211,9 +211,16 @@ export default async function handler(req: any, res: any) {
       });
       const gHtml = await g.text();
       const phpsessid = (g.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
+      // Extract CSRF token from hidden inputs
+      const csrfMatch = gHtml.match(/name=["']_token["'][^>]*value=["']([^"']+)["']/i)
+                     ?? gHtml.match(/value=["']([^"']{20,})["'][^>]*name=["']_token["']/i);
+      const csrfFound = csrfMatch?.[1] ?? null;
       d.step1 = { status: g.status, phpsessid: phpsessid.slice(0,12)+'...',
         formAction: gHtml.match(/<form[^>]+action=["']([^"']+)["']/i)?.[1],
         allSetCookie: g.headers.get('set-cookie'),
+        csrfToken: csrfFound ? csrfFound.slice(0,16)+'...' : null,
+        formHtml: gHtml.slice(gHtml.indexOf('<form'), gHtml.indexOf('</form>') + 7).slice(0, 800) || 'FORM NOT FOUND in HTML',
+        htmlLength: gHtml.length,
       };
 
       const p = await fetch(`${LOJA_BASE}/admin`, {
