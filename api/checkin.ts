@@ -56,61 +56,57 @@ function todayBRT(): string {
 async function doLogin(): Promise<string> {
   if (!LOJA_USER || !LOJA_PASS) throw new Error('Credenciais não configuradas (PAYTOUR_LOJA_USER / PAYTOUR_LOJA_PASS)');
 
-  // Tenta JSON primeiro (API interna do Paytour)
-  const attempts = [
-    {
-      url: `${LOJA_BASE}/admin/login`,
-      body: JSON.stringify({ email: LOJA_USER, senha: LOJA_PASS }),
-      contentType: 'application/json',
+  // Passo 1: GET na página de login — PHP cria a sessão e envia PHPSESSID via Set-Cookie
+  const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      Accept: 'text/html,application/xhtml+xml',
     },
-    {
-      url: `${LOJA_BASE}/admin/login`,
-      body: new URLSearchParams({ email: LOJA_USER, senha: LOJA_PASS }).toString(),
-      contentType: 'application/x-www-form-urlencoded',
+    redirect: 'follow',
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  // Captura o PHPSESSID inicial e qualquer token CSRF da página
+  const getCookies  = getRes.headers.get('set-cookie') ?? '';
+  const initSession = getCookies.match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
+  const html        = await getRes.text();
+  const csrfToken   = html.match(/name=["']?_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
+                   ?? html.match(/name=["']?csrf_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
+                   ?? '';
+
+  // Passo 2: POST com credenciais — PHP valida e a sessão torna-se autenticada
+  const bodyFields: Record<string, string> = { email: LOJA_USER, senha: LOJA_PASS };
+  if (csrfToken) bodyFields['_token'] = csrfToken;
+
+  const postRes = await fetch(`${LOJA_BASE}/admin/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/json,*/*',
+      'X-Requested-With': 'XMLHttpRequest',
+      Referer: `${LOJA_BASE}/admin/login`,
+      Cookie: initSession ? `PHPSESSID=${initSession}` : '',
     },
-    {
-      url: `${LOJA_BASE}/admin/usuarios/login`,
-      body: JSON.stringify({ email: LOJA_USER, senha: LOJA_PASS }),
-      contentType: 'application/json',
-    },
-  ];
+    body: new URLSearchParams(bodyFields).toString(),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(15_000),
+  });
 
-  for (const attempt of attempts) {
-    try {
-      const res = await fetch(attempt.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': attempt.contentType,
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          'X-Requested-With': 'XMLHttpRequest',
-          Accept: 'application/json, text/html, */*',
-          Referer: `${LOJA_BASE}/admin/login`,
-        },
-        body: attempt.body,
-        redirect: 'manual',
-        signal: AbortSignal.timeout(15_000),
-      });
+  // Extrai PHPSESSID da resposta do POST
+  const postCookies = postRes.headers.get('set-cookie') ?? '';
+  const newSession  = postCookies.match(/PHPSESSID=([^;]+)/i)?.[1] ?? initSession;
 
-      // Extrai PHPSESSID do Set-Cookie
-      const setCookie = res.headers.get('set-cookie') ?? '';
-      const match = setCookie.match(/PHPSESSID=([^;]+)/i);
-      if (match?.[1]) {
-        console.log('[checkin] auto-login OK via', attempt.url);
-        return match[1];
-      }
+  if (!newSession) throw new Error('Auto-login falhou — sem PHPSESSID na resposta');
 
-      // Verifica se retornou JSON com token/sessão
-      const text = await res.text().catch(() => '');
-      if (text && !text.trim().startsWith('<')) {
-        const json = JSON.parse(text) as any;
-        if (json?.sessao || json?.session || json?.token) {
-          return json.sessao ?? json.session ?? json.token;
-        }
-      }
-    } catch { /* tenta próximo */ }
+  // Verifica se o login foi aceito (302 redirect para o painel, não de volta para login)
+  const location = postRes.headers.get('location') ?? '';
+  if (location.includes('/admin/login') || location.includes('/login')) {
+    throw new Error('Auto-login rejeitado — credenciais inválidas ou CAPTCHA');
   }
 
-  throw new Error('Auto-login falhou — CAPTCHA ou endpoint desconhecido');
+  console.log('[checkin] auto-login OK, sessão:', newSession.slice(0, 8) + '...');
+  return newSession;
 }
 
 async function getSession(): Promise<string> {
