@@ -56,23 +56,24 @@ function todayBRT(): string {
 async function doLogin(user = LOJA_USER, pass = LOJA_PASS): Promise<string> {
   if (!user || !pass) throw new Error('Credenciais não configuradas (PAYTOUR_LOJA_USER / PAYTOUR_LOJA_PASS)');
 
-  // Passo 1: GET na página de login — PHP cria a sessão e envia PHPSESSID via Set-Cookie
+  // Passo 1: GET na página de login com redirect:manual para não perder o Set-Cookie
   const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       Accept: 'text/html,application/xhtml+xml',
     },
-    redirect: 'follow',
+    redirect: 'manual',
     signal: AbortSignal.timeout(10_000),
   });
 
-  // Captura o PHPSESSID inicial e qualquer token CSRF da página
   const getCookies  = getRes.headers.get('set-cookie') ?? '';
   const initSession = getCookies.match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
   const html        = await getRes.text();
   const csrfToken   = html.match(/name=["']?_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
                    ?? html.match(/name=["']?csrf_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
                    ?? '';
+
+  if (!initSession) throw new Error('doLogin: sem PHPSESSID no GET /admin/login');
 
   // Passo 2: POST com credenciais — PHP valida e a sessão inicial torna-se autenticada
   // Campos confirmados via debug: "login" e "senha"; endpoint: /admin (não /admin/login)
@@ -209,9 +210,20 @@ export default async function handler(req: any, res: any) {
 
       const session = await doLogin(user, pass);
 
+      // Valida a sessão fazendo uma chamada real ao calendário
+      const today = todayBRT();
+      const testRes = await lojaFetch(
+        `/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
+        session,
+      );
+      const testText = await testRes.text();
+      if (isSessionExpired(testText, testRes.status)) {
+        throw new Error('Sessão obtida mas calendário ainda retorna HTML — verifique as credenciais');
+      }
+
       activeSession = session;
       await kvSet(SESSION_KV, session, 23 * 60 * 60);
-      memCache = null; // força busca com sessão nova
+      memCache = null;
       return res.json({ ok: true, session: session.slice(0, 8) + '...' });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e.message });
