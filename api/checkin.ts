@@ -53,8 +53,8 @@ function todayBRT(): string {
 }
 
 // ── Auto-login ────────────────────────────────────────────────────────────────
-async function doLogin(): Promise<string> {
-  if (!LOJA_USER || !LOJA_PASS) throw new Error('Credenciais não configuradas (PAYTOUR_LOJA_USER / PAYTOUR_LOJA_PASS)');
+async function doLogin(user = LOJA_USER, pass = LOJA_PASS): Promise<string> {
+  if (!user || !pass) throw new Error('Credenciais não configuradas (PAYTOUR_LOJA_USER / PAYTOUR_LOJA_PASS)');
 
   // Passo 1: GET na página de login — PHP cria a sessão e envia PHPSESSID via Set-Cookie
   const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
@@ -76,7 +76,7 @@ async function doLogin(): Promise<string> {
 
   // Passo 2: POST com credenciais — PHP valida e a sessão inicial torna-se autenticada
   // Campos confirmados via debug: "login" e "senha"; endpoint: /admin (não /admin/login)
-  const bodyFields: Record<string, string> = { login: LOJA_USER, senha: LOJA_PASS };
+  const bodyFields: Record<string, string> = { login: user, senha: pass };
   if (csrfToken) bodyFields['_token'] = csrfToken;
 
   const postRes = await fetch(`${LOJA_BASE}/admin`, {
@@ -207,19 +207,7 @@ export default async function handler(req: any, res: any) {
       const pass = body.senha ?? '';
       if (!user || !pass) return res.status(400).json({ ok: false, error: 'login e senha obrigatórios' });
 
-      // Usa doLogin() com as credenciais fornecidas — sobrescreve env vars temporariamente
-      const origUser = process.env.PAYTOUR_LOJA_USER;
-      const origPass = process.env.PAYTOUR_LOJA_PASS;
-      (process.env as any).PAYTOUR_LOJA_USER = user;
-      (process.env as any).PAYTOUR_LOJA_PASS = pass;
-
-      let session: string;
-      try {
-        session = await doLogin();
-      } finally {
-        (process.env as any).PAYTOUR_LOJA_USER = origUser;
-        (process.env as any).PAYTOUR_LOJA_PASS = origPass;
-      }
+      const session = await doLogin(user, pass);
 
       activeSession = session;
       await kvSet(SESSION_KV, session, 23 * 60 * 60);
