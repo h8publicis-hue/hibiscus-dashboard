@@ -74,17 +74,17 @@ async function doLogin(): Promise<string> {
                    ?? html.match(/name=["']?csrf_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
                    ?? '';
 
-  // Passo 2: POST com credenciais — PHP valida e a sessão torna-se autenticada
-  const bodyFields: Record<string, string> = { email: LOJA_USER, senha: LOJA_PASS };
+  // Passo 2: POST com credenciais — PHP valida e a sessão inicial torna-se autenticada
+  // Campos confirmados via debug: "login" e "senha"; endpoint: /admin (não /admin/login)
+  const bodyFields: Record<string, string> = { login: LOJA_USER, senha: LOJA_PASS };
   if (csrfToken) bodyFields['_token'] = csrfToken;
 
-  const postRes = await fetch(`${LOJA_BASE}/admin/login`, {
+  const postRes = await fetch(`${LOJA_BASE}/admin`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'text/html,application/xhtml+xml,application/json,*/*',
-      'X-Requested-With': 'XMLHttpRequest',
+      Accept: 'text/html,application/xhtml+xml,*/*',
       Referer: `${LOJA_BASE}/admin/login`,
       Cookie: initSession ? `PHPSESSID=${initSession}` : '',
     },
@@ -93,16 +93,16 @@ async function doLogin(): Promise<string> {
     signal: AbortSignal.timeout(15_000),
   });
 
-  // Extrai PHPSESSID da resposta do POST
+  // Após POST bem-sucedido, o initSession já fica autenticado (sem novo cookie)
   const postCookies = postRes.headers.get('set-cookie') ?? '';
   const newSession  = postCookies.match(/PHPSESSID=([^;]+)/i)?.[1] ?? initSession;
 
   if (!newSession) throw new Error('Auto-login falhou — sem PHPSESSID na resposta');
 
-  // Verifica se o login foi aceito (302 redirect para o painel, não de volta para login)
+  // Login aceito = 302 para /admin; falha = qualquer referência a /login
   const location = postRes.headers.get('location') ?? '';
-  if (location.includes('/admin/login') || location.includes('/login')) {
-    throw new Error('Auto-login rejeitado — credenciais inválidas ou CAPTCHA');
+  if (location.includes('login')) {
+    throw new Error('Auto-login rejeitado — credenciais inválidas');
   }
 
   console.log('[checkin] auto-login OK, sessão:', newSession.slice(0, 8) + '...');
