@@ -200,6 +200,50 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  // Debug: ?debug=hbc — rastreia todo o fluxo de login
+  if (req.query?.debug === 'hbc') {
+    const d: Record<string, any> = {};
+    const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+    try {
+      const g = await fetch(`${LOJA_BASE}/admin/login`, {
+        headers: { 'User-Agent': UA, Accept: 'text/html' },
+        redirect: 'manual', signal: AbortSignal.timeout(10_000),
+      });
+      const gHtml = await g.text();
+      const phpsessid = (g.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
+      d.step1 = { status: g.status, phpsessid: phpsessid.slice(0,12)+'...',
+        formAction: gHtml.match(/<form[^>]+action=["']([^"']+)["']/i)?.[1],
+        allSetCookie: g.headers.get('set-cookie'),
+      };
+
+      const p = await fetch(`${LOJA_BASE}/admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA,
+          Accept: 'text/html', Referer: `${LOJA_BASE}/admin/login`,
+          Cookie: phpsessid ? `PHPSESSID=${phpsessid}` : '' },
+        body: new URLSearchParams({ login: LOJA_USER, senha: LOJA_PASS }).toString(),
+        redirect: 'manual', signal: AbortSignal.timeout(10_000),
+      });
+      const postSession = (p.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? phpsessid;
+      d.step2 = { status: p.status, location: p.headers.get('location'), setCookie: p.headers.get('set-cookie'), usedSession: phpsessid.slice(0,12) };
+
+      const f = await fetch(`${LOJA_BASE}/admin`, {
+        headers: { 'User-Agent': UA, Accept: 'text/html', Cookie: `PHPSESSID=${postSession}` },
+        redirect: 'manual', signal: AbortSignal.timeout(10_000),
+      });
+      d.step3 = { status: f.status, location: f.headers.get('location'), setCookie: f.headers.get('set-cookie') };
+
+      const today = todayBRT();
+      const cal = await fetch(`${LOJA_BASE}/admin/calendario?passeoIds=&start=${encodeURIComponent(today+'T00:00:00.000-03:00')}&end=${encodeURIComponent(today+'T23:59:59.000-03:00')}&isCheckin=1`, {
+        headers: { 'User-Agent': UA, Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', Cookie: `PHPSESSID=${postSession}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+      const calText = await cal.text();
+      d.step4_calendar = { status: cal.status, isJson: !calText.trim().startsWith('<'), snippet: calText.slice(0, 300) };
+    } catch (e: any) { d.error = String(e); }
+    return res.json(d);
+  }
+
   // POST /api/checkin → login manual pelo dashboard
   if (req.method === 'POST') {
     try {
