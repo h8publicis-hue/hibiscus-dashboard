@@ -482,37 +482,37 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <div className="h-16 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
       ) : checkinExpired ? (
         <div className="flex flex-col gap-2 py-2">
-          <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 text-center">Sessão expirada — renovar acesso</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Sessão expirada</p>
+            <a href="https://loja.hibiscusbeachclub.com.br/admin/checkin" target="_blank" rel="noopener noreferrer"
+              className="text-[10px] text-brand-600 dark:text-brand-400 underline">Abrir Paytour →</a>
+          </div>
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            Acesse o Paytour, abra o DevTools (F12) → Application → Cookies → copie o valor de <strong>PHPSESSID</strong> e cole abaixo.
+          </p>
           <input
             type="text"
-            placeholder="Login (e-mail)"
+            placeholder="Cole o PHPSESSID aqui"
             value={loginForm.login}
-            onChange={e => setLoginForm(f => ({ ...f, login: e.target.value, error: '' }))}
-            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white w-full"
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={loginForm.senha}
-            onChange={e => setLoginForm(f => ({ ...f, senha: e.target.value, error: '' }))}
-            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white w-full"
+            onChange={e => setLoginForm(f => ({ ...f, login: e.target.value.trim(), error: '' }))}
+            className="text-xs font-mono border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white w-full"
           />
           {loginForm.error && <p className="text-[10px] text-red-500">{loginForm.error}</p>}
           <button
-            disabled={loginForm.sending}
+            disabled={loginForm.sending || !loginForm.login}
             onClick={async () => {
               setLoginForm(f => ({ ...f, sending: true, error: '' }));
-              const res = await checkinManualLogin(loginForm.login, loginForm.senha);
+              const res = await checkinManualLogin('__phpsessid__', loginForm.login);
               if (res.ok) {
                 setLoginForm({ login: '', senha: '', error: '', sending: false });
                 checkinRefresh();
               } else {
-                setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Erro ao autenticar' }));
+                setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Sessão inválida' }));
               }
             }}
             className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded px-3 py-1.5 w-full"
           >
-            {loginForm.sending ? 'Entrando…' : 'Entrar no Paytour'}
+            {loginForm.sending ? 'Salvando…' : 'Renovar sessão'}
           </button>
         </div>
       ) : (

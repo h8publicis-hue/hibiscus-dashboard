@@ -265,9 +265,10 @@ export default async function handler(req: any, res: any) {
       const pass = body.senha ?? '';
       if (!user || !pass) return res.status(400).json({ ok: false, error: 'login e senha obrigatórios' });
 
-      const session = await doLogin(user, pass);
+      // Sentinel: usuário está colando o PHPSESSID diretamente
+      const session = user === '__phpsessid__' ? pass : await doLogin(user, pass);
 
-      // Valida a sessão fazendo uma chamada real ao calendário
+      // Valida a sessão contra o calendário antes de salvar
       const today = todayBRT();
       const testRes = await lojaFetch(
         `/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
@@ -275,7 +276,7 @@ export default async function handler(req: any, res: any) {
       );
       const testText = await testRes.text();
       if (isSessionExpired(testText, testRes.status)) {
-        throw new Error('Sessão obtida mas calendário ainda retorna HTML — verifique as credenciais');
+        throw new Error('Sessão inválida — o PHPSESSID não está autenticado. Faça login no Paytour primeiro.');
       }
 
       activeSession = session;
