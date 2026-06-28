@@ -198,6 +198,52 @@ async function fetchCheckin(): Promise<CheckinData> {
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
+  // Debug temporário: ?debug=hbc para inspecionar o login
+  if (req.query?.debug === 'hbc') {
+    const debugResult: Record<string, any> = {};
+    try {
+      const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+      });
+      const html = await getRes.text();
+      debugResult.get = {
+        status: getRes.status,
+        setCookie: getRes.headers.get('set-cookie'),
+        location: getRes.headers.get('location'),
+        htmlSnippet: html.slice(0, 800),
+        formAction: html.match(/<form[^>]+action=["']([^"']+)["']/i)?.[1],
+        inputNames: [...html.matchAll(/name=["']([^"']+)["']/gi)].map(m => m[1]),
+      };
+
+      const initSession = (getRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
+      const postRes = await fetch(`${LOJA_BASE}/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0',
+          'X-Requested-With': 'XMLHttpRequest',
+          Cookie: initSession ? `PHPSESSID=${initSession}` : '',
+          Referer: `${LOJA_BASE}/admin/login`,
+        },
+        body: new URLSearchParams({ email: LOJA_USER, senha: LOJA_PASS }).toString(),
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+      });
+      const postText = await postRes.text();
+      debugResult.post = {
+        status: postRes.status,
+        setCookie: postRes.headers.get('set-cookie'),
+        location: postRes.headers.get('location'),
+        bodySnippet: postText.slice(0, 400),
+      };
+    } catch (e: any) {
+      debugResult.error = String(e);
+    }
+    return res.json(debugResult);
+  }
+
   const cacheKey = `checkin:${todayBRT()}`;
 
   if (memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
