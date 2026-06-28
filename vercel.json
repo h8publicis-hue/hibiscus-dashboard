@@ -28,6 +28,6 @@
     }
   ],
   "crons": [
-    { "path": "/api/checkin-keepalive", "schedule": "0 */2 * * *" }
+    { "path": "/api/checkin-keepalive", "schedule": "0 6 * * *" }
   ]
 }
