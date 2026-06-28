@@ -231,11 +231,17 @@ export default async function handler(req: any, res: any) {
         headers: { 'User-Agent': UA, Accept: 'text/html', Cookie: `PHPSESSID=${postSession}` },
         redirect: 'manual', signal: AbortSignal.timeout(10_000),
       });
-      d.step3 = { status: f.status, location: f.headers.get('location'), setCookie: f.headers.get('set-cookie') };
+      const fText = await f.text();
+      const fNewSession = (f.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? postSession;
+      d.step3 = { status: f.status, location: f.headers.get('location'), setCookie: f.headers.get('set-cookie'),
+        bodySnippet: fText.slice(0, 200), isLoginPage: fText.includes('Paytour | Login') };
+
+      // Use new session if issued, else keep postSession
+      const calSession = fNewSession;
 
       const today = todayBRT();
       const cal = await fetch(`${LOJA_BASE}/admin/calendario?passeoIds=&start=${encodeURIComponent(today+'T00:00:00.000-03:00')}&end=${encodeURIComponent(today+'T23:59:59.000-03:00')}&isCheckin=1`, {
-        headers: { 'User-Agent': UA, Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', Cookie: `PHPSESSID=${postSession}` },
+        headers: { 'User-Agent': UA, Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', Cookie: `PHPSESSID=${calSession}` },
         signal: AbortSignal.timeout(10_000),
       });
       const calText = await cal.text();
