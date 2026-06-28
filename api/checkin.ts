@@ -197,51 +197,37 @@ async function fetchCheckin(): Promise<CheckinData> {
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
-  // Debug temporário: ?debug=hbc para inspecionar o login
-  if (req.query?.debug === 'hbc') {
-    const debugResult: Record<string, any> = {};
+  // POST /api/checkin → login manual pelo dashboard
+  if (req.method === 'POST') {
     try {
-      const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
-        redirect: 'manual',
-        signal: AbortSignal.timeout(10_000),
-      });
-      const html = await getRes.text();
-      debugResult.get = {
-        status: getRes.status,
-        setCookie: getRes.headers.get('set-cookie'),
-        location: getRes.headers.get('location'),
-        htmlSnippet: html.slice(0, 800),
-        formAction: html.match(/<form[^>]+action=["']([^"']+)["']/i)?.[1],
-        inputNames: [...html.matchAll(/name=["']([^"']+)["']/gi)].map(m => m[1]),
-      };
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const user = body.login ?? body.email ?? '';
+      const pass = body.senha ?? '';
+      if (!user || !pass) return res.status(400).json({ ok: false, error: 'login e senha obrigatórios' });
 
-      const initSession = (getRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
-      const postRes = await fetch(`${LOJA_BASE}/admin/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0',
-          'X-Requested-With': 'XMLHttpRequest',
-          Cookie: initSession ? `PHPSESSID=${initSession}` : '',
-          Referer: `${LOJA_BASE}/admin/login`,
-        },
-        body: new URLSearchParams({ email: LOJA_USER, senha: LOJA_PASS }).toString(),
-        redirect: 'manual',
-        signal: AbortSignal.timeout(10_000),
-      });
-      const postText = await postRes.text();
-      debugResult.post = {
-        status: postRes.status,
-        setCookie: postRes.headers.get('set-cookie'),
-        location: postRes.headers.get('location'),
-        bodySnippet: postText.slice(0, 400),
-      };
+      // Usa doLogin() com as credenciais fornecidas — sobrescreve env vars temporariamente
+      const origUser = process.env.PAYTOUR_LOJA_USER;
+      const origPass = process.env.PAYTOUR_LOJA_PASS;
+      (process.env as any).PAYTOUR_LOJA_USER = user;
+      (process.env as any).PAYTOUR_LOJA_PASS = pass;
+
+      let session: string;
+      try {
+        session = await doLogin();
+      } finally {
+        (process.env as any).PAYTOUR_LOJA_USER = origUser;
+        (process.env as any).PAYTOUR_LOJA_PASS = origPass;
+      }
+
+      activeSession = session;
+      await kvSet(SESSION_KV, session, 23 * 60 * 60);
+      memCache = null; // força busca com sessão nova
+      return res.json({ ok: true, session: session.slice(0, 8) + '...' });
     } catch (e: any) {
-      debugResult.error = String(e);
+      return res.status(401).json({ ok: false, error: e.message });
     }
-    return res.json(debugResult);
   }
 
   const cacheKey = `checkin:${todayBRT()}`;

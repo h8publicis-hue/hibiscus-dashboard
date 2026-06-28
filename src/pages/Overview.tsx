@@ -7,7 +7,7 @@ import { usePaytour } from '../hooks/usePaytour';
 import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
-import { useCheckin } from '../hooks/useCheckin';
+import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
 import clsx from 'clsx';
@@ -293,7 +293,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: sheetOcc } = useSheetOccupancy();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
-  const { data: checkinData, loading: checkinL, sessionExpired: checkinExpired } = useCheckin();
+  const { data: checkinData, loading: checkinL, sessionExpired: checkinExpired, refresh: checkinRefresh } = useCheckin();
+  const [loginForm, setLoginForm] = useState({ login: '', senha: '', error: '', sending: false });
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -480,14 +481,39 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       {checkinL ? (
         <div className="h-16 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
       ) : checkinExpired ? (
-        <div className="flex flex-col items-center gap-2 py-4 text-center">
-          <p className="text-2xl">🔐</p>
-          <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">Sessão expirada</p>
-          <p className="text-[10px] text-gray-400">Acesse o painel e renove o acesso</p>
-          <a href="https://loja.hibiscusbeachclub.com.br/admin/checkin" target="_blank" rel="noopener noreferrer"
-            className="text-[10px] text-brand-600 dark:text-brand-400 underline">
-            Abrir painel →
-          </a>
+        <div className="flex flex-col gap-2 py-2">
+          <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 text-center">Sessão expirada — renovar acesso</p>
+          <input
+            type="text"
+            placeholder="Login (e-mail)"
+            value={loginForm.login}
+            onChange={e => setLoginForm(f => ({ ...f, login: e.target.value, error: '' }))}
+            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white w-full"
+          />
+          <input
+            type="password"
+            placeholder="Senha"
+            value={loginForm.senha}
+            onChange={e => setLoginForm(f => ({ ...f, senha: e.target.value, error: '' }))}
+            className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white w-full"
+          />
+          {loginForm.error && <p className="text-[10px] text-red-500">{loginForm.error}</p>}
+          <button
+            disabled={loginForm.sending}
+            onClick={async () => {
+              setLoginForm(f => ({ ...f, sending: true, error: '' }));
+              const res = await checkinManualLogin(loginForm.login, loginForm.senha);
+              if (res.ok) {
+                setLoginForm({ login: '', senha: '', error: '', sending: false });
+                checkinRefresh();
+              } else {
+                setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Erro ao autenticar' }));
+              }
+            }}
+            className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded px-3 py-1.5 w-full"
+          >
+            {loginForm.sending ? 'Entrando…' : 'Entrar no Paytour'}
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
