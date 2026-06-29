@@ -1,41 +1,23 @@
 // Faturamento do mês — pedidos aprovados do mês corrente.
 //
-// Limitação da API Paytour: /v2/pedidos ignora TODOS os parâmetros de filtro/paginação
-// e sempre devolve os mesmos 30 pedidos mais recentes. Para cobrir o mês inteiro usamos
-// duas estratégias complementares:
+// Junho/2026: total hardcoded do XLS exportado (163 pedidos aprovados).
+// Só busca pedidos novos com ID > XLS_JUNE_MAX_ID para minimizar chamadas à API.
+// Meses futuros: acumulador Redis cresce conforme pedidos aparecem na janela de 50 recentes.
 //
-//  A) IDs conhecidos (junho 2026): busca direta nos 130 IDs exportados via XLS.
-//  B) Acumulador Redis (meses futuros): armazena IDs aprovados conforme aparecem
-//     na janela de 30 mais recentes; vai crescendo ao longo do mês.
-//
-// Cache Redis 1h para o total final. Chamadas são Vercel→Paytour (não passam pelo WiFi).
+// Máximo de chamadas por refresh: 2 (1 auth + 1 listagem). Sem burst de centenas de requests.
 
 const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
 const PT_BASE   = 'https://api-ha.paytour.com.br';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
-const TOTAL_TTL = 60 * 60 * 1000;   // 1h — TTL do cache de total
+const TOTAL_TTL = 60 * 60 * 1000;    // 1h — TTL do cache de total em memória
 const ACC_TTL   = 60 * 60 * 24 * 45; // 45 dias em segundos — TTL do acumulador Redis
-const BATCH     = 10;
 
-// IDs aprovados de junho/2026 — exportados da tela "Minhas Reservas" da Paytour.
-// A API /v2/pedidos ignora paginação, tornando impraticável a descoberta retrospectiva.
-const JUNE_2026_IDS = [
-  4063190,4063248,4063355,4063485,4063645,4064027,4064032,4065012,4065185,4065192,
-  4065233,4065269,4065430,4065967,4066143,4066149,4066430,4066470,4066599,4066654,
-  4067354,4067620,4067678,4067697,4067699,4067705,4067723,4067989,4069267,4069302,
-  4069684,4069688,4069838,4069926,4069981,4070127,4070432,4070638,4070646,4070667,
-  4070671,4070681,4070756,4071006,4071162,4071279,4071332,4071769,4071852,4072088,
-  4072234,4072271,4072294,4072389,4072903,4072938,4072946,4072949,4073070,4073225,
-  4073235,4073236,4073248,4073778,4073845,4073851,4074048,4074172,4074943,4074996,
-  4075013,4075275,4075309,4075412,4075435,4075475,4075513,4075793,4075995,4076004,
-  4076786,4076795,4076834,4076993,4077358,4077430,4077512,4077514,4077515,4077564,
-  4077573,4077585,4077589,4078013,4078205,4078239,4078246,4078291,4078392,4078405,
-  4078734,4078833,4079554,4079579,4079642,4079644,4079727,4079898,4080147,4080172,
-  4080198,4080214,4080233,4080261,4080364,4080366,4080413,4080457,4080473,4080480,
-  4080491,4080525,4080932,4080984,4081115,4081225,4081343,4081434,4082721,4082755,
-];
+// Total dos 163 pedidos aprovados exportados via XLS em 29/06/2026.
+// Fonte: Paytour → Minhas Reservas → junho/2026 → Aprovada → exportar XLS.
+const XLS_JUNE_TOTAL  = 46298.00;
+const XLS_JUNE_MAX_ID = 4085703; // maior ID no XLS — só busca extras acima desse
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -84,70 +66,32 @@ async function paytourGet(path: string) {
   return res.json();
 }
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-// Busca detalhes de uma lista de IDs em lotes e soma valor-desconto dos aprovados.
-// visitMonth (ex: "2026-06"): quando informado, exige pelo menos 1 item com visita no mês.
-// Quando null, confia nos IDs fornecidos (XLS já filtrou por visita).
-async function sumOrderIds(ids: number[], visitMonth: string | null): Promise<number> {
-  let total = 0;
-  let fetched = 0; let approved = 0; let excluded = 0;
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const batch = ids.slice(i, i + BATCH);
-    const results = await Promise.allSettled(batch.map(id => paytourGet(`/v2/pedidos/${id}`)));
-    for (const r of results) {
-      if (r.status !== 'fulfilled') continue;
-      const d = r.value as any;
-      fetched++;
-      if (d?.status !== 'aprovado') continue;
-      if (visitMonth) {
-        const hasVisit = (d.itens ?? []).some((it: any) => (it.produto_disponibilidade_data as string)?.slice(0, 7) === visitMonth);
-        if (!hasVisit) { excluded++; continue; }
-      }
-      total += parseFloat(d.valor || '0') - parseFloat(d.desconto || '0');
-      approved++;
-    }
-    if (i + BATCH < ids.length) await sleep(100);
-  }
-  console.log(`[fat] sumOrderIds: ${fetched} buscados, ${approved} aprovados, ${excluded} sem visita no mês, total=R$${total.toFixed(2)}`);
-  return total;
-}
-
 async function computeRevenue(since: string, until: string): Promise<number> {
   const month = since.slice(0, 7);
 
-  // ── Estratégia A: IDs conhecidos para junho 2026 ─────────────────────────────
+  // ── Junho 2026: base XLS + apenas pedidos novos acima do max ID ──────────────
   if (month === '2026-06') {
-    console.log(`[fat] junho/2026: buscando ${JUNE_2026_IDS.length} IDs conhecidos do XLS`);
-
-    // Descobre pedidos aprovados em junho criados APÓS a exportação do XLS
     const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
-    const xlsSet = new Set(JUNE_2026_IDS);
-    const extraIds: number[] = [];
+    let extraTotal = 0;
+    let extraCount = 0;
     for (const o of page?.itens ?? []) {
+      const id = Number(o.id);
+      if (id <= XLS_JUNE_MAX_ID) continue; // já está no XLS
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
       if (d >= since && d <= until && o.status === 'aprovado') {
-        const id = Number(o.id);
-        if (!xlsSet.has(id)) extraIds.push(id);
+        extraTotal += parseFloat(o.valor || '0') - parseFloat(o.desconto || '0');
+        extraCount++;
       }
     }
-    console.log(`[fat] junho/2026: ${JUNE_2026_IDS.length} XLS + ${extraIds.length} novos pós-XLS`);
-
-    // IDs do XLS: já filtrados por visita em junho pelo relatório da Paytour
-    const xlsRevenue = await sumOrderIds(JUNE_2026_IDS, null);
-    // Novos IDs: conta todos aprovados em junho, igual ao Resumo Financeiro da Paytour
-    // (que conta por data do pedido, não por data de visita)
-    const extraRevenue = extraIds.length > 0 ? await sumOrderIds(extraIds, null) : 0;
-    return xlsRevenue + extraRevenue;
+    const total = XLS_JUNE_TOTAL + extraTotal;
+    console.log(`[fat] junho/2026: XLS R$${XLS_JUNE_TOTAL} + ${extraCount} novos R$${extraTotal.toFixed(2)} = R$${total.toFixed(2)}`);
+    return total;
   }
 
-  // ── Estratégia B: Acumulador Redis para meses futuros ────────────────────────
-  // Cada chamada descobre os pedidos visíveis agora e adiciona ao acumulador.
-  // Ao longo do mês, o acumulador cresce e cobre a maioria dos pedidos.
+  // ── Meses futuros: acumulador Redis ──────────────────────────────────────────
   const accKey = `ptf-acc:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
-  // Descobre novos pedidos do mês na janela de 30 mais recentes
   const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
   let added = 0;
   for (const o of page?.itens ?? []) {
@@ -176,7 +120,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v12:${since}_${until}`;
+  const key   = `ptf-v13:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
