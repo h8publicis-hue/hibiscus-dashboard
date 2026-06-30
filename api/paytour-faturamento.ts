@@ -63,7 +63,9 @@ async function paytourGet(path: string) {
     headers: { Authorization: `Bearer ${tk}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', Accept: 'application/json' },
     signal: AbortSignal.timeout(15_000),
   });
-  return res.json();
+  const text = await res.text();
+  if (text.trim().startsWith('<')) throw new Error(`Paytour retornou HTML (status ${res.status}) — possível rate limit`);
+  return JSON.parse(text);
 }
 
 async function computeRevenue(since: string, until: string): Promise<number> {
@@ -71,17 +73,21 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
   // ── Junho 2026: base XLS + apenas pedidos novos acima do max ID ──────────────
   if (month === '2026-06') {
-    const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
     let extraTotal = 0;
     let extraCount = 0;
-    for (const o of page?.itens ?? []) {
-      const id = Number(o.id);
-      if (id <= XLS_JUNE_MAX_ID) continue; // já está no XLS
-      const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-      if (d >= since && d <= until && o.status === 'aprovado') {
-        extraTotal += parseFloat(o.valor || '0') - parseFloat(o.desconto || '0');
-        extraCount++;
+    try {
+      const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+      for (const o of page?.itens ?? []) {
+        const id = Number(o.id);
+        if (id <= XLS_JUNE_MAX_ID) continue; // já está no XLS
+        const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
+        if (d >= since && d <= until && o.status === 'aprovado') {
+          extraTotal += parseFloat(o.valor || '0') - parseFloat(o.desconto || '0');
+          extraCount++;
+        }
       }
+    } catch (e: any) {
+      console.warn(`[fat] junho/2026: falha ao buscar extras (${e.message}) — usando só base XLS`);
     }
     const total = XLS_JUNE_TOTAL + extraTotal;
     console.log(`[fat] junho/2026: XLS R$${XLS_JUNE_TOTAL} + ${extraCount} novos R$${extraTotal.toFixed(2)} = R$${total.toFixed(2)}`);
