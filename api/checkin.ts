@@ -6,8 +6,8 @@ const LOJA_USER  = process.env.PAYTOUR_LOJA_USER    ?? '';
 const LOJA_PASS  = process.env.PAYTOUR_LOJA_PASS    ?? '';
 const KV_URL     = process.env.KV_REST_API_URL       ?? '';
 const KV_TOKEN   = process.env.KV_REST_API_TOKEN     ?? '';
-const CACHE_TTL  = 5 * 60 * 1000;
-const KV_TTL_SEC = 5 * 60;
+const CACHE_TTL  = 30 * 60 * 1000; // 30 min — servidor loja é local, minimizar chamadas
+const KV_TTL_SEC = 30 * 60;
 const SESSION_KV = 'checkin:session';
 
 // Sessão ativa em memória (persiste enquanto a instância serverless vive)

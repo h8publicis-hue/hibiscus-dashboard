@@ -65,22 +65,18 @@ export function useCheckin() {
   useEffect(() => {
     if (cache && Date.now() - cache.fetchedAt < TTL) { setData(cache); setLoading(false); return; }
     let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout>;
 
     const run = async () => {
       if (cancelled) return;
-      const ok = await fetchOnce(
+      await fetchOnce(
         (d) => { if (!cancelled) setData(d); },
         (b) => { if (!cancelled) setLoading(b); },
         (b) => { if (!cancelled) setExpired(b); },
       );
-      if (!ok && !cancelled) {
-        retryTimer = setTimeout(run, 60_000);
-      }
     };
 
     run();
-    return () => { cancelled = true; clearTimeout(retryTimer); };
+    return () => { cancelled = true; };
   }, [loading]);
 
   return { data, loading, sessionExpired, refresh };
