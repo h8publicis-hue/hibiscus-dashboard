@@ -95,27 +95,36 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   }
 
   // ── Meses futuros: acumulador Redis ──────────────────────────────────────────
+  // Cada chamada busca os 50 pedidos mais recentes e acumula os do mês por ID.
+  // Sem risco de duplicar: IDs são chave do objeto.
+  // Se a API falhar, retorna o total acumulado até agora (nunca zera).
   const accKey = `ptf-acc:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
-  const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
-  let added = 0;
-  for (const o of page?.itens ?? []) {
-    const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-    if (d >= since && d <= until && o.status === 'aprovado') {
-      const id = String(o.id);
-      if (!acc[id]) {
-        acc[id] = { valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') };
-        added++;
+  try {
+    const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+    let added = 0;
+    for (const o of page?.itens ?? []) {
+      const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
+      if (d >= since && d <= until && o.status === 'aprovado') {
+        const id = String(o.id);
+        if (!acc[id]) {
+          acc[id] = { valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') };
+          added++;
+        }
       }
     }
+    if (added > 0) await kvSet(accKey, acc, ACC_TTL);
+    const n = Object.keys(acc).length;
+    const revenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    console.log(`[fat] acumulador ${month}: ${n} pedidos (+${added} novos), total=R$${revenue.toFixed(2)}`);
+    return revenue;
+  } catch (e: any) {
+    // API indisponível — retorna o que tiver acumulado (nunca zera)
+    const revenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando acumulado R$${revenue.toFixed(2)}`);
+    return revenue;
   }
-  if (added > 0) await kvSet(accKey, acc, ACC_TTL);
-
-  const n = Object.keys(acc).length;
-  const revenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
-  console.log(`[fat] acumulador ${month}: ${n} pedidos (+${added} novos), total=R$${revenue.toFixed(2)}`);
-  return revenue;
 }
 
 export default async function handler(req: any, res: any) {
