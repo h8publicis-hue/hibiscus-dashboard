@@ -118,11 +118,8 @@ async function getSession(): Promise<string> {
   const kv = await kvGet(SESSION_KV) as string | null;
   if (kv) { activeSession = kv; return kv; }
 
-  // 3. Auto-login
-  const newSession = await doLogin();
-  activeSession = newSession;
-  await kvSet(SESSION_KV, newSession, 23 * 60 * 60); // 23h no KV
-  return newSession;
+  // Sem auto-login: bot protection bloqueia server-side. Retorna vazio → sessionExpired.
+  return '';
 }
 
 // ── Loja fetch com sessão dinâmica ────────────────────────────────────────────
@@ -145,54 +142,49 @@ function isSessionExpired(text: string, status: number): boolean {
   return false;
 }
 
-// ── Fetch check-in com auto-retry após login ──────────────────────────────────
+// ── Fetch check-in — sem auto-login (bot protection bloqueia server-side) ─────
 async function fetchCheckin(): Promise<CheckinData> {
   const today = todayBRT();
   const start = `${today}T00:00:00.000-03:00`;
   const end   = `${today}T23:59:59.000-03:00`;
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const session = await getSession();
+  const session = await getSession();
+  if (!session) throw new Error('sessionExpired');
 
-    const calRes = await lojaFetch(
-      `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
-      session,
-    );
+  const calRes = await lojaFetch(
+    `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
+    session,
+  );
 
-    const rawText = await calRes.text();
+  const rawText = await calRes.text();
 
-    if (isSessionExpired(rawText, calRes.status)) {
-      console.log('[checkin] sessão expirada, tentando auto-login...');
-      // Limpa sessão e força novo login na próxima iteração
-      activeSession = '';
-      await kvSet(SESSION_KV, '', 1);
-      if (attempt === 1) throw new Error('Sessão expirada e auto-login falhou');
-      continue;
-    }
-
-    const items = JSON.parse(rawText) as any[];
-    if (!Array.isArray(items)) throw new Error('Resposta inesperada do calendário');
-
-    const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
-    if (!dayuse) throw new Error('Nenhum item de day use encontrado');
-
-    const disponibilidadeId = dayuse.id;
-    const total      = Number(dayuse.total     ?? 0);
-    const reservados = Number(dayuse.reservados ?? 0);
-    const disponiveis = total - reservados;
-
-    const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${disponibilidadeId}`, session);
-    let checkins = 0;
-    if (vRes.ok) {
-      const vData = await vRes.json() as any;
-      const vouchers: any[] = vData?.vouchers ?? [];
-      checkins = vouchers.filter((v: any) => v.utilizado === true).length;
-    }
-
-    return { reservados, disponiveis, checkins, pendentes: reservados - checkins, total, ts: Date.now() };
+  if (isSessionExpired(rawText, calRes.status)) {
+    // Limpa sessão do KV para que o próximo request não tente de novo
+    activeSession = '';
+    await kvSet(SESSION_KV, '', 1);
+    throw new Error('sessionExpired');
   }
 
-  throw new Error('Não foi possível buscar check-in após retentativas');
+  const items = JSON.parse(rawText) as any[];
+  if (!Array.isArray(items)) throw new Error('Resposta inesperada do calendário');
+
+  const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
+  if (!dayuse) throw new Error('Nenhum item de day use encontrado');
+
+  const disponibilidadeId = dayuse.id;
+  const total      = Number(dayuse.total     ?? 0);
+  const reservados = Number(dayuse.reservados ?? 0);
+  const disponiveis = total - reservados;
+
+  const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${disponibilidadeId}`, session);
+  let checkins = 0;
+  if (vRes.ok) {
+    const vData = await vRes.json() as any;
+    const vouchers: any[] = vData?.vouchers ?? [];
+    checkins = vouchers.filter((v: any) => v.utilizado === true).length;
+  }
+
+  return { reservados, disponiveis, checkins, pendentes: reservados - checkins, total, ts: Date.now() };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
