@@ -19,6 +19,11 @@ const ACC_TTL   = 60 * 60 * 24 * 45; // 45 dias em segundos — TTL do acumulado
 const XLS_JUNE_TOTAL  = 46298.00;
 const XLS_JUNE_MAX_ID = 4085703; // maior ID no XLS — só busca extras acima desse
 
+// Base de julho/2026 — Resumo Financeiro em 01/07/2026 às ~22:40 BRT (8 reservas).
+// Quando o acumulador Redis estiver vazio, usa esse valor como piso.
+// Quando a API voltar, o acumulador assume e soma novos pedidos sem duplicar.
+const JULY_2026_SEED = 2110.00;
+
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
 let inflight: Promise<number> | null = null;
@@ -101,6 +106,10 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   const accKey = `ptf-acc:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
+  // Seed manual: se acumulador vazio e mês tem base conhecida, usa como piso
+  const seeds: Record<string, number> = { '2026-07': JULY_2026_SEED };
+  const seed = seeds[month] ?? 0;
+
   try {
     const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
     let added = 0;
@@ -116,13 +125,16 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     }
     if (added > 0) await kvSet(accKey, acc, ACC_TTL);
     const n = Object.keys(acc).length;
-    const revenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
-    console.log(`[fat] acumulador ${month}: ${n} pedidos (+${added} novos), total=R$${revenue.toFixed(2)}`);
+    const apiRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    // Usa o maior entre o acumulado da API e o seed manual (evita zerar enquanto API estiver bloqueada)
+    const revenue = Math.max(apiRevenue, seed);
+    console.log(`[fat] acumulador ${month}: ${n} pedidos (+${added} novos), api=R$${apiRevenue.toFixed(2)}, seed=R$${seed}, total=R$${revenue.toFixed(2)}`);
     return revenue;
   } catch (e: any) {
-    // API indisponível — retorna o que tiver acumulado (nunca zera)
-    const revenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
-    console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando acumulado R$${revenue.toFixed(2)}`);
+    // API indisponível — retorna seed ou acumulado, o que for maior
+    const apiRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const revenue = Math.max(apiRevenue, seed);
+    console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando R$${revenue.toFixed(2)}`);
     return revenue;
   }
 }
