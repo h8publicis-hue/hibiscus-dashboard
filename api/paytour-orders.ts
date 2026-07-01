@@ -60,7 +60,9 @@ async function paytourGet(path: string) {
     headers: { Authorization: `Bearer ${tk}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', Accept: 'application/json' },
     signal: AbortSignal.timeout(30_000),
   });
-  return res.json();
+  const text = await res.text();
+  if (text.trim().startsWith('<')) throw new Error(`Paytour retornou HTML (status ${res.status}) — rate limit`);
+  return JSON.parse(text);
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -179,6 +181,7 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     if (kv) return res.json({ orders: kv.orders, stale: true });
     console.error('[paytour]', err.message);
-    return res.status(500).json({ error: String(err) });
+    // Sem cache e API indisponível — retorna vazio em vez de 500 para não quebrar a dash
+    return res.json({ orders: [], error: err.message, unavailable: true });
   }
 }
