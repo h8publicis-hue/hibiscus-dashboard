@@ -8,6 +8,7 @@ import { Satisfaction } from './pages/Satisfaction';
 import { Reviews } from './pages/Reviews';
 import { Occupancy } from './pages/Occupancy';
 import { OccupancyInput } from './pages/OccupancyInput';
+import { Portaria } from './pages/Portaria';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -141,8 +142,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/entrada" element={<OccupancyInput />} />
-        <Route path="/*"       element={<Dashboard />} />
+        <Route path="/entrada"  element={<OccupancyInput />} />
+        <Route path="/portaria" element={<Portaria />} />
+        <Route path="/*"        element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   );

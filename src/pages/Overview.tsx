@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
-import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
+
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
@@ -290,7 +290,14 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: survey,  loading: smL } = useSurveyMonkey(period);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour(period);
-  const { data: sheetOcc } = useSheetOccupancy();
+  const [portariaCount, setPortariaCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => fetch('/api/portaria').then(r => r.json()).then((j: any) => { if (!cancelled) setPortariaCount(Number(j.count ?? 0)); }).catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
   const { data: checkinData, loading: checkinL, refresh: checkinRefresh } = useCheckin();
@@ -792,11 +799,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Ocupação ───────────────────────────────────────────────────────
   const blocoOcupacao = (() => {
-    const so = sheetOcc;
-    const updatedAt = so?.timestamp
-      ? new Date(so.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      : null;
-    const loungesFull = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
+    const loungesFull  = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
+    const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
+    const nacasa       = occupancy.beach + loungesTotal + occupancy.prime;
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
@@ -808,45 +813,24 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <a href="/ocupacao" className="text-[10px] text-brand-600 dark:text-white hover:underline">detalhes →</a>
         </div>
 
-        {so ? (
-          <>
-            {/* Portaria + Na Casa + GAP */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">🚪 Portaria</p>
-                <p className="text-xl font-black text-slate-800 dark:text-slate-100">{so.portaria}</p>
-              </div>
-              <div className="border border-brand-400 rounded-lg p-2 text-center">
-                <p className="text-[9px] text-brand-500 dark:text-orange-300 uppercase tracking-wider">👥 Na Casa</p>
-                <p className="text-xl font-black text-brand-700 dark:text-orange-400">{so.total}</p>
-              </div>
-              <div className={clsx('rounded-lg p-2 text-center border', so.gap >= 0 ? 'border-emerald-400' : 'border-red-400')}>
-                <p className={clsx('text-[9px] uppercase tracking-wider', so.gap >= 0 ? 'text-emerald-500' : 'text-red-500')}>⚡ GAP</p>
-                <p className={clsx('text-xl font-black', so.gap >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>{so.gap}</p>
-              </div>
-            </div>
-
-            {/* Beach / Lounge / Condomínio */}
-            <div className="flex flex-col gap-1.5">
-              <OccupancyRow label="🏖️ Beach"      current={so.beach}      max={SHEET_CAPS.beach} />
-              <OccupancyRow label="🛋️ Lounge"     current={so.lounge}     max={SHEET_CAPS.lounge} />
-              <OccupancyRow label="🏢 Condomínio"  current={so.condominio} max={SHEET_CAPS.condominio} />
-            </div>
-
-            {updatedAt && (
-              <p className="text-[9px] text-gray-400 text-right">
-                {!so.isToday && <span className="text-orange-400">({so.date}) </span>}
-                Atualizado às {updatedAt}
-              </p>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            <OccupancyRow label="🏖️ Beach" current={occupancy.beach} max={SPACE_CONFIGS.beach.max} />
-            <OccupancyRow label="🛋️ Lounges" current={occupancy.lounges.reduce((a,b)=>a+b,0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
-            <OccupancyRow label="💎 Prime" current={occupancy.prime} max={SPACE_CONFIGS.prime.max} />
+        {/* Portaria + Na Casa */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-2 text-center">
+            <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">🚪 Portaria</p>
+            <p className="text-xl font-black text-slate-800 dark:text-slate-100">{portariaCount ?? '—'}</p>
           </div>
-        )}
+          <div className="border border-brand-400 rounded-lg p-2 text-center">
+            <p className="text-[9px] text-brand-500 dark:text-orange-300 uppercase tracking-wider">👥 Na Casa</p>
+            <p className="text-xl font-black text-brand-700 dark:text-orange-400">{nacasa}</p>
+          </div>
+        </div>
+
+        {/* Beach / Lounges / Prime */}
+        <div className="flex flex-col gap-1.5">
+          <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
+          <OccupancyRow label="🛋️ Lounges" current={loungesTotal}       max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
+          <OccupancyRow label="💎 Prime"   current={occupancy.prime}   max={SPACE_CONFIGS.prime.max} />
+        </div>
 
         <LoungeMap lounges={occupancy.lounges} />
         {loungesFull > 0 && (

@@ -112,10 +112,30 @@ function Counter({
 
 // ── Modal de edição de lounge individual ─────────────────────────────────────
 function LoungeModal({
-  idx, value, max, onClose, onSave,
-}: { idx: number; value: number; max: number; onClose: () => void; onSave: (v: number) => void }) {
-  const [qty, setQty] = useState(value);
+  idx, value, currentBeach, max, onClose, onSave,
+}: {
+  idx: number; value: number; currentBeach: number; max: number;
+  onClose: () => void; onSave: (novoLounge: number, novoBeach: number) => void;
+}) {
+  const [qty,      setQty]      = useState(value);
+  const [step,     setStep]     = useState<'edit' | 'transfer'>('edit');
   const name = SPACE_CONFIGS.lounge.start + idx;
+  const delta = qty - value; // positivo = adicionou pessoas no lounge
+
+  function handleConfirm() {
+    if (delta > 0) {
+      setStep('transfer');
+    } else {
+      onSave(qty, currentBeach);
+      onClose();
+    }
+  }
+
+  function handleTransfer(isTransfer: boolean) {
+    const novoBeach = isTransfer ? clamp(currentBeach - delta, 0, SPACE_CONFIGS.beach.max) : currentBeach;
+    onSave(qty, novoBeach);
+    onClose();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
@@ -123,35 +143,70 @@ function LoungeModal({
         className="bg-white rounded-t-3xl w-full max-w-sm p-6 flex flex-col gap-5 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-gray-800">Lounge {name}</h3>
-          <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
-        </div>
+        {step === 'edit' ? (
+          <>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-800">Lounge {name}</h3>
+              <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
+            </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <StepBtn label="−" onClick={() => setQty(q => clamp(q - 1, 0, max))} />
-          <div className="flex-1 text-center">
-            <span className="text-5xl font-bold text-gray-900">{qty}</span>
-            <span className="text-lg text-gray-400 ml-1">/{max}</span>
-          </div>
-          <StepBtn label="+" onClick={() => setQty(q => clamp(q + 1, 0, max))} disabled={qty >= max} />
-        </div>
+            <div className="flex items-center justify-between gap-4">
+              <StepBtn label="−" onClick={() => setQty(q => clamp(q - 1, 0, max))} />
+              <div className="flex-1 text-center">
+                <span className="text-5xl font-bold text-gray-900">{qty}</span>
+                <span className="text-lg text-gray-400 ml-1">/{max}</span>
+              </div>
+              <StepBtn label="+" onClick={() => setQty(q => clamp(q + 1, 0, max))} disabled={qty >= max} />
+            </div>
 
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              qty / max >= 0.9 ? 'bg-red-500' : qty / max >= 0.6 ? 'bg-yellow-400' : 'bg-green-500'
-            }`}
-            style={{ width: `${Math.round((qty / max) * 100)}%` }}
-          />
-        </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  qty / max >= 0.9 ? 'bg-red-500' : qty / max >= 0.6 ? 'bg-yellow-400' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.round((qty / max) * 100)}%` }}
+              />
+            </div>
 
-        <button
-          onClick={() => { onSave(qty); onClose(); }}
-          className="w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700"
-        >
-          Confirmar
-        </button>
+            <button
+              onClick={handleConfirm}
+              className="w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700"
+            >
+              Confirmar
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="text-center">
+              <p className="text-2xl mb-1">🔄</p>
+              <h3 className="text-base font-bold text-gray-800">Transferência do Beach?</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                +{delta} {delta === 1 ? 'pessoa' : 'pessoas'} adicionada{delta === 1 ? '' : 's'} no Lounge {name}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleTransfer(true)}
+                className="w-full py-3 rounded-2xl bg-orange-500 text-white text-sm font-semibold active:bg-orange-600"
+              >
+                Sim — abater {delta} do Beach (Beach: {currentBeach} → {clamp(currentBeach - delta, 0, SPACE_CONFIGS.beach.max)})
+              </button>
+              <button
+                onClick={() => handleTransfer(false)}
+                className="w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700"
+              >
+                Não — entrada direta no Lounge
+              </button>
+              <button
+                onClick={() => setStep('edit')}
+                className="w-full py-2 text-sm text-gray-400 hover:text-gray-600"
+              >
+                ← Voltar
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -159,6 +214,7 @@ function LoungeModal({
 
 function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: OccupancyState) => void }) {
   const [editing, setEditing] = useState<number | null>(null);
+
 
   function cellColor(v: number, p: number) {
     if (v === 0) return 'bg-gray-50 border-gray-200 text-gray-400';
@@ -232,12 +288,13 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
         <LoungeModal
           idx={editing}
           value={occ.lounges[editing]}
+          currentBeach={occ.beach}
           max={SPACE_CONFIGS.lounge.max}
           onClose={() => setEditing(null)}
-          onSave={(qty) => {
+          onSave={(novoLounge, novoBeach) => {
             const lounges = [...occ.lounges];
-            lounges[editing] = qty;
-            update({ ...occ, lounges });
+            lounges[editing] = novoLounge;
+            update({ ...occ, lounges, beach: novoBeach });
           }}
         />
       )}
