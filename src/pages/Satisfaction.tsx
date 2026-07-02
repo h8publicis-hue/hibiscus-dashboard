@@ -5,7 +5,7 @@ import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { clearSheetsCache } from '../services/googleSheets';
 import { Period, RecentResponse } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertCircle, RefreshCw, Tag, FileDown, CheckSquare, Square, Layers } from 'lucide-react';
+import { AlertCircle, RefreshCw, Tag, FileDown, CheckSquare, Square, Layers, Users, Plus, X, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SatisfactionProps { period: Period }
@@ -73,6 +73,44 @@ function useSectorTags() {
   }
 
   return { tags, toggleSector };
+}
+
+// ── Colaboradores ─────────────────────────────────────────────────────────────
+const LS_STAFF_KEY = 'hibiscus-staff';
+
+const STAFF_SECTORS = [
+  'ATENDIMENTO', 'RECEPÇÃO', 'A&B', 'RECREAÇÃO', 'MANUTENÇÃO',
+  'SEGURANÇA', 'LIMPEZA', 'CAIXA', 'COORDENAÇÃO', 'OUTRO',
+] as const;
+
+interface StaffMember { id: string; name: string; sector: string }
+
+function useStaff() {
+  const [staff, setStaff] = useState<StaffMember[]>(() => {
+    try { return JSON.parse(localStorage.getItem(LS_STAFF_KEY) ?? '[]'); } catch { return []; }
+  });
+  function save(list: StaffMember[]) {
+    localStorage.setItem(LS_STAFF_KEY, JSON.stringify(list));
+    setStaff(list);
+  }
+  return {
+    staff,
+    add:    (name: string, sector: string) => save([...staff, { id: Date.now().toString(), name: name.trim(), sector }]),
+    remove: (id: string)                   => save(staff.filter(m => m.id !== id)),
+    update: (id: string, changes: Partial<StaffMember>) => save(staff.map(m => m.id === id ? { ...m, ...changes } : m)),
+  };
+}
+
+function staffMentions(responses: RecentResponse[], staff: StaffMember[]): Map<string, Set<string>> {
+  const result = new Map<string, Set<string>>();
+  for (const member of staff) {
+    const first = member.name.split(' ')[0].toLowerCase();
+    if (first.length < 3) continue;
+    const regex = new RegExp(`\\b${first}\\b`, 'i');
+    const ids = responses.filter(r => regex.test(r.text)).map(r => r.id);
+    if (ids.length) result.set(member.id, new Set(ids));
+  }
+  return result;
 }
 
 // ── NPS Gauge ─────────────────────────────────────────────────────────────────
@@ -517,8 +555,14 @@ function SectorDropdown({
 export function Satisfaction({ period }: SatisfactionProps) {
   const { data, loading, error } = useSurveyMonkey(period);
   const { tags, toggleSector }               = useSectorTags();
+  const { staff, add: addStaff, remove: removeStaff, update: updateStaff } = useStaff();
   const [activeFilter, setActiveFilter]      = useState<FilterTab>('all');
   const [sectorFilter, setSectorFilter]      = useState<string>('');
+  const [staffFilter, setStaffFilter]        = useState<string>('');
+  const [staffEditMode, setStaffEditMode]    = useState(false);
+  const [newStaffName, setNewStaffName]      = useState('');
+  const [newStaffSector, setNewStaffSector]  = useState<string>(STAFF_SECTORS[0]);
+  const [editingStaffId, setEditingStaffId]  = useState<string | null>(null);
   const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds]           = useState<Set<string>>(new Set());
   const [retrying, setRetrying]                 = useState(false);
@@ -544,15 +588,26 @@ export function Satisfaction({ period }: SatisfactionProps) {
   const allTimeResponses = useMemo(() => data?.allTimeResponses   ?? [], [data]);
   const periodTotal  = data?.surveys[0]?.responses ?? 0;
 
+  const mentions = useMemo(() => staffMentions(allTimeResponses, staff), [allTimeResponses, staff]);
+
+  const staffRanking = useMemo(() => staff
+    .map(m => ({ ...m, count: mentions.get(m.id)?.size ?? 0 }))
+    .sort((a, b) => b.count - a.count),
+  [staff, mentions]);
+
   const filtered = useMemo(() => {
-    // Quando há filtro de setor, busca em TODOS os dados (ignora período)
-    const base = sectorFilter ? allTimeResponses : allResponses;
+    // Quando há filtro de setor ou colaborador, busca em TODOS os dados (ignora período)
+    const base = (sectorFilter || staffFilter) ? allTimeResponses : allResponses;
     let list = activeFilter === 'all'
       ? base
       : base.filter((r) => r.sentiment === activeFilter);
     if (sectorFilter) list = list.filter((r) => (tags[String(r.rowIndex)] ?? []).includes(sectorFilter));
+    if (staffFilter) {
+      const ids = mentions.get(staffFilter) ?? new Set();
+      list = list.filter(r => ids.has(r.id));
+    }
     return list;
-  }, [allResponses, allTimeResponses, activeFilter, sectorFilter, tags]);
+  }, [allResponses, allTimeResponses, activeFilter, sectorFilter, staffFilter, tags, mentions]);
 
   const counts = useMemo(() => ({
     all:      allResponses.length,
@@ -744,6 +799,110 @@ export function Satisfaction({ period }: SatisfactionProps) {
               </div>
             </div>
           )}
+
+          {/* Painel Colaboradores */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Users size={12} /> Colaboradores
+                {staff.length > 0 && <span className="font-normal normal-case text-gray-400">({staff.length})</span>}
+              </h3>
+              <button onClick={() => setStaffEditMode(m => !m)}
+                className={clsx('text-[10px] px-2 py-0.5 rounded-lg font-medium transition-colors',
+                  staffEditMode ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-violet-100 hover:text-violet-700')}>
+                {staffEditMode ? 'Concluir' : 'Editar lista'}
+              </button>
+            </div>
+
+            {staffEditMode && (
+              <div className="mb-3 space-y-2">
+                <div className="flex gap-1">
+                  <input
+                    value={newStaffName}
+                    onChange={e => setNewStaffName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && newStaffName.trim()) { addStaff(newStaffName, newStaffSector); setNewStaffName(''); } }}
+                    placeholder="Nome do colaborador"
+                    className="flex-1 text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-violet-400"
+                  />
+                  <button
+                    onClick={() => { if (newStaffName.trim()) { addStaff(newStaffName, newStaffSector); setNewStaffName(''); } }}
+                    className="shrink-0 px-2 py-1 rounded-lg bg-violet-600 text-white text-xs hover:bg-violet-700 transition-colors">
+                    <Plus size={12} />
+                  </button>
+                </div>
+                <select
+                  value={newStaffSector}
+                  onChange={e => setNewStaffSector(e.target.value)}
+                  className="w-full text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-violet-400">
+                  {STAFF_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+
+            {staff.length === 0 && !staffEditMode && (
+              <p className="text-[11px] text-gray-400 text-center py-3">Clique em "Editar lista" para adicionar colaboradores e detectar menções nos comentários.</p>
+            )}
+
+            <div className="space-y-1">
+              {staffRanking.map((m, i) => (
+                <div key={m.id}>
+                  {staffEditMode && editingStaffId === m.id ? (
+                    <div className="flex gap-1 items-center">
+                      <input
+                        defaultValue={m.name}
+                        onBlur={e => { updateStaff(m.id, { name: e.target.value.trim() }); setEditingStaffId(null); }}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        autoFocus
+                        className="flex-1 text-xs px-2 py-0.5 rounded border border-violet-400 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none"
+                      />
+                      <select
+                        defaultValue={m.sector}
+                        onChange={e => updateStaff(m.id, { sector: e.target.value })}
+                        className="text-[10px] px-1 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none">
+                        {STAFF_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <button onClick={() => removeStaff(m.id)} className="text-red-400 hover:text-red-600 transition-colors"><X size={12} /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => !staffEditMode && setStaffFilter(f => f === m.id ? '' : m.id)}
+                      onDoubleClick={() => staffEditMode && setEditingStaffId(m.id)}
+                      className={clsx(
+                        'w-full flex items-center gap-2 px-2 py-1 rounded-lg text-xs transition-colors',
+                        staffFilter === m.id
+                          ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-semibold'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400',
+                      )}>
+                      <span className="text-[10px] font-bold text-gray-300 w-4 text-right shrink-0">{i + 1}</span>
+                      <span className="flex-1 text-left truncate font-medium">{m.name}</span>
+                      <span className={clsx('text-[9px] px-1 py-0.5 rounded font-semibold shrink-0',
+                        m.sector === 'ATENDIMENTO' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                        m.sector === 'A&B'         ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
+                        m.sector === 'RECEPÇÃO'    ? 'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400' :
+                        'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400')}>
+                        {m.sector}
+                      </span>
+                      {m.count > 0 && (
+                        <span className={clsx('text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0',
+                          staffFilter === m.id ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500')}>
+                          {m.count}
+                        </span>
+                      )}
+                      {staffEditMode && (
+                        <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setEditingStaffId(m.id); }}
+                          className="shrink-0 text-gray-300 hover:text-violet-500 transition-colors"><Pencil size={10} /></button>
+                      )}
+                    </button>
+                  )}
+                </div>
+              ))}
+              {staffFilter && !staffEditMode && (
+                <button onClick={() => setStaffFilter('')} className="w-full text-center text-[10px] text-gray-400 hover:text-gray-600 pt-1 transition-colors">
+                  Limpar filtro
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Coluna direita */}
@@ -813,6 +972,16 @@ export function Satisfaction({ period }: SatisfactionProps) {
                     </div>
                   )}
                 </div>
+
+                {staffFilter && (() => {
+                  const m = staff.find(s => s.id === staffFilter);
+                  return m ? (
+                    <button onClick={() => setStaffFilter('')}
+                      className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-violet-600 text-white shadow-sm">
+                      <Users size={11} /> {m.name} <span className="opacity-70 font-bold">×</span>
+                    </button>
+                  ) : null;
+                })()}
 
                 {selectedCount > 0 && (
                   <button onClick={handleExportPDF}
