@@ -83,10 +83,28 @@ const STAFF_SECTORS = [
   'SEGURANÇA', 'LIMPEZA', 'CAIXA', 'COORDENAÇÃO', 'OUTRO',
 ] as const;
 
-interface StaffMember { id: string; name: string; sector: string }
+interface StaffMember { id: string; name: string; sector: string; aliases?: string[] }
+
+const LS_STAFF_SEED_KEY = 'hibiscus-staff-seeded-v1';
+
+// Colaboradores identificados via varredura dos comentários do survey
+const SEED_STAFF: Omit<StaffMember, 'id'>[] = [
+  { name: 'Katherine', sector: 'ATENDIMENTO', aliases: ['catarine', 'catarina', 'katherine'] },
+  { name: 'Dudu',      sector: 'ATENDIMENTO' },
+  { name: 'Bruno',     sector: 'A&B' },
+  { name: 'Carlos',    sector: 'A&B' },
+  { name: 'Luciano',   sector: 'A&B' },
+];
 
 function useStaff() {
   const [staff, setStaff] = useState<StaffMember[]>(() => {
+    // Seed automático na primeira abertura
+    if (!localStorage.getItem(LS_STAFF_SEED_KEY)) {
+      const seeded = SEED_STAFF.map((m, i) => ({ ...m, id: String(1000 + i) }));
+      localStorage.setItem(LS_STAFF_KEY, JSON.stringify(seeded));
+      localStorage.setItem(LS_STAFF_SEED_KEY, '1');
+      return seeded;
+    }
     try { return JSON.parse(localStorage.getItem(LS_STAFF_KEY) ?? '[]'); } catch { return []; }
   });
   function save(list: StaffMember[]) {
@@ -104,9 +122,14 @@ function useStaff() {
 function staffMentions(responses: RecentResponse[], staff: StaffMember[]): Map<string, Set<string>> {
   const result = new Map<string, Set<string>>();
   for (const member of staff) {
-    const first = member.name.split(' ')[0].toLowerCase();
-    if (first.length < 3) continue;
-    const regex = new RegExp(`\\b${first}\\b`, 'i');
+    // Busca pelo nome principal + todos os aliases (ex: Katherine = catarine, catarina)
+    const terms = [
+      member.name.split(' ')[0],
+      ...(member.aliases ?? []),
+    ].filter(t => t.length >= 3);
+    if (!terms.length) continue;
+    const pattern = terms.map(t => `\\b${t}\\b`).join('|');
+    const regex = new RegExp(pattern, 'i');
     const ids = responses.filter(r => regex.test(r.text)).map(r => r.id);
     if (ids.length) result.set(member.id, new Set(ids));
   }
