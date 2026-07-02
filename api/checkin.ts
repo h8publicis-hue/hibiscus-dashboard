@@ -1,26 +1,28 @@
-// Check-in online via painel Paytour (loja.hibiscusbeachclub.com.br).
-// Auto-login: quando a sessão expira, faz login automático e renova o PHPSESSID.
+// Check-in: Paytour API (sempre) + loja opcional (PHPSESSID para check-ins físicos).
 
-const LOJA_BASE  = 'https://loja.hibiscusbeachclub.com.br';
-const LOJA_USER  = process.env.PAYTOUR_LOJA_USER    ?? '';
-const LOJA_PASS  = process.env.PAYTOUR_LOJA_PASS    ?? '';
-const KV_URL     = process.env.KV_REST_API_URL       ?? '';
-const KV_TOKEN   = process.env.KV_REST_API_TOKEN     ?? '';
-const CACHE_TTL  = 30 * 60 * 1000; // 30 min — servidor loja é local, minimizar chamadas
-const KV_TTL_SEC = 30 * 60;
-const SESSION_KV = 'checkin:session';
+const LOJA_BASE    = 'https://loja.hibiscusbeachclub.com.br';
+const PT_BASE      = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
+const PT_KEY       = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET    = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET    ?? '';
+const KV_URL       = process.env.KV_REST_API_URL         ?? '';
+const KV_TOKEN     = process.env.KV_REST_API_TOKEN       ?? '';
+const CACHE_TTL    = 30 * 60 * 1000;
+const KV_TTL_SEC   = 30 * 60;
+const SESSION_KV   = 'checkin:session';
 
-// Sessão ativa em memória (persiste enquanto a instância serverless vive)
 let activeSession = process.env.PAYTOUR_LOJA_SESSION ?? '';
 let memCache: { data: CheckinData; ts: number } | null = null;
 
 export interface CheckinData {
-  reservados: number;
-  disponiveis: number;
-  checkins: number;
-  pendentes: number;
-  total: number;
+  reservados: number;     // da API Paytour (sempre disponível)
+  sessionActive: boolean; // loja session ativa?
+  disponiveis?: number;   // da loja (opcional)
+  checkins?: number;      // da loja (opcional)
+  pendentes?: number;     // da loja (opcional)
+  total?: number;         // da loja (opcional)
   ts: number;
+  stale?: boolean;
 }
 
 // ── KV helpers ────────────────────────────────────────────────────────────────
@@ -52,90 +54,54 @@ function todayBRT(): string {
   return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-// ── Auto-login ────────────────────────────────────────────────────────────────
-async function doLogin(user = LOJA_USER, pass = LOJA_PASS): Promise<string> {
-  if (!user || !pass) throw new Error('Credenciais não configuradas (PAYTOUR_LOJA_USER / PAYTOUR_LOJA_PASS)');
-
-  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
-
-  // Passo 1: GET /admin/login — obtém PHPSESSID inicial
-  const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
-    headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
-    redirect: 'manual',
-    signal: AbortSignal.timeout(10_000),
-  });
-  const initSession = (getRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
-  if (!initSession) throw new Error('doLogin: sem PHPSESSID no GET /admin/login');
-
-  // Passo 2: POST credenciais (redirect:manual para capturar Set-Cookie da 302)
-  const postRes = await fetch(`${LOJA_BASE}/admin`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': UA,
-      Accept: 'text/html,application/xhtml+xml,*/*',
-      Referer: `${LOJA_BASE}/admin/login`,
-      Cookie: `PHPSESSID=${initSession}`,
-    },
-    body: new URLSearchParams({ login: user, senha: pass }).toString(),
-    redirect: 'manual',
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  const location = postRes.headers.get('location') ?? '';
-  if (location.includes('login')) throw new Error('Auto-login rejeitado — credenciais inválidas');
-
-  // Captura o PHPSESSID da resposta POST (alguns servidores regeneram aqui)
-  let session = (postRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? initSession;
-
-  // Passo 3: segue o redirect manualmente — PHP frequentemente regenera o PHPSESSID
-  // no GET /admin após login bem-sucedido (session_regenerate_id)
-  const redirectTarget = location.startsWith('http') ? location : `${LOJA_BASE}${location || '/admin'}`;
-  const getAdminRes = await fetch(redirectTarget, {
-    headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml', Cookie: `PHPSESSID=${session}` },
-    redirect: 'manual',
-    signal: AbortSignal.timeout(10_000),
-  });
-  const adminCookie = (getAdminRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1];
-  if (adminCookie) session = adminCookie;
-
-  // Passo 4: valida se a sessão está autenticada testando o calendário
-  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const calRes = await fetch(
-    `${LOJA_BASE}/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
-    {
-      headers: { 'User-Agent': UA, Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', Cookie: `PHPSESSID=${session}` },
-      signal: AbortSignal.timeout(10_000),
-    },
-  );
-  const calText = await calRes.text();
-  if (calText.trim().startsWith('<')) throw new Error('Auto-login: sessão não autenticou — servidor retornou HTML no calendário');
-
-  console.log('[checkin] auto-login OK, sessão:', session.slice(0, 8) + '...');
-  return session;
+// ── Paytour API helpers ───────────────────────────────────────────────────────
+function proxyHeaders(extra: Record<string, string> = {}) {
+  return {
+    'x-proxy-secret': PROXY_SECRET,
+    'User-Agent': 'Mozilla/5.0',
+    Origin: 'https://app.paytour.com.br',
+    ...extra,
+  };
 }
 
-async function getSession(): Promise<string> {
-  // 1. Usa sessão em memória
-  if (activeSession) return activeSession;
+let ptTokenCache: { token: string; exp: number } | null = null;
 
-  // 2. Busca no KV (persiste entre instâncias)
+async function getPtToken(): Promise<string> {
+  if (ptTokenCache && Date.now() < ptTokenCache.exp - 30_000) return ptTokenCache.token;
+  const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
+  const r = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
+    method: 'POST',
+    headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const j = await r.json() as any;
+  const token = j.access_token ?? '';
+  if (!token) throw new Error('getPtToken: sem access_token');
+  ptTokenCache = { token, exp: Date.now() + (j.expires_in ?? 1800) * 1000 };
+  return token;
+}
+
+async function getPaytourReservados(): Promise<number> {
+  const today = todayBRT();
+  const token = await getPtToken();
+  const url = `${PT_BASE}/v2/pedidos?status=aprovado&disponibilidade_data_de=${today}&disponibilidade_data_ate=${today}&por_pagina=1&pagina=1`;
+  const r = await fetch(url, {
+    headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!r.ok) throw new Error(`getPaytourReservados: ${r.status}`);
+  const j = await r.json() as any;
+  return Number(j?.info?.total ?? j?.itens?.length ?? 0);
+}
+
+// ── Loja session ──────────────────────────────────────────────────────────────
+async function getSession(): Promise<string> {
+  if (activeSession) return activeSession;
   const kv = await kvGet(SESSION_KV) as string | null;
   if (kv) { activeSession = kv; return kv; }
-
-  // 3. Tenta auto-login (agora com passo 3 que segue redirect e captura PHPSESSID regenerado)
-  try {
-    const session = await doLogin();
-    activeSession = session;
-    await kvSet(SESSION_KV, session, 23 * 60 * 60);
-    return session;
-  } catch (e: any) {
-    console.warn('[checkin] auto-login falhou:', e.message);
-    return '';
-  }
+  return '';
 }
 
-// ── Loja fetch com sessão dinâmica ────────────────────────────────────────────
 function lojaFetch(path: string, session: string) {
   return fetch(`${LOJA_BASE}${path}`, {
     headers: {
@@ -155,41 +121,43 @@ function isSessionExpired(text: string, status: number): boolean {
   return false;
 }
 
-// ── Fetch check-in — sem auto-login (bot protection bloqueia server-side) ─────
+// ── Fetch data ────────────────────────────────────────────────────────────────
 async function fetchCheckin(): Promise<CheckinData> {
   const today = todayBRT();
   const start = `${today}T00:00:00.000-03:00`;
   const end   = `${today}T23:59:59.000-03:00`;
 
+  // Paytour API — sempre funciona via Worker
+  const reservados = await getPaytourReservados();
+
+  // Loja — opcional, só se houver PHPSESSID
   const session = await getSession();
-  if (!session) throw new Error('sessionExpired');
+  if (!session) return { reservados, sessionActive: false, ts: Date.now() };
 
   const calRes = await lojaFetch(
     `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
     session,
   );
-
   const rawText = await calRes.text();
 
   if (isSessionExpired(rawText, calRes.status)) {
-    // Limpa sessão do KV para que o próximo request não tente de novo
     activeSession = '';
     await kvSet(SESSION_KV, '', 1);
-    throw new Error('sessionExpired');
+    // Retorna dado parcial — sem crash
+    return { reservados, sessionActive: false, ts: Date.now() };
   }
 
   const items = JSON.parse(rawText) as any[];
-  if (!Array.isArray(items)) throw new Error('Resposta inesperada do calendário');
+  if (!Array.isArray(items)) return { reservados, sessionActive: false, ts: Date.now() };
 
   const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
-  if (!dayuse) throw new Error('Nenhum item de day use encontrado');
+  if (!dayuse) return { reservados, sessionActive: false, ts: Date.now() };
 
-  const disponibilidadeId = dayuse.id;
   const total      = Number(dayuse.total     ?? 0);
-  const reservados = Number(dayuse.reservados ?? 0);
-  const disponiveis = total - reservados;
+  const lojaRes    = Number(dayuse.reservados ?? 0);
+  const disponiveis = total - lojaRes;
 
-  const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${disponibilidadeId}`, session);
+  const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${dayuse.id}`, session);
   let checkins = 0;
   if (vRes.ok) {
     const vData = await vRes.json() as any;
@@ -197,7 +165,15 @@ async function fetchCheckin(): Promise<CheckinData> {
     checkins = vouchers.filter((v: any) => v.utilizado === true).length;
   }
 
-  return { reservados, disponiveis, checkins, pendentes: reservados - checkins, total, ts: Date.now() };
+  return {
+    reservados,
+    sessionActive: true,
+    disponiveis,
+    checkins,
+    pendentes: lojaRes - checkins,
+    total,
+    ts: Date.now(),
+  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -205,64 +181,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  // Debug: ?debug=hbc — rastreia todo o fluxo de login
-  if (req.query?.debug === 'hbc') {
-    const d: Record<string, any> = {};
-    const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
-    try {
-      const g = await fetch(`${LOJA_BASE}/admin/login`, {
-        headers: { 'User-Agent': UA, Accept: 'text/html' },
-        redirect: 'manual', signal: AbortSignal.timeout(10_000),
-      });
-      const gHtml = await g.text();
-      const phpsessid = (g.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
-      // Extract CSRF token from hidden inputs
-      const csrfMatch = gHtml.match(/name=["']_token["'][^>]*value=["']([^"']+)["']/i)
-                     ?? gHtml.match(/value=["']([^"']{20,})["'][^>]*name=["']_token["']/i);
-      const csrfFound = csrfMatch?.[1] ?? null;
-      d.step1 = { status: g.status, phpsessid: phpsessid.slice(0,12)+'...',
-        formAction: gHtml.match(/<form[^>]+action=["']([^"']+)["']/i)?.[1],
-        allSetCookie: g.headers.get('set-cookie'),
-        csrfToken: csrfFound ? csrfFound.slice(0,16)+'...' : null,
-        formHtml: gHtml.slice(gHtml.indexOf('<form'), gHtml.indexOf('</form>') + 7).slice(0, 800) || 'FORM NOT FOUND in HTML',
-        htmlLength: gHtml.length,
-      };
-
-      const p = await fetch(`${LOJA_BASE}/admin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA,
-          Accept: 'text/html', Referer: `${LOJA_BASE}/admin/login`,
-          Cookie: phpsessid ? `PHPSESSID=${phpsessid}` : '' },
-        body: new URLSearchParams({ login: LOJA_USER, senha: LOJA_PASS }).toString(),
-        redirect: 'manual', signal: AbortSignal.timeout(10_000),
-      });
-      const postSession = (p.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? phpsessid;
-      d.step2 = { status: p.status, location: p.headers.get('location'), setCookie: p.headers.get('set-cookie'), usedSession: phpsessid.slice(0,12) };
-
-      const f = await fetch(`${LOJA_BASE}/admin`, {
-        headers: { 'User-Agent': UA, Accept: 'text/html', Cookie: `PHPSESSID=${postSession}` },
-        redirect: 'manual', signal: AbortSignal.timeout(10_000),
-      });
-      const fText = await f.text();
-      const fNewSession = (f.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? postSession;
-      d.step3 = { status: f.status, location: f.headers.get('location'), setCookie: f.headers.get('set-cookie'),
-        bodySnippet: fText.slice(0, 200), isLoginPage: fText.includes('Paytour | Login') };
-
-      // Use new session if issued, else keep postSession
-      const calSession = fNewSession;
-
-      const today = todayBRT();
-      const cal = await fetch(`${LOJA_BASE}/admin/calendario?passeoIds=&start=${encodeURIComponent(today+'T00:00:00.000-03:00')}&end=${encodeURIComponent(today+'T23:59:59.000-03:00')}&isCheckin=1`, {
-        headers: { 'User-Agent': UA, Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', Cookie: `PHPSESSID=${calSession}` },
-        signal: AbortSignal.timeout(10_000),
-      });
-      const calText = await cal.text();
-      d.step4_calendar = { status: cal.status, isJson: !calText.trim().startsWith('<'), snippet: calText.slice(0, 300) };
-    } catch (e: any) { d.error = String(e); }
-    return res.json(d);
-  }
-
-  // POST /api/checkin → login manual pelo dashboard
+  // POST → salva PHPSESSID
   if (req.method === 'POST') {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
@@ -270,10 +189,9 @@ export default async function handler(req: any, res: any) {
       const pass = body.senha ?? '';
       if (!user || !pass) return res.status(400).json({ ok: false, error: 'login e senha obrigatórios' });
 
-      // Sentinel: usuário está colando o PHPSESSID diretamente
-      const session = user === '__phpsessid__' ? pass : await doLogin(user, pass);
+      const session = user === '__phpsessid__' ? pass : (() => { throw new Error('Use PHPSESSID direto'); })();
 
-      // Valida a sessão contra o calendário antes de salvar
+      // Valida
       const today = todayBRT();
       const testRes = await lojaFetch(
         `/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
@@ -281,7 +199,7 @@ export default async function handler(req: any, res: any) {
       );
       const testText = await testRes.text();
       if (isSessionExpired(testText, testRes.status)) {
-        throw new Error('Sessão inválida — o PHPSESSID não está autenticado. Faça login no Paytour primeiro.');
+        throw new Error('Sessão inválida — PHPSESSID não autenticado. Faça login no Paytour primeiro.');
       }
 
       activeSession = session;
@@ -291,6 +209,14 @@ export default async function handler(req: any, res: any) {
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e.message });
     }
+  }
+
+  // DELETE → limpa sessão
+  if (req.method === 'DELETE') {
+    activeSession = '';
+    await kvSet(SESSION_KV, '', 1);
+    memCache = null;
+    return res.json({ ok: true });
   }
 
   const cacheKey = `checkin:${todayBRT()}`;
@@ -311,8 +237,6 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('[checkin]', err.message);
     if (memCache) return res.json({ ...memCache.data, stale: true });
-    const sessionExpired = err.message?.toLowerCase().includes('expirada') ||
-                           err.message?.toLowerCase().includes('login');
-    return res.status(503).json({ error: err.message, sessionExpired });
+    return res.status(503).json({ error: err.message });
   }
 }
