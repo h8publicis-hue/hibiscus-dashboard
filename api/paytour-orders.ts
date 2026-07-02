@@ -1,6 +1,8 @@
-const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
-const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
-const PT_BASE   = 'https://api-ha.paytour.com.br';
+const PT_KEY      = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET   = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+// Cloudflare Worker proxy — evita bloqueio do Bot Fight Mode da Cloudflare em IPs AWS
+const PT_BASE      = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
+const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET ?? '';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
 
@@ -40,14 +42,20 @@ async function kvSet(key: string, value: unknown, ttlSeconds: number): Promise<v
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
+function proxyHeaders(extra: Record<string, string> = {}) {
+  return { 'x-proxy-secret': PROXY_SECRET, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', ...extra };
+}
+
 async function getPtToken() {
   if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
   const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
   const res   = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
     method: 'POST',
-    headers: { Authorization: `Basic ${creds}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', 'Content-Length': '0' },
+    headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
   });
-  const j = await res.json() as any;
+  const text = await res.text();
+  if (text.trim().startsWith('<')) throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
+  const j = JSON.parse(text) as any;
   if (!j.access_token) throw new Error(`Paytour auth failed`);
   ptToken       = j.access_token;
   ptTokenExpiry = Date.now() + (j.expires_in ?? 3600) * 1000 - 60_000;
@@ -57,7 +65,7 @@ async function getPtToken() {
 async function paytourGet(path: string) {
   const tk  = await getPtToken();
   const res = await fetch(`${PT_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${tk}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', Accept: 'application/json' },
+    headers: proxyHeaders({ Authorization: `Bearer ${tk}`, Accept: 'application/json' }),
     signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();

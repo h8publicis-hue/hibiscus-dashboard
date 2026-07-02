@@ -1,6 +1,7 @@
-const PT_KEY    = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
-const PT_SECRET = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
-const PT_BASE   = 'https://api-ha.paytour.com.br';
+const PT_KEY      = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET   = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+const PT_BASE      = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
+const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET ?? '';
 
 export default async function handler(_req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
@@ -10,7 +11,7 @@ export default async function handler(_req: any, res: any) {
     const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
     const authRes = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
       method: 'POST',
-      headers: { Authorization: `Basic ${creds}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', 'Content-Length': '0' },
+      headers: { 'x-proxy-secret': PROXY_SECRET, Authorization: `Basic ${creds}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', 'Content-Length': '0' },
       signal: AbortSignal.timeout(10_000),
     });
     const authText = await authRes.text();
@@ -23,7 +24,7 @@ export default async function handler(_req: any, res: any) {
 
       if (token) {
         const ordersRes = await fetch(`${PT_BASE}/v2/pedidos?por_pagina=5&pagina=1`, {
-          headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', Accept: 'application/json' },
+          headers: { 'x-proxy-secret': PROXY_SECRET, Authorization: `Bearer ${token}`, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', Accept: 'application/json' },
           signal: AbortSignal.timeout(10_000),
         });
         const ordersText = await ordersRes.text();
