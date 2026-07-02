@@ -1,6 +1,6 @@
 import { Users, Star, Target, MessageSquare, Smile, Info } from 'lucide-react';
 import { ReviewsTicker } from '../components/ReviewsTicker';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
@@ -662,6 +662,64 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     );
   })();
 
+  // ── Bloco: Ranking de Colaboradores ──────────────────────────────────────
+  const blocoStaffRanking = useMemo(() => {
+    const allResponses = survey?.allTimeResponses ?? [];
+    if (!allResponses.length) return null;
+
+    let staffList: { id: string; name: string; sector: string; aliases?: string[] }[] = [];
+    try { staffList = JSON.parse(localStorage.getItem('hibiscus-staff') ?? '[]'); } catch { /* */ }
+    if (!staffList.length) return null;
+
+    const ranked = staffList
+      .map(m => {
+        const terms = [m.name.split(' ')[0], ...(m.aliases ?? [])].filter(t => t.length >= 3);
+        if (!terms.length) return { ...m, count: 0 };
+        const regex = new RegExp(terms.map(t => `\\b${t}\\b`).join('|'), 'i');
+        const count = allResponses.filter(r => regex.test(r.text)).length;
+        return { ...m, count };
+      })
+      .filter(m => m.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    if (!ranked.length) return null;
+
+    const sectorColor: Record<string, string> = {
+      'ATENDIMENTO': 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+      'A&B':         'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+      'RECEPÇÃO':    'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400',
+    };
+    const medal = ['🥇', '🥈', '🥉'];
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center gap-1.5 mb-3">
+          <Users size={13} className="text-violet-500" />
+          <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
+            Colaboradores + Citados
+          </h2>
+        </div>
+        <div className="space-y-1.5">
+          {ranked.map((m, i) => (
+            <div key={m.id} className="flex items-center gap-2">
+              <span className="text-sm w-5 text-center shrink-0">{medal[i] ?? `${i + 1}`}</span>
+              <span className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{m.name}</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${sectorColor[m.sector] ?? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
+                {m.sector}
+              </span>
+              <span className="text-xs font-bold text-violet-600 dark:text-violet-400 shrink-0 w-6 text-right">
+                {m.count}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-gray-400 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          Menções nos comentários do survey · todos os períodos
+        </p>
+      </div>
+    );
+  }, [survey]);
+
   // ── Bloco: Satisfação ─────────────────────────────────────────────────────
   const blocoSatisfacao = (() => {
     const surveyNPS    = survey?.npsScore ?? null;
@@ -859,6 +917,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         {blocoNPS}
 
         <ReviewsTicker googleData={google} surveyData={survey} />
+
+        {blocoStaffRanking}
 
       </div>
 
