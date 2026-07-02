@@ -879,7 +879,7 @@ export function Satisfaction({ period }: SatisfactionProps) {
                         className="flex-1 text-xs px-2 py-0.5 rounded border border-violet-400 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none"
                       />
                       <select
-                        defaultValue={m.sector}
+                        value={m.sector}
                         onChange={e => updateStaff(m.id, { sector: e.target.value })}
                         className="text-[10px] px-1 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none">
                         {STAFF_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
