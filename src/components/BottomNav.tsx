@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Users } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Smile, Star, Activity } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BottomNavProps {
@@ -15,7 +15,7 @@ export function BottomNav({ occupancyAlerts, overviewAlerts, surveyAlerts, revie
     { to: '/vendas',     icon: TrendingUp,      label: 'Vendas',   alerts: 0 },
     { to: '/satisfacao', icon: Smile,           label: 'Survey',   alerts: surveyAlerts },
     { to: '/avaliacoes', icon: Star,            label: 'Avaliações', alerts: reviewsAlerts },
-    { to: '/ocupacao',   icon: Users,           label: 'Ocupação', alerts: occupancyAlerts },
+    { to: '/fluxo',      icon: Activity,        label: 'Fluxo',    alerts: 0 },
   ];
 
   return (

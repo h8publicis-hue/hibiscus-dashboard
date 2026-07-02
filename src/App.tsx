@@ -9,6 +9,7 @@ import { Reviews } from './pages/Reviews';
 import { Occupancy } from './pages/Occupancy';
 import { OccupancyInput } from './pages/OccupancyInput';
 import { Portaria } from './pages/Portaria';
+import { Fluxo } from './pages/Fluxo';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -106,6 +107,7 @@ function Dashboard() {
                   <Route path="/satisfacao" element={<Satisfaction period={period} />} />
                   <Route path="/avaliacoes" element={<Reviews period={period} />} />
                   <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
+                  <Route path="/fluxo"     element={<Fluxo />} />
                 </Routes>
               )
             }
