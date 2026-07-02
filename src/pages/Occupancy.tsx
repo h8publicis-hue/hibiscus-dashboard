@@ -1,10 +1,9 @@
 import clsx from 'clsx';
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { RotateCcw, QrCode, X, RefreshCw } from 'lucide-react';
+import { RotateCcw, QrCode, X } from 'lucide-react';
 import QRCode from 'qrcode';
-import { OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
+import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
-import { useSheetOccupancy } from '../hooks/useSheetOccupancy';
 
 const LOUNGE_GROUPS = [
   { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
@@ -201,106 +200,6 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
   );
 }
 
-// ── Painel de dados da planilha ───────────────────────────────────────────────
-function SheetPanel() {
-  const { data, loading, error } = useSheetOccupancy();
-
-  if (loading) {
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 animate-pulse">
-        <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded mb-4" />
-        <div className="grid grid-cols-3 gap-3">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 dark:bg-gray-700 rounded-xl" />)}
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800 p-4 text-xs text-red-600 dark:text-red-400">
-        Planilha de ocupação indisponível: {error}
-      </div>
-    );
-  }
-
-  const gapPositive = data.gap >= 0;
-  const updatedAt   = data.timestamp
-    ? new Date(data.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    : '—';
-
-  function SheetBar({ value, max, color }: { value: number; max: number; color: string }) {
-    const pct = Math.min(100, Math.round(value / max * 100));
-    return (
-      <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden mt-1.5">
-        <div className={clsx('h-full rounded-full transition-all duration-500', color)} style={{ width: `${pct}%` }} />
-      </div>
-    );
-  }
-
-  function MetricCard({ label, value, max, color, icon }: { label: string; value: number; max?: number; color: string; icon: string }) {
-    return (
-      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{icon} {label}</p>
-        <p className={clsx('text-2xl font-black', color)}>
-          {value}
-          {max && <span className="text-xs font-normal text-gray-400 ml-1">/{max}</span>}
-        </p>
-        {max && <SheetBar value={value} max={max} color={
-          value / max >= 0.9 ? 'bg-red-500' : value / max >= 0.6 ? 'bg-yellow-400' : 'bg-green-500'
-        } />}
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-4">
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
-            📊 Resumo de Ocupação
-            {data.stale && <span className="text-[10px] text-yellow-500 font-normal">(dados desatualizados)</span>}
-            {!data.isToday && <span className="text-[10px] text-orange-500 font-normal">(dados de {data.date})</span>}
-          </h3>
-          <p className="text-[10px] text-gray-400 mt-0.5">Atualizado às {updatedAt} · planilha ao vivo</p>
-        </div>
-        <RefreshCw size={12} className="text-gray-300 dark:text-gray-600" />
-      </div>
-
-      {/* Portaria + Total + GAP em destaque */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-gray-900 dark:bg-gray-950 rounded-xl p-3 text-center">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">🚪 Portaria</p>
-          <p className="text-3xl font-black text-white">{data.portaria}</p>
-          <p className="text-[9px] text-gray-500 mt-0.5">entradas totais</p>
-        </div>
-        <div className="bg-brand-600 rounded-xl p-3 text-center">
-          <p className="text-[10px] font-semibold text-brand-200 uppercase tracking-wider mb-1">👥 Na Casa</p>
-          <p className="text-3xl font-black text-white">{data.total}</p>
-          <p className="text-[9px] text-brand-200 mt-0.5">permanecem</p>
-        </div>
-        <div className={clsx('rounded-xl p-3 text-center', gapPositive ? 'bg-green-50 dark:bg-green-900/20' : 'bg-orange-50 dark:bg-orange-900/20')}>
-          <p className={clsx('text-[10px] font-semibold uppercase tracking-wider mb-1', gapPositive ? 'text-green-500' : 'text-orange-500')}>⚡ GAP</p>
-          <p className={clsx('text-3xl font-black', gapPositive ? 'text-green-600' : 'text-orange-600')}>{data.gap}</p>
-          <p className={clsx('text-[9px] mt-0.5', gapPositive ? 'text-green-400' : 'text-orange-400')}>
-            {gapPositive ? 'excedente' : 'não contabilizados'}
-          </p>
-        </div>
-      </div>
-
-      {/* Área por área */}
-      <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Beach" value={data.beach} max={SHEET_CAPS.beach} icon="🏖️"
-          color={data.beach / SHEET_CAPS.beach >= 0.9 ? 'text-red-600' : data.beach / SHEET_CAPS.beach >= 0.6 ? 'text-yellow-600' : 'text-gray-800 dark:text-white'} />
-        <MetricCard label="Lounge" value={data.lounge} max={SHEET_CAPS.lounge} icon="🛋️"
-          color={data.lounge / SHEET_CAPS.lounge >= 0.9 ? 'text-red-600' : data.lounge / SHEET_CAPS.lounge >= 0.6 ? 'text-yellow-600' : 'text-gray-800 dark:text-white'} />
-        <MetricCard label="Condomínio" value={data.condominio} max={SHEET_CAPS.condominio} icon="🏢"
-          color={data.condominio / SHEET_CAPS.condominio >= 0.9 ? 'text-red-600' : data.condominio / SHEET_CAPS.condominio >= 0.6 ? 'text-yellow-600' : 'text-gray-800 dark:text-white'} />
-      </div>
-    </div>
-  );
-}
 
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
   const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | null>(null);
@@ -349,7 +248,6 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
       </div>
 
       {/* Planilha ao vivo */}
-      <SheetPanel />
 
       {/* Controle manual de lounges individuais */}
       <div className="flex items-center gap-2 pt-2">
