@@ -56,58 +56,63 @@ function todayBRT(): string {
 async function doLogin(user = LOJA_USER, pass = LOJA_PASS): Promise<string> {
   if (!user || !pass) throw new Error('Credenciais não configuradas (PAYTOUR_LOJA_USER / PAYTOUR_LOJA_PASS)');
 
-  // Passo 1: GET na página de login com redirect:manual para não perder o Set-Cookie
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+
+  // Passo 1: GET /admin/login — obtém PHPSESSID inicial
   const getRes = await fetch(`${LOJA_BASE}/admin/login`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'text/html,application/xhtml+xml',
-    },
+    headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
     redirect: 'manual',
     signal: AbortSignal.timeout(10_000),
   });
-
-  const getCookies  = getRes.headers.get('set-cookie') ?? '';
-  const initSession = getCookies.match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
-  const html        = await getRes.text();
-  const csrfToken   = html.match(/name=["']?_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
-                   ?? html.match(/name=["']?csrf_token["']?\s+(?:type=["']hidden["']\s+)?value=["']([^"']+)["']/i)?.[1]
-                   ?? '';
-
+  const initSession = (getRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? '';
   if (!initSession) throw new Error('doLogin: sem PHPSESSID no GET /admin/login');
 
-  // Passo 2: POST com credenciais — PHP valida e a sessão inicial torna-se autenticada
-  // Campos confirmados via debug: "login" e "senha"; endpoint: /admin (não /admin/login)
-  const bodyFields: Record<string, string> = { login: user, senha: pass };
-  if (csrfToken) bodyFields['_token'] = csrfToken;
-
+  // Passo 2: POST credenciais (redirect:manual para capturar Set-Cookie da 302)
   const postRes = await fetch(`${LOJA_BASE}/admin`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      'User-Agent': UA,
       Accept: 'text/html,application/xhtml+xml,*/*',
       Referer: `${LOJA_BASE}/admin/login`,
-      Cookie: initSession ? `PHPSESSID=${initSession}` : '',
+      Cookie: `PHPSESSID=${initSession}`,
     },
-    body: new URLSearchParams(bodyFields).toString(),
+    body: new URLSearchParams({ login: user, senha: pass }).toString(),
     redirect: 'manual',
     signal: AbortSignal.timeout(15_000),
   });
 
-  // Após POST bem-sucedido, o initSession já fica autenticado (sem novo cookie)
-  const postCookies = postRes.headers.get('set-cookie') ?? '';
-  const newSession  = postCookies.match(/PHPSESSID=([^;]+)/i)?.[1] ?? initSession;
-
-  if (!newSession) throw new Error('Auto-login falhou — sem PHPSESSID na resposta');
-
-  // Login aceito = 302 para /admin; falha = qualquer referência a /login
   const location = postRes.headers.get('location') ?? '';
-  if (location.includes('login')) {
-    throw new Error('Auto-login rejeitado — credenciais inválidas');
-  }
+  if (location.includes('login')) throw new Error('Auto-login rejeitado — credenciais inválidas');
 
-  console.log('[checkin] auto-login OK, sessão:', newSession.slice(0, 8) + '...');
-  return newSession;
+  // Captura o PHPSESSID da resposta POST (alguns servidores regeneram aqui)
+  let session = (postRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1] ?? initSession;
+
+  // Passo 3: segue o redirect manualmente — PHP frequentemente regenera o PHPSESSID
+  // no GET /admin após login bem-sucedido (session_regenerate_id)
+  const redirectTarget = location.startsWith('http') ? location : `${LOJA_BASE}${location || '/admin'}`;
+  const getAdminRes = await fetch(redirectTarget, {
+    headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml', Cookie: `PHPSESSID=${session}` },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(10_000),
+  });
+  const adminCookie = (getAdminRes.headers.get('set-cookie') ?? '').match(/PHPSESSID=([^;]+)/i)?.[1];
+  if (adminCookie) session = adminCookie;
+
+  // Passo 4: valida se a sessão está autenticada testando o calendário
+  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const calRes = await fetch(
+    `${LOJA_BASE}/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
+    {
+      headers: { 'User-Agent': UA, Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', Cookie: `PHPSESSID=${session}` },
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  const calText = await calRes.text();
+  if (calText.trim().startsWith('<')) throw new Error('Auto-login: sessão não autenticou — servidor retornou HTML no calendário');
+
+  console.log('[checkin] auto-login OK, sessão:', session.slice(0, 8) + '...');
+  return session;
 }
 
 async function getSession(): Promise<string> {
@@ -118,8 +123,16 @@ async function getSession(): Promise<string> {
   const kv = await kvGet(SESSION_KV) as string | null;
   if (kv) { activeSession = kv; return kv; }
 
-  // Sem auto-login: bot protection bloqueia server-side. Retorna vazio → sessionExpired.
-  return '';
+  // 3. Tenta auto-login (agora com passo 3 que segue redirect e captura PHPSESSID regenerado)
+  try {
+    const session = await doLogin();
+    activeSession = session;
+    await kvSet(SESSION_KV, session, 23 * 60 * 60);
+    return session;
+  } catch (e: any) {
+    console.warn('[checkin] auto-login falhou:', e.message);
+    return '';
+  }
 }
 
 // ── Loja fetch com sessão dinâmica ────────────────────────────────────────────
