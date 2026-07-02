@@ -42,9 +42,9 @@ function useLongPress(callback: () => void) {
   };
 }
 
-function QrModal({ onClose }: { onClose: () => void }) {
+function QrModal({ path, title, onClose }: { path: string; title: string; onClose: () => void }) {
   const [dataUrl, setDataUrl] = useState<string>('');
-  const url = window.location.origin + '/entrada';
+  const url = window.location.origin + path;
 
   useEffect(() => {
     QRCode.toDataURL(url, { width: 220, margin: 2 }).then(setDataUrl).catch(() => {});
@@ -54,7 +54,7 @@ function QrModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl flex flex-col items-center gap-4 max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between w-full">
-          <h3 className="text-sm font-bold text-gray-800 dark:text-white">Controle de Ocupação</h3>
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
             <X size={16} />
           </button>
@@ -303,7 +303,7 @@ function SheetPanel() {
 }
 
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
-  const [showQr, setShowQr]               = useState(false);
+  const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | null>(null);
   const [selectedLounge, setSelectedLounge] = useState<number | null>(null);
   const [toast, setToast]                 = useState<string | null>(null);
 
@@ -316,17 +316,26 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
   return (
     <div className="p-6 space-y-6">
-      {showQr && <QrModal onClose={() => setShowQr(false)} />}
+      {showQr === 'entrada'  && <QrModal path="/entrada"  title="Controle de Ocupação" onClose={() => setShowQr(null)} />}
+      {showQr === 'portaria' && <QrModal path="/portaria" title="Controle de Portaria"  onClose={() => setShowQr(null)} />}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ocupação em Tempo Real</h2>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowQr(true)}
+            onClick={() => setShowQr('entrada')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-sm"
             title="Abrir QR code para celular/tablet"
           >
             <QrCode size={13} />
             Abrir controle
+          </button>
+          <button
+            onClick={() => setShowQr('portaria')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-white hover:bg-slate-700 transition-colors shadow-sm"
+            title="Abrir QR code da portaria"
+          >
+            <QrCode size={13} />
+            Abrir portaria
           </button>
           <button
             onClick={actions.reset}
