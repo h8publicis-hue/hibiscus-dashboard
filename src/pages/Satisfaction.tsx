@@ -873,8 +873,17 @@ export function Satisfaction({ period }: SatisfactionProps) {
                     <div className="flex gap-1 items-center">
                       <input
                         defaultValue={m.name}
-                        onBlur={e => { updateStaff(m.id, { name: e.target.value.trim() }); setEditingStaffId(null); }}
-                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        onBlur={e => {
+                          // Não fecha se o foco foi para o select ou botão da mesma linha
+                          const rel = e.relatedTarget as HTMLElement | null;
+                          if (rel && (rel.tagName === 'SELECT' || rel.tagName === 'BUTTON')) return;
+                          updateStaff(m.id, { name: e.target.value.trim() });
+                          setEditingStaffId(null);
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { updateStaff(m.id, { name: (e.target as HTMLInputElement).value.trim() }); setEditingStaffId(null); }
+                          if (e.key === 'Escape') setEditingStaffId(null);
+                        }}
                         autoFocus
                         className="flex-1 text-xs px-2 py-0.5 rounded border border-violet-400 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none"
                       />
@@ -884,7 +893,10 @@ export function Satisfaction({ period }: SatisfactionProps) {
                         className="text-[10px] px-1 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none">
                         {STAFF_SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
-                      <button onClick={() => removeStaff(m.id)} className="text-red-400 hover:text-red-600 transition-colors"><X size={12} /></button>
+                      <button
+                        tabIndex={-1}
+                        onClick={() => removeStaff(m.id)}
+                        className="text-red-400 hover:text-red-600 transition-colors"><X size={12} /></button>
                     </div>
                   ) : (
                     <button
