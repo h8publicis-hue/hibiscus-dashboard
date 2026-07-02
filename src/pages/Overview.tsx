@@ -945,6 +945,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             {blocoSatisfacao}
             {blocoNPS}
             <ReviewsTicker googleData={google} surveyData={survey} />
+            {blocoStaffRanking}
           </div>
 
         </div>
