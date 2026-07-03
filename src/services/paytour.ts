@@ -265,17 +265,11 @@ export async function fetchPaytourData(period: string): Promise<PaytourData> {
     try {
       const { since, until } = periodToDates(period);
 
-      // Para "hoje", busca por data de VISITA (não de pedido) — clientes compram com antecedência
-      const filter = period === 'today' ? '&filter=visita' : '';
-      const url    = `/api/paytour-orders?since=${since}&until=${until}${filter}`;
+      // Busca por data de PEDIDO — igual ao Resumo Financeiro do Paytour
+      const url    = `/api/paytour-orders?since=${since}&until=${until}`;
       const orders = await apiFetch(url);
       const data   = mapOrders(orders, since, until);
-
-      // Quando filtramos por visita, TODOS os pedidos retornados são de hoje →
-      // todayRevenue = totalRevenue (não filtrar de novo por data_hora_pedido)
-      const result = period === 'today'
-        ? { ...data, todayRevenue: data.totalRevenue, todayOrders: data.reservationStatus.confirmed }
-        : data;
+      const result = data;
 
       cache.set(period, { data: result, ts: Date.now() });
       return result;
