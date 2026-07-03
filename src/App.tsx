@@ -88,7 +88,7 @@ function Dashboard() {
   return (
     <>
       <KdsController active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      <div className="min-h-screen bg-gray-200 dark:bg-gray-900 flex flex-col">
         <Header
           period={period}
           onPeriodChange={setPeriod}
