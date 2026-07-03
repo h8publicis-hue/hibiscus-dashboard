@@ -357,7 +357,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const monthPctLabel = Math.round(monthPct * 100);
   const monthAbove    = monthRevenue > monthGoal ? Math.round((monthRevenue / monthGoal - 1) * 100) : 0;
   const blocoJaVendido = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600">
       <div className="flex items-center gap-1.5 mb-3">
         <Target size={14} className="text-brand-600" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">
@@ -411,7 +411,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Resumo do Período ──────────────────────────────────────────────
   const blocoResumo = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col">
       <div className="flex items-center gap-1.5 mb-3">
         <Target size={14} className="text-brand-600" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Resumo do Período</h2>
@@ -480,7 +480,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Check-in Online ────────────────────────────────────────────────
   const blocoCheckin = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600">
       <div className="flex items-center gap-1.5 mb-3">
         <Users size={14} className="text-brand-500" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Check-in Online</h2>
@@ -574,7 +574,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Receita A&BS ───────────────────────────────────────────────────
   const blocoReceitaABS = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600">
       <div className="flex items-center gap-1.5 mb-2">
         <Target size={14} className="text-brand-500" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Receita Vendas</h2>
@@ -617,7 +617,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       : null;
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Avaliações NPS</h2>
         {smL
           ? <div className="h-12 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
@@ -747,7 +747,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const label   = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Satisfação &amp; Reputação</h2>
 
         <div className={clsx(
@@ -804,7 +804,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const nacasa       = occupancy.beach + loungesTotal + occupancy.prime;
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Users size={14} className="text-gray-500" />
