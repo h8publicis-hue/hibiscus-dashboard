@@ -4,3 +4,5 @@ dist/
 .env
 .paytour-cache/
 *.log
+.vercel
+.env*

@@ -1,0 +1,7 @@
+name = "paytour-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+account_id = "81c0428f8fdd37bcc5ed7c2ebb00a8a4"
+
+[vars]
+PROXY_SECRET = "hbc-16690e52666d921f1dceb35a"

@@ -1,7 +1,7 @@
 const SHEET_ID = '1VK96eEOw9dNWu_jEHUAKM71Js7HLrZsl09tSoLXwtA8';
 const TTL      = 2 * 60 * 1000;  // cache 2 min
 
-let cache: { data: unknown; ts: number } | null = null;
+let cache: { data: Record<string, unknown>; ts: number } | null = null;
 
 function parseGvizDate(v: unknown): string {
   if (typeof v === 'string') return v.slice(0, 10);
