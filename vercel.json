@@ -42,8 +42,6 @@
   ],
   "functions": {
     "api/paytour-faturamento.ts": { "regions": ["gru1"] },
-    "api/paytour-orders.ts":      { "regions": ["gru1"] },
-    "api/paytour-debug.ts":       { "regions": ["gru1"] },
-    "api/my-ip.ts":               { "regions": ["gru1"] }
+    "api/paytour-orders.ts":      { "regions": ["gru1"] }
   }
 }
