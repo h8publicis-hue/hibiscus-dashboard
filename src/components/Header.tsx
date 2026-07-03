@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { RefreshCw, Moon, Sun, Target, Tv, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ApiStatus, Period } from '../types';
 import clsx from 'clsx';
@@ -249,6 +250,8 @@ export function Header({
   apiStatus, darkMode, onToggleDark,
   kdsMode, onToggleKds, onEditGoals,
 }: HeaderProps) {
+  const { pathname } = useLocation();
+  const hidePeriod = pathname === '/' || pathname === '/vendas';
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between gap-3 sticky top-0 z-30">
       {/* Brand */}
@@ -273,9 +276,9 @@ export function Header({
         </div>
       </div>
 
-      {/* Period selector */}
+      {/* Period selector — oculto na Visão Geral e Vendas */}
       <div className="flex items-center gap-1 flex-1 justify-center">
-        <DateRangePicker period={period} onChange={onPeriodChange} />
+        {!hidePeriod && <DateRangePicker period={period} onChange={onPeriodChange} />}
       </div>
 
       {/* Right controls */}
