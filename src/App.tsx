@@ -1,4 +1,21 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+
+// ── Seed de colaboradores — roda uma vez por browser em qualquer página ────────
+const LS_STAFF_KEY      = 'hibiscus-staff';
+const LS_STAFF_SEED_KEY = 'hibiscus-staff-seeded-v1';
+const SEED_STAFF = [
+  { name: 'Katherine', sector: 'ATENDIMENTO', aliases: ['catarine', 'catarina', 'katherine'] },
+  { name: 'Dudu',      sector: 'ATENDIMENTO' },
+  { name: 'Bruno',     sector: 'A&B' },
+  { name: 'Carlos',    sector: 'A&B' },
+  { name: 'Luciano',   sector: 'A&B' },
+];
+function ensureStaffSeed() {
+  if (localStorage.getItem(LS_STAFF_SEED_KEY)) return;
+  const seeded = SEED_STAFF.map((m, i) => ({ ...m, id: String(1000 + i) }));
+  localStorage.setItem(LS_STAFF_KEY, JSON.stringify(seeded));
+  localStorage.setItem(LS_STAFF_SEED_KEY, '1');
+}
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -25,6 +42,7 @@ import { invalidatePaytourCache } from './services/paytour';
 const KDS_INTERVAL_MS = 8000;
 
 function Dashboard() {
+  useEffect(() => { ensureStaffSeed(); }, []);
   const [period, setPeriod]       = useState<Period>('today');
   const [lastSync, setLastSync]   = useState<Date | null>(new Date());
   const [darkMode, setDarkMode]   = useState(false);
