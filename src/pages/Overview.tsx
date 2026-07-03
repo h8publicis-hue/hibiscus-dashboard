@@ -826,6 +826,21 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
         </div>
 
+        {/* Gap Portaria × Casa */}
+        {portariaCount !== null && (() => {
+          const gap = portariaCount - nacasa;
+          const isOk = gap >= 0;
+          return (
+            <div className={`rounded-lg p-2 text-center border ${isOk ? 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30' : 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20'}`}>
+              <p className="text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">↕ Gap Portaria × Casa</p>
+              <p className={`text-xl font-black ${isOk ? 'text-gray-700 dark:text-gray-200' : 'text-red-600 dark:text-red-400'}`}>
+                {isOk ? '+' : ''}{gap}
+              </p>
+              <p className="text-[8px] text-gray-400 dark:text-gray-500">{isOk ? 'saíram da casa' : 'inconsistência'}</p>
+            </div>
+          );
+        })()}
+
         {/* Beach / Lounges / Prime */}
         <div className="flex flex-col gap-1.5">
           <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
