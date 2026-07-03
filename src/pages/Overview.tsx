@@ -799,9 +799,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Ocupação ───────────────────────────────────────────────────────
   const blocoOcupacao = (() => {
+    const primeVal     = occupancy.lounges[18] ?? occupancy.prime;
     const loungesFull  = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
     const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
-    const nacasa       = occupancy.beach + loungesTotal + occupancy.prime;
+    const nacasa       = occupancy.beach + loungesTotal;
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
@@ -829,7 +830,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <div className="flex flex-col gap-1.5">
           <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
           <OccupancyRow label="🛋️ Lounges" current={loungesTotal}       max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
-          <OccupancyRow label="💎 Prime"   current={occupancy.prime}   max={SPACE_CONFIGS.prime.max} />
+          <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} />
         </div>
 
         <LoungeMap lounges={occupancy.lounges} />
