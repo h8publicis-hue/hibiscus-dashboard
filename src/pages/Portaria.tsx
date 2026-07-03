@@ -27,6 +27,8 @@ async function saveCount(value: number): Promise<void> {
 function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onClickRef  = useRef(onClick);
+  useEffect(() => { onClickRef.current = onClick; }, [onClick]);
 
   const stop = useCallback(() => {
     if (timerRef.current)    { clearTimeout(timerRef.current);    timerRef.current = null; }
@@ -34,11 +36,11 @@ function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => v
   }, []);
 
   const start = useCallback(() => {
-    onClick();
+    onClickRef.current();
     timerRef.current = setTimeout(() => {
-      intervalRef.current = setInterval(onClick, 80);
+      intervalRef.current = setInterval(() => onClickRef.current(), 80);
     }, 400);
-  }, [onClick]);
+  }, []);
 
   return (
     <button
