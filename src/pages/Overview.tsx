@@ -9,7 +9,7 @@ import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
-import { Period, Goals, OccupancyState, SPACE_CONFIGS, SHEET_CAPS } from '../types';
+import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -289,7 +289,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: survey,  loading: smL } = useSurveyMonkey(period);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
-  const { data: paytour, loading: ptL } = usePaytour(period);
+  const { data: paytour, loading: ptL } = usePaytour('today');
   const [portariaCount, setPortariaCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
