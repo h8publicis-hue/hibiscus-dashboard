@@ -329,8 +329,6 @@ export function OccupancyInput() {
   const maxLounges   = SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
   const pctLounge    = totalLounges / maxLounges;
   const pctBeach     = occ.beach / SPACE_CONFIGS.beach.max;
-  const pctPrime     = occ.prime / SPACE_CONFIGS.prime.max;
-
   const badgeColor = (pct: number) =>
     pct >= 0.9 ? 'bg-red-100 text-red-700' : pct >= 0.6 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700';
 
@@ -401,17 +399,6 @@ export function OccupancyInput() {
           {/* Grade dos lounges individuais */}
           <LoungeGrid occ={occ} update={update} />
         </div>
-
-        {/* Prime */}
-        <Counter
-          label="💎 Prime"
-          sublabel={`Capacidade: ${SPACE_CONFIGS.prime.max} espreguiçadeiras`}
-          value={occ.prime}
-          max={SPACE_CONFIGS.prime.max}
-          color={badgeColor(pctPrime)}
-          onInc={() => update({ ...occ, prime: clamp(occ.prime + 1, 0, SPACE_CONFIGS.prime.max) })}
-          onDec={() => update({ ...occ, prime: clamp(occ.prime - 1, 0, SPACE_CONFIGS.prime.max) })}
-        />
 
         {/* Zerar tudo */}
         <button
