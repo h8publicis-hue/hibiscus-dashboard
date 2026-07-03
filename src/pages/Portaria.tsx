@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const MAX = 500; // capacidade máxima do clube
+const MAX = 1000; // capacidade máxima do clube
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
