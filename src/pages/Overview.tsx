@@ -814,8 +814,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <a href="/ocupacao" className="text-[10px] text-brand-600 dark:text-white hover:underline">detalhes →</a>
         </div>
 
-        {/* Portaria + Na Casa */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Portaria + Na Casa + Gap */}
+        <div className="grid grid-cols-3 gap-2">
           <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-2 text-center">
             <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">🚪 Portaria</p>
             <p className="text-xl font-black text-slate-800 dark:text-slate-100">{portariaCount ?? '—'}</p>
@@ -824,22 +824,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             <p className="text-[9px] text-brand-500 dark:text-orange-300 uppercase tracking-wider">👥 Na Casa</p>
             <p className="text-xl font-black text-brand-700 dark:text-orange-400">{nacasa}</p>
           </div>
+          <div className="border border-red-400 dark:border-red-600 rounded-lg p-2 text-center">
+            <p className="text-[9px] text-red-400 dark:text-red-500 uppercase tracking-wider">↩ Saíram</p>
+            <p className="text-xl font-black text-red-600 dark:text-red-400">
+              {portariaCount !== null ? Math.max(0, portariaCount - nacasa) : '—'}
+            </p>
+          </div>
         </div>
-
-        {/* Gap Portaria × Casa */}
-        {portariaCount !== null && (() => {
-          const gap = portariaCount - nacasa;
-          const isOk = gap >= 0;
-          return (
-            <div className={`rounded-lg p-2 text-center border ${isOk ? 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30' : 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20'}`}>
-              <p className="text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500">↕ Gap Portaria × Casa</p>
-              <p className={`text-xl font-black ${isOk ? 'text-gray-700 dark:text-gray-200' : 'text-red-600 dark:text-red-400'}`}>
-                {isOk ? '+' : ''}{gap}
-              </p>
-              <p className="text-[8px] text-gray-400 dark:text-gray-500">{isOk ? 'saíram da casa' : 'inconsistência'}</p>
-            </div>
-          );
-        })()}
 
         {/* Beach / Lounges / Prime */}
         <div className="flex flex-col gap-1.5">
