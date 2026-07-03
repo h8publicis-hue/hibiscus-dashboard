@@ -54,7 +54,7 @@ function Dashboard() {
 
   const { loading: smL, error: smErr, data: smData }               = useSurveyMonkey(period);
   const { loading: gL,  error: gErr, notConfigured: gNC, data: gData } = useGoogleBusiness(period);
-  const { loading: ptL, error: ptErr }                              = usePaytour(period);
+  const { loading: ptL, error: ptErr }                              = usePaytour('today');
 
   const apiStatus: ApiStatus = useMemo(() => ({
     surveymonkey: smL ? 'loading' : smErr           ? 'error' : 'connected',
