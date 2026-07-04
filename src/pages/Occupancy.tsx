@@ -13,15 +13,8 @@ const LOUNGE_GROUPS = [
   { label: 'Prime ★',    ids: [18] },
 ] as const;
 
-const LOUNGE_NAMES: Record<number, string> = {
-  14: 'Anexo',
-  15: 'Gramado 1',
-  16: 'Gramado 2',
-  17: 'Gramado 3',
-};
-
 function loungeName(idx: number): string {
-  return LOUNGE_NAMES[idx] ?? `${SPACE_CONFIGS.lounge.start + idx}`;
+  return `${SPACE_CONFIGS.lounge.start + idx}`;
 }
 
 function useLongPress(callback: () => void) {
@@ -327,7 +320,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
                 return (
                   <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
                     <OccupancyCounter
-                      name={idx === 18 ? <><span className="text-yellow-600">★</span>{` Prime`}</> : loungeName(idx)}
+                      name={idx === 18 ? <><span className="text-yellow-600">★</span>{` ${SPACE_CONFIGS.lounge.start + idx}`}</> : loungeName(idx)}
                       current={count}
                       max={SPACE_CONFIGS.lounge.max}
                       selected={isSelected}
