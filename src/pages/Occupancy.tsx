@@ -208,8 +208,8 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
   const showToast = useCallback((msg: string) => { setToast(msg); }, []);
   const totalLounge = occupancy.lounges.reduce((a, b) => a + b, 0);
-  const totalMax    = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
-  const totalNow    = occupancy.beach + totalLounge + occupancy.prime;
+  const totalMax    = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
+  const totalNow    = occupancy.beach + totalLounge;
   const totalPct    = Math.round((totalNow / totalMax) * 100);
   const totalColors = occupancyColor(totalNow / totalMax);
 
@@ -256,23 +256,14 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
         <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
       </div>
 
-      {/* Beach e Prime lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <OccupancyCounter
-          name="🏖️ Beach"
-          current={occupancy.beach}
-          max={SPACE_CONFIGS.beach.max}
-          onIncrement={() => actions.setBeach(occupancy.beach + 1)}
-          onDecrement={() => actions.setBeach(occupancy.beach - 1)}
-        />
-        <OccupancyCounter
-          name="💎 Prime"
-          current={occupancy.prime}
-          max={SPACE_CONFIGS.prime.max}
-          onIncrement={() => actions.setPrime(occupancy.prime + 1)}
-          onDecrement={() => actions.setPrime(occupancy.prime - 1)}
-        />
-      </div>
+      {/* Beach */}
+      <OccupancyCounter
+        name="🏖️ Beach"
+        current={occupancy.beach}
+        max={SPACE_CONFIGS.beach.max}
+        onIncrement={() => actions.setBeach(occupancy.beach + 1)}
+        onDecrement={() => actions.setBeach(occupancy.beach - 1)}
+      />
 
       {/* Lounges — agrupados */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
