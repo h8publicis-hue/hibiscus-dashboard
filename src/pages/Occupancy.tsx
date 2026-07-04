@@ -18,7 +18,7 @@ const LOUNGE_NAMES: Record<number, string> = {
   15: 'Gramado 1',
   16: 'Gramado 2',
   17: 'Gramado 3',
-  18: '★ Prime',
+  18: 'Prime',
 };
 
 function loungeName(idx: number): string {
@@ -97,7 +97,7 @@ interface OccupancyProps {
 }
 
 interface CounterProps {
-  name: string;
+  name: React.ReactNode;
   current: number;
   max: number;
   onIncrement: () => void;
@@ -321,9 +321,6 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
           {/* Anexo + Gramado + Prime — grade de 7 colunas igual às fileiras acima */}
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              Anexo · Gramado · <span className="text-yellow-400">Prime ★</span>
-            </p>
             <div className="grid grid-cols-7 gap-1.5">
               {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[3].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
                 const count = occupancy.lounges[idx];
@@ -331,7 +328,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
                 return (
                   <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
                     <OccupancyCounter
-                      name={loungeName(idx)}
+                      name={idx === 18 ? <><span className="text-yellow-600">★</span> Prime</> : loungeName(idx)}
                       current={count}
                       max={SPACE_CONFIGS.lounge.max}
                       selected={isSelected}
