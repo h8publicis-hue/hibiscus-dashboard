@@ -68,8 +68,9 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
       update({ ...state, lounges });
     },
     setPrime: (n) => update({ ...state, lounges: state.lounges, beach: state.beach, prime: clamp(n, 0, 10) }),
-    reset: () => {
+    reset: async () => {
       if (window.confirm('Zerar todos os contadores de ocupação?')) {
+        await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
         update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 });
       }
     },

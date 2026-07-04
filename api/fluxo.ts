@@ -1,7 +1,7 @@
-// Análise do fluxo de clientes — lê histórico da planilha Google Sheets.
-// Colunas: A=Data B=Beach C=Condomínio D=Gap E=Lounge F=Portaria G=Total H=Timestamp
+// Análise do fluxo de clientes — lê histórico do KV (gravado pelo fluxo-snapshot).
 
-const SHEET_ID = '1VK96eEOw9dNWu_jEHUAKM71Js7HLrZsl09tSoLXwtA8';
+const KV_URL   = process.env.KV_REST_API_URL   ?? '';
+const KV_TOKEN = process.env.KV_REST_API_TOKEN ?? '';
 
 export interface FluxoRow {
   date:       string;
@@ -13,57 +13,56 @@ export interface FluxoRow {
   gap:        number;
 }
 
-function parseGvizDate(v: unknown): string {
-  if (typeof v === 'string') return v.slice(0, 10);
-  if (typeof v === 'object' && v !== null) {
-    const m = String(v).match(/Date\((\d+),(\d+),(\d+)\)/);
-    if (m) return `${m[1]}-${String(Number(m[2]) + 1).padStart(2, '0')}-${m[3].padStart(2, '0')}`;
-  }
-  return '';
+async function kvKeys(pattern: string): Promise<string[]> {
+  if (!KV_URL || !KV_TOKEN) return [];
+  try {
+    const r = await fetch(`${KV_URL}/keys/${encodeURIComponent(pattern)}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    });
+    const j = await r.json() as any;
+    return Array.isArray(j?.result) ? j.result : [];
+  } catch { return []; }
 }
 
-function num(v: unknown): number { return Number(v) || 0; }
+async function kvGet(key: string): Promise<FluxoRow | null> {
+  if (!KV_URL || !KV_TOKEN) return null;
+  try {
+    const r = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    });
+    const j = await r.json() as any;
+    const result = j?.result;
+    if (!result) return null;
+    return typeof result === 'string' ? JSON.parse(result) : result;
+  } catch { return null; }
+}
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
 
   const { de, ate } = req.query as Record<string, string>;
-
-  // Sem datas → retorna últimos 90 dias
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const dateFrom = de  || (() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().slice(0, 10); })();
   const dateTo   = ate || today;
 
   try {
-    const tq = encodeURIComponent(
-      `SELECT A, B, C, D, E, F, G WHERE A >= date '${dateFrom}' AND A <= date '${dateTo}' ORDER BY A ASC`
-    );
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&tq=${tq}`;
-    const r   = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    const text = await r.text();
+    const allKeys = await kvKeys('fluxo:*');
 
-    const start = text.indexOf('{');
-    const end   = text.lastIndexOf('}');
-    const json  = JSON.parse(text.slice(start, end + 1)) as any;
+    const keysInRange = allKeys
+      .filter(k => {
+        const d = k.replace('fluxo:', '');
+        return d >= dateFrom && d <= dateTo;
+      })
+      .sort();
 
-    const rows: FluxoRow[] = (json?.table?.rows ?? []).map((row: any) => {
-      const c = row.c as Array<{ v: unknown } | null>;
-      return {
-        date:       parseGvizDate(c[0]?.v),
-        beach:      num(c[1]?.v),
-        condominio: num(c[2]?.v),
-        gap:        num(c[3]?.v),
-        lounge:     num(c[4]?.v),
-        portaria:   num(c[5]?.v),
-        total:      num(c[6]?.v),
-      };
-    }).filter((r: FluxoRow) => r.date);
+    const rows = (await Promise.all(keysInRange.map(k => kvGet(k))))
+      .filter((r): r is FluxoRow => r !== null && !!r.date)
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     return res.json({ rows, dateFrom, dateTo });
   } catch (err: any) {
     console.error('[fluxo]', err.message);
-    return res.status(500).json({ error: String(err) });
+    return res.status(500).json({ error: String(err), rows: [] });
   }
 }

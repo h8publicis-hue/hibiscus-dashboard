@@ -38,7 +38,8 @@
     }
   ],
   "crons": [
-    { "path": "/api/checkin-keepalive", "schedule": "0 6 * * *" }
+    { "path": "/api/checkin-keepalive",          "schedule": "0 6 * * *"  },
+    { "path": "/api/fluxo-snapshot?action=save", "schedule": "0 21 * * *" }
   ],
   "functions": {
     "api/paytour-faturamento.ts": { "regions": ["gru1"] },

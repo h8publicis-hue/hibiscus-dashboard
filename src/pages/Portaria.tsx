@@ -144,10 +144,11 @@ export function Portaria() {
 
         {/* Zerar */}
         <button
-          onClick={() => {
+          onClick={async () => {
             const senha = window.prompt('Digite a senha para zerar:');
             if (senha === null) return;
             if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
+            await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
             update(0);
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
