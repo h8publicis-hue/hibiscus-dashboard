@@ -322,7 +322,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
           {/* Anexo + Gramado + Prime — grade de 7 colunas igual às fileiras acima */}
           <div>
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-5 gap-1.5">
               {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[3].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
                 const count = occupancy.lounges[idx];
                 const isSelected = selectedLounge === idx;
