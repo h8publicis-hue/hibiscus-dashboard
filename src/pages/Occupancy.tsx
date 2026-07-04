@@ -307,32 +307,30 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             </div>
           ))}
 
-          {/* Anexo + Gramado + Prime */}
-          <div className="flex gap-4 flex-wrap">
-            {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
-              <div key={group.label}>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{group.label.includes('★') ? <>{group.label.replace('★','')}<span className="text-yellow-400">★</span></> : group.label}</p>
-                <div className="flex gap-1.5">
-                  {group.ids.map((idx) => {
-                    const count = occupancy.lounges[idx];
-                    const isSelected = selectedLounge === idx;
-                    return (
-                      <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer w-16">
-                        <OccupancyCounter
-                          name={`${SPACE_CONFIGS.lounge.start + idx}`}
-                          current={count}
-                          max={SPACE_CONFIGS.lounge.max}
-                          selected={isSelected}
-                          onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
-                          onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
-                          compact
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          {/* Anexo + Gramado + Prime — grade de 7 colunas igual às fileiras acima */}
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Anexo · Gramado · <span className="text-yellow-400">Prime ★</span>
+            </p>
+            <div className="grid grid-cols-7 gap-1.5">
+              {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[3].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
+                const count = occupancy.lounges[idx];
+                const isSelected = selectedLounge === idx;
+                return (
+                  <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
+                    <OccupancyCounter
+                      name={`${SPACE_CONFIGS.lounge.start + idx}`}
+                      current={count}
+                      max={SPACE_CONFIGS.lounge.max}
+                      selected={isSelected}
+                      onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                      onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                      compact
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
