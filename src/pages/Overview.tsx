@@ -83,8 +83,8 @@ const LOUNGE_GROUPS = [
   { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
-  { label: 'Gramado',    ids: [15, 16, 17] },
-  { label: 'Prime ★',    ids: [18] },
+  { label: 'Prime ★',    ids: [15] },
+  { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
 const MONTH_REV_TTL = 60 * 60 * 1000; // 1h — igual ao hook
@@ -799,7 +799,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Ocupação ───────────────────────────────────────────────────────
   const blocoOcupacao = (() => {
-    const primeVal     = occupancy.lounges[18] ?? occupancy.prime;
+    const primeVal     = occupancy.lounges[15] ?? occupancy.prime;
     const loungesFull  = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
     const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
     const nacasa       = occupancy.beach + loungesTotal;
