@@ -9,8 +9,8 @@ const LOUNGE_GROUPS = [
   { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
-  { label: 'Gramado',    ids: [15, 16, 17] },
-  { label: 'Prime ★',    ids: [18] },
+  { label: 'Prime ★',    ids: [15] },
+  { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
 const LOUNGE_LABELS: Record<number, string> = {
@@ -322,14 +322,14 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
           {/* Anexo + Gramado + Prime — grade de 7 colunas igual às fileiras acima */}
           <div>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5">
               {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[3].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
                 const count = occupancy.lounges[idx];
                 const isSelected = selectedLounge === idx;
                 return (
                   <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
                     <OccupancyCounter
-                      name={idx === 18 ? <><span className="text-yellow-600">★</span>{` Prime · ${SPACE_CONFIGS.lounge.start + idx}`}</> : loungeName(idx)}
+                      name={idx === 15 ? <><span className="text-yellow-600">★</span>{` ${SPACE_CONFIGS.lounge.start + idx}`}</> : loungeName(idx)}
                       current={count}
                       max={SPACE_CONFIGS.lounge.max}
                       selected={isSelected}
