@@ -205,7 +205,12 @@ export default async function handler(req: any, res: any) {
       activeSession = session;
       await kvSet(SESSION_KV, session, 23 * 60 * 60);
       memCache = null;
-      return res.json({ ok: true, session: session.slice(0, 8) + '...' });
+      // Invalida cache do dia e busca dados frescos imediatamente
+      await kvSet(`checkin:${todayBRT()}`, '', 1);
+      const freshData = await fetchCheckin();
+      memCache = { data: freshData, ts: freshData.ts };
+      kvSet(`checkin:${todayBRT()}`, freshData);
+      return res.json({ ok: true, session: session.slice(0, 8) + '...', data: freshData });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e.message });
     }

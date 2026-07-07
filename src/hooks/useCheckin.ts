@@ -35,7 +35,10 @@ async function fetchOnce(
   }
 }
 
-export async function checkinManualLogin(login: string, senha: string): Promise<{ ok: boolean; error?: string }> {
+export async function checkinManualLogin(
+  login: string,
+  senha: string,
+): Promise<{ ok: boolean; error?: string; data?: CheckinData }> {
   try {
     const r = await fetch('/api/checkin', {
       method: 'POST',
@@ -43,7 +46,12 @@ export async function checkinManualLogin(login: string, senha: string): Promise<
       body: JSON.stringify({ login, senha }),
     });
     const j = await r.json() as any;
-    if (j.ok) cache = null;
+    if (j.ok && j.data) {
+      // Usa os dados frescos que o POST já trouxe — sem segundo round-trip
+      cache = { ...j.data, fetchedAt: Date.now() };
+    } else if (j.ok) {
+      cache = null;
+    }
     return j;
   } catch (e: any) {
     return { ok: false, error: String(e) };
@@ -80,5 +88,5 @@ export function useCheckin() {
     return () => { cancelled = true; };
   }, [loading]);
 
-  return { data, loading, refresh };
+  return { data, loading, refresh, setData };
 }

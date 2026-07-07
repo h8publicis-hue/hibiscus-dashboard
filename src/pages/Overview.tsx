@@ -300,7 +300,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   }, []);
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
-  const { data: checkinData, loading: checkinL, refresh: checkinRefresh } = useCheckin();
+  const { data: checkinData, loading: checkinL, refresh: checkinRefresh, setData: setCheckinData } = useCheckin();
   const [loginForm, setLoginForm] = useState({ login: '', senha: '', error: '', sending: false });
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
@@ -540,7 +540,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     const res = await checkinManualLogin('__phpsessid__', loginForm.login);
                     if (res.ok) {
                       setLoginForm({ login: '', senha: '', error: '', sending: false });
-                      checkinRefresh();
+                      if (res.data) setCheckinData(res.data);
+                      else checkinRefresh();
                     } else {
                       setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Sessão inválida' }));
                     }
