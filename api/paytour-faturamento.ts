@@ -13,7 +13,7 @@ const PT_BASE     = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
 const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET ?? '';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
-const TOTAL_TTL = 60 * 60 * 1000;    // 1h — TTL do cache de total em memória
+const TOTAL_TTL = 10 * 60 * 1000;    // 10 min — atualiza mais frequente (acumulador busca só 1 pág)
 const ACC_TTL   = 60 * 60 * 24 * 45; // 45 dias em segundos — TTL do acumulador Redis
 
 // Total dos 163 pedidos aprovados exportados via XLS em 29/06/2026.

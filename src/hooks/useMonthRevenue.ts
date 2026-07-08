@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const TTL    = 60 * 60 * 1000; // 1 hora
+const TTL    = 10 * 60 * 1000; // 10 min
 let cache: { revenue: number; ts: number } | null = null;
 
 export function useMonthRevenue() {
