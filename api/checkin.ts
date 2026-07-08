@@ -153,8 +153,8 @@ async function fetchCheckin(): Promise<CheckinData> {
   const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
   if (!dayuse) return { reservados, sessionActive: false, ts: Date.now() };
 
-  const total      = Number(dayuse.total     ?? 0);
-  const lojaRes    = Number(dayuse.reservados ?? 0);
+  const total       = Number(dayuse.total      ?? 0);
+  const lojaRes     = Number(dayuse.reservados ?? 0);
   const disponiveis = total - lojaRes;
 
   const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${dayuse.id}`, session);
@@ -166,7 +166,7 @@ async function fetchCheckin(): Promise<CheckinData> {
   }
 
   return {
-    reservados,
+    reservados: lojaRes,   // da loja — correto para o dia, não o histórico Paytour
     sessionActive: true,
     disponiveis,
     checkins,
