@@ -298,7 +298,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const id = setInterval(load, 60_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
-  const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
+  const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs, atualizadoEm: monthRevAtualizadoEm, update: updateMonthRevenue } = useMonthRevenue();
+  const [monthRevInput, setMonthRevInput] = useState('');
+  const [monthRevEditing, setMonthRevEditing] = useState(false);
+  const [monthRevSaving, setMonthRevSaving] = useState(false);
   const { data: absData, loading: absL } = useReceitaABS();
   const { data: checkinData, loading: checkinL, refresh: checkinRefresh, setData: setCheckinData } = useCheckin();
   const [loginForm, setLoginForm] = useState({ login: '', senha: '', error: '', sending: false });
@@ -397,11 +400,47 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     />
                   </div>
                 </div>
-                {monthRevTs && (
-                  <p className="text-[10px] text-gray-400 text-right">
-                    Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    {' · '}próx. às {new Date(monthRevTs + 10 * 60 * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                {/* Atualização manual do valor Paytour */}
+                {monthRevEditing ? (
+                  <div className="flex gap-1 mt-1">
+                    <input
+                      type="number"
+                      value={monthRevInput}
+                      onChange={e => setMonthRevInput(e.target.value)}
+                      placeholder="Ex: 20127"
+                      className="flex-1 text-xs border border-gray-300 dark:border-gray-500 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                      autoFocus
+                    />
+                    <button
+                      disabled={monthRevSaving}
+                      onClick={async () => {
+                        const v = parseFloat(monthRevInput);
+                        if (isNaN(v) || v <= 0) return;
+                        setMonthRevSaving(true);
+                        await updateMonthRevenue(v);
+                        setMonthRevSaving(false);
+                        setMonthRevEditing(false);
+                        setMonthRevInput('');
+                      }}
+                      className="text-xs bg-brand-600 text-white px-2 py-1 rounded disabled:opacity-50"
+                    >
+                      {monthRevSaving ? '...' : 'Salvar'}
+                    </button>
+                    <button onClick={() => setMonthRevEditing(false)} className="text-xs text-gray-400 px-1">✕</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between mt-1">
+                    {monthRevAtualizadoEm
+                      ? <p className="text-[10px] text-gray-400">Sync {new Date(monthRevAtualizadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(monthRevAtualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                      : <p className="text-[10px] text-gray-400">Base fixa — sincronize com Paytour</p>
+                    }
+                    <button
+                      onClick={() => { setMonthRevInput(monthRevRaw ? String(Math.round(monthRevRaw)) : ''); setMonthRevEditing(true); }}
+                      className="text-[10px] text-brand-500 underline"
+                    >
+                      Atualizar
+                    </button>
+                  </div>
                 )}
               </div>
             )
