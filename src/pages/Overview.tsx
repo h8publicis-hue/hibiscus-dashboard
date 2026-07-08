@@ -160,26 +160,46 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
       {/* Separador visual */}
       <div className="border-t border-gray-100 dark:border-gray-700" />
 
-      {/* Anexo + Gramado + Prime */}
-      <div className="flex gap-3 items-start">
-        {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
-          <div key={group.label} className="flex flex-col gap-1">
-            <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
-            <div className="flex gap-1">
-              {group.ids.map((idx) => {
-                const v = lounges[idx];
-                const pct = v / SPACE_CONFIGS.lounge.max;
-                const num = SPACE_CONFIGS.lounge.start + idx;
-                return (
-                  <div key={idx} className={clsx('w-11 rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct))}>
-                    <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
-                    <span className="text-2xl font-black leading-tight">{v}</span>
-                  </div>
-                );
-              })}
+      {/* Anexo + Gramado à esquerda · Prime★ isolado à direita (abaixo do 514) */}
+      <div className="flex items-start justify-between">
+        <div className="flex gap-3 items-start">
+          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[4]].map((group) => (
+            <div key={group.label} className="flex flex-col gap-1">
+              <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
+              <div className="flex gap-1">
+                {group.ids.map((idx) => {
+                  const v = lounges[idx];
+                  const pct = v / SPACE_CONFIGS.lounge.max;
+                  const num = SPACE_CONFIGS.lounge.start + idx;
+                  return (
+                    <div key={idx} className={clsx('w-11 rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct))}>
+                      <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
+                      <span className="text-2xl font-black leading-tight">{v}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Prime★ — isolado à direita abaixo do 514 */}
+        <div className="flex flex-col gap-1 items-end">
+          <LoungeLabel label="Prime ★" className="text-[10px] font-semibold text-yellow-600" />
+          <div className="flex gap-1">
+            {LOUNGE_GROUPS[3].ids.map((idx) => {
+              const v = lounges[idx];
+              const pct = v / SPACE_CONFIGS.lounge.max;
+              const num = SPACE_CONFIGS.lounge.start + idx;
+              return (
+                <div key={idx} className={clsx('w-11 rounded flex flex-col items-center justify-center py-2 text-center ring-1 ring-yellow-400', loungeBg(v, pct))}>
+                  <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
+                  <span className="text-2xl font-black leading-tight">{v}</span>
+                </div>
+              );
+            })}
           </div>
-        ))}
+        </div>
       </div>
 
       {/* Legenda */}
