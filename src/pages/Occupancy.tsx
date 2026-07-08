@@ -5,6 +5,39 @@ import QRCode from 'qrcode';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
 
+const PORTARIA_MAX = 1000;
+
+function usePortaria() {
+  const [count, setCount] = useState(0);
+
+  const fetchCount = useCallback(async () => {
+    try {
+      const r = await fetch('/api/portaria');
+      if (!r.ok) return;
+      const j = await r.json() as any;
+      setCount(Math.min(PORTARIA_MAX, Math.max(0, Number(j.count ?? 0))));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchCount();
+    const id = setInterval(fetchCount, 30_000);
+    return () => clearInterval(id);
+  }, [fetchCount]);
+
+  const update = useCallback((next: number) => {
+    const v = Math.min(PORTARIA_MAX, Math.max(0, next));
+    setCount(v);
+    fetch('/api/portaria', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ set: v }),
+    }).catch(() => {});
+  }, []);
+
+  return { count, update };
+}
+
 const LOUNGE_GROUPS = [
   { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
@@ -218,6 +251,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
   const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | null>(null);
   const [selectedLounge, setSelectedLounge] = useState<number | null>(null);
   const [toast, setToast]                 = useState<string | null>(null);
+  const portaria = usePortaria();
 
   const showToast = useCallback((msg: string) => { setToast(msg); }, []);
   const totalLounge = occupancy.lounges.reduce((a, b) => a + b, 0);
@@ -269,14 +303,23 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
         <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
       </div>
 
-      {/* Beach */}
-      <OccupancyCounter
-        name="🏖️ Beach"
-        current={occupancy.beach}
-        max={SPACE_CONFIGS.beach.max}
-        onIncrement={() => actions.setBeach(occupancy.beach + 1)}
-        onDecrement={() => actions.setBeach(occupancy.beach - 1)}
-      />
+      {/* Beach + Portaria */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <OccupancyCounter
+          name="🏖️ Beach"
+          current={occupancy.beach}
+          max={SPACE_CONFIGS.beach.max}
+          onIncrement={() => actions.setBeach(occupancy.beach + 1)}
+          onDecrement={() => actions.setBeach(occupancy.beach - 1)}
+        />
+        <OccupancyCounter
+          name="🚪 Portaria"
+          current={portaria.count}
+          max={PORTARIA_MAX}
+          onIncrement={() => portaria.update(portaria.count + 1)}
+          onDecrement={() => portaria.update(portaria.count - 1)}
+        />
+      </div>
 
       {/* Lounges — agrupados */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
