@@ -1,21 +1,29 @@
-// Faturamento do mês — valor manual sincronizado via KV.
+// Faturamento do mês — pedidos aprovados do mês corrente.
 //
-// A API do Paytour não retorna data de visita na listagem nem suporta filtro por
-// disponibilidade_data (retorna total histórico independente do filtro).
-// Portanto, o valor é informado manualmente via POST e compartilhado entre todos os PCs.
+// Junho/2026: total hardcoded do XLS exportado (163 pedidos aprovados).
+// Só busca pedidos novos com ID > XLS_JUNE_MAX_ID para minimizar chamadas à API.
+// Meses futuros: acumulador Redis cresce conforme pedidos aparecem na janela de 50 recentes.
 //
-// POST /api/paytour-faturamento  { mes: "2026-07", receita: 20127.00 }
-// GET  /api/paytour-faturamento  → retorna receita do mês corrente
+// Máximo de chamadas por refresh: 2 (1 auth + 1 listagem). Sem burst de centenas de requests.
 
+const PT_KEY      = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET   = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+const PT_BASE     = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
+const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET ?? '';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
-const TTL_SEC   = 60 * 60 * 24 * 60; // 60 dias
+const TOTAL_TTL = 10 * 60 * 1000;    // 10 min
+const ACC_TTL   = 60 * 60 * 24 * 45; // 45 dias em segundos — TTL do acumulador Redis
 
-// Bases conhecidas — usadas enquanto não houver valor no KV
-const BASES: Record<string, number> = {
-  '2026-06': 46298.00,  // XLS exportado em 29/06/2026
-  '2026-07': 20127.00,  // Resumo Financeiro Paytour em 08/07/2026
-};
+const XLS_JUNE_TOTAL  = 46298.00;
+const XLS_JUNE_MAX_ID = 4085703;
+
+// Piso de julho — valor verificado no Resumo Financeiro Paytour em 08/07/2026
+const JULY_2026_SEED = 20127.00;
+
+let ptToken = ''; let ptTokenExpiry = 0;
+let memCache: { revenue: number; ts: number } | null = null;
+let inflight: Promise<number> | null = null;
 
 async function kvGet(key: string) {
   if (!KV_URL || !KV_TOKEN) return null;
@@ -27,48 +35,136 @@ async function kvGet(key: string) {
     return typeof raw === 'string' ? JSON.parse(raw) : raw;
   } catch { return null; }
 }
-
-async function kvSet(key: string, value: unknown) {
+async function kvSet(key: string, value: unknown, ttlSec: number) {
   if (!KV_URL || !KV_TOKEN) return;
   try {
-    await fetch(`${KV_URL}/set/${encodeURIComponent(key)}?ex=${TTL_SEC}`, {
+    await fetch(`${KV_URL}/set/${encodeURIComponent(key)}?ex=${ttlSec}`, {
       method: 'POST', headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'text/plain' },
       body: JSON.stringify(value),
     });
   } catch { /* ignore */ }
 }
 
-export default async function handler(req: any, res: any) {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store');
+function proxyHeaders(extra: Record<string, string> = {}) {
+  return { 'x-proxy-secret': PROXY_SECRET, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', ...extra };
+}
 
-  const now  = new Date();
-  const pad  = (n: number) => String(n).padStart(2, '0');
-  const mes  = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-  const since = `${mes}-01`;
-  const until = `${mes}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
+async function getPtToken() {
+  if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
+  const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
+  const res = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
+    method: 'POST',
+    headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
+  });
+  const text = await res.text();
+  if (text.trim().startsWith('<')) throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
+  const j = JSON.parse(text) as any;
+  if (!j.access_token) throw new Error('Paytour auth failed');
+  ptToken = j.access_token;
+  ptTokenExpiry = Date.now() + (j.expires_in ?? 3600) * 1000 - 60_000;
+  return ptToken;
+}
 
-  // ── POST: atualiza valor do mês no KV ────────────────────────────────────────
-  if (req.method === 'POST') {
-    const body    = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
-    const mesPOST = (body.mes as string) ?? mes;
-    const receita = Number(body.receita);
-    if (!mesPOST || isNaN(receita) || receita < 0)
-      return res.status(400).json({ error: 'Campos obrigatórios: mes (YYYY-MM), receita (number)' });
+async function paytourGet(path: string) {
+  const tk = await getPtToken();
+  const res = await fetch(`${PT_BASE}${path}`, {
+    headers: proxyHeaders({ Authorization: `Bearer ${tk}`, Accept: 'application/json' }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const text = await res.text();
+  if (text.trim().startsWith('<')) throw new Error(`Paytour retornou HTML (status ${res.status}) — possível rate limit`);
+  return JSON.parse(text);
+}
 
-    const entry = { receita, mes: mesPOST, atualizado_em: new Date().toISOString() };
-    await kvSet(`ptf-manual:${mesPOST}`, entry);
-    console.log(`[fat] POST manual: ${mesPOST} = R$${receita.toFixed(2)}`);
-    return res.json({ ok: true, ...entry });
+async function computeRevenue(since: string, until: string): Promise<number> {
+  const month = since.slice(0, 7);
+
+  if (month === '2026-06') {
+    let extraTotal = 0;
+    let extraCount = 0;
+    try {
+      const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+      for (const o of page?.itens ?? []) {
+        const id = Number(o.id);
+        if (id <= XLS_JUNE_MAX_ID) continue;
+        const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
+        if (d >= since && d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
+          extraTotal += parseFloat(o.valor || '0') - parseFloat(o.desconto || '0');
+          extraCount++;
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[fat] junho/2026: falha extras (${e.message}) — usando só XLS`);
+    }
+    const total = XLS_JUNE_TOTAL + extraTotal;
+    console.log(`[fat] junho/2026: XLS R$${XLS_JUNE_TOTAL} + ${extraCount} novos = R$${total.toFixed(2)}`);
+    return total;
   }
 
-  // ── GET: retorna valor do mês corrente ───────────────────────────────────────
-  const kv = await kvGet(`ptf-manual:${mes}`) as { receita: number; atualizado_em: string } | null;
+  // Acumulador Redis — cresce conforme novos pedidos aparecem na página 1
+  const accKey = `ptf-acc:${month}`;
+  const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
-  const revenue      = kv?.receita ?? BASES[mes] ?? 0;
-  const atualizado   = kv?.atualizado_em ?? null;
-  const fonte        = kv ? 'manual' : (BASES[mes] !== undefined ? 'base' : 'zero');
+  const seeds: Record<string, number> = { '2026-07': JULY_2026_SEED };
+  const seed = seeds[month] ?? 0;
 
-  console.log(`[fat] GET ${mes}: R$${revenue.toFixed(2)} fonte=${fonte}`);
-  return res.json({ revenue, since, until, atualizado_em: atualizado, fonte });
+  try {
+    const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+    let added = 0;
+    for (const o of page?.itens ?? []) {
+      const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
+      if (d >= since && d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
+        const id = String(o.id);
+        if (!acc[id]) {
+          acc[id] = { valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') };
+          added++;
+        }
+      }
+    }
+    if (added > 0) await kvSet(accKey, acc, ACC_TTL);
+    const n = Object.keys(acc).length;
+    const apiRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const revenue = Math.max(apiRevenue, seed);
+    console.log(`[fat] acumulador ${month}: ${n} pedidos (+${added} novos), api=R$${apiRevenue.toFixed(2)}, seed=R$${seed}, total=R$${revenue.toFixed(2)}`);
+    return revenue;
+  } catch (e: any) {
+    const apiRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const revenue = Math.max(apiRevenue, seed);
+    console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando R$${revenue.toFixed(2)}`);
+    return revenue;
+  }
+}
+
+export default async function handler(req: any, res: any) {
+  res.setHeader('Content-Type', 'application/json');
+  if (!PT_KEY || !PT_SECRET) return res.json({ revenue: 0 });
+
+  const now   = new Date();
+  const pad   = (n: number) => String(n).padStart(2, '0');
+  const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+  const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
+  const key   = `ptf-v18:${since}_${until}`;
+
+  if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
+  const kv = await kvGet(key);
+  if (kv && Date.now() - kv.ts < TOTAL_TTL) { memCache = kv; return res.json({ revenue: kv.revenue, since, until }); }
+
+  if (inflight) {
+    try { const revenue = await inflight; return res.json({ revenue, since, until }); }
+    catch { if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true }); }
+  }
+
+  inflight = computeRevenue(since, until).finally(() => { inflight = null; });
+
+  try {
+    const revenue = await inflight;
+    const entry   = { revenue, ts: Date.now() };
+    memCache = entry;
+    kvSet(key, entry, Math.floor(TOTAL_TTL / 1000));
+    return res.json({ revenue, since, until });
+  } catch (err: any) {
+    console.error('[fat]', err.message);
+    if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true });
+    return res.status(500).json({ error: String(err) });
+  }
 }
