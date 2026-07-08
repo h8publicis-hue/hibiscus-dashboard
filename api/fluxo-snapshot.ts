@@ -1,6 +1,6 @@
 // Snapshot diário do fluxo — grava portaria + ocupação no KV como histórico.
-// GET ?action=save  → tira snapshot (usado pelo cron às 18h BRT)
-// POST              → tira snapshot (chamado pelo frontend antes de zerar)
+// GET ?action=save  → cron 18h BRT: só grava se portaria > 0 e não piora dados existentes
+// POST              → reset manual: sempre grava (captura o pico antes de zerar)
 // GET               → retorna snapshot do dia (leitura)
 
 const KV_URL   = process.env.KV_REST_API_URL   ?? '';
@@ -33,26 +33,21 @@ async function kvSet(key: string, value: unknown, ttlSeconds?: number) {
   });
 }
 
-async function takeSnapshot(date: string) {
+const TTL_2Y = 2 * 365 * 24 * 3600;
+
+async function buildSnapshot(date: string) {
   const [portariaRaw, ocupacaoRaw] = await Promise.all([
     kvGet(`portaria:${date}`),
     kvGet('ocupacao'),
   ]);
 
-  const portaria   = Number(portariaRaw ?? 0) || 0;
-  const beach      = Number(ocupacaoRaw?.beach ?? 0);
-  const loungeTotal = (ocupacaoRaw?.lounges as number[] | undefined)?.reduce((a: number, b: number) => a + b, 0) ?? 0;
-  const lounge     = loungeTotal;
-  const condominio = 0;
-  const total      = portaria;
-  const gap        = portaria - (beach + lounge);
+  const portaria    = Number(portariaRaw ?? 0) || 0;
+  const beach       = Number(ocupacaoRaw?.beach ?? 0);
+  const loungeTotal = (ocupacaoRaw?.lounges as number[] | undefined)
+    ?.reduce((a: number, b: number) => a + b, 0) ?? 0;
+  const gap = portaria - (beach + loungeTotal);
 
-  const snapshot = { date, portaria, beach, lounge, condominio, total, gap };
-
-  // TTL de 2 anos
-  await kvSet(`fluxo:${date}`, snapshot, 2 * 365 * 24 * 3600);
-
-  return snapshot;
+  return { date, portaria, beach, lounge: loungeTotal, condominio: 0, total: portaria, gap };
 }
 
 export default async function handler(req: any, res: any) {
@@ -60,21 +55,47 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'no-store');
 
   const today = todayBRT();
+  const kvKey = `fluxo:${today}`;
 
-  // Cron (GET ?action=save) ou POST do frontend → tira snapshot
-  if (req.method === 'POST' || req.query?.action === 'save') {
+  // ── Cron às 18h (GET ?action=save) ───────────────────────────────────────────
+  if (req.query?.action === 'save') {
     try {
-      const snapshot = await takeSnapshot(today);
-      return res.json({ ok: true, snapshot });
+      const snap = await buildSnapshot(today);
+
+      // Só grava se portaria > 0 (dia com atividade real)
+      if (snap.portaria === 0) {
+        return res.json({ ok: true, skipped: true, reason: 'portaria=0', snap });
+      }
+
+      // Não sobrescreve se o registro existente já tem portaria maior
+      const existing = await kvGet(kvKey) as { portaria?: number } | null;
+      if (existing && (existing.portaria ?? 0) >= snap.portaria) {
+        return res.json({ ok: true, skipped: true, reason: 'existing is better', existing, snap });
+      }
+
+      await kvSet(kvKey, snap, TTL_2Y);
+      return res.json({ ok: true, snapshot: snap });
     } catch (err: any) {
-      console.error('[fluxo-snapshot]', err.message);
+      console.error('[fluxo-snapshot cron]', err.message);
       return res.status(500).json({ error: String(err) });
     }
   }
 
-  // GET simples → retorna snapshot do dia (sem gravar)
+  // ── POST do frontend (antes de zerar) — sempre grava ─────────────────────────
+  if (req.method === 'POST') {
+    try {
+      const snap = await buildSnapshot(today);
+      await kvSet(kvKey, snap, TTL_2Y);
+      return res.json({ ok: true, snapshot: snap });
+    } catch (err: any) {
+      console.error('[fluxo-snapshot reset]', err.message);
+      return res.status(500).json({ error: String(err) });
+    }
+  }
+
+  // ── GET simples → retorna snapshot do dia (sem gravar) ───────────────────────
   if (req.method === 'GET') {
-    const existing = await kvGet(`fluxo:${today}`);
+    const existing = await kvGet(kvKey);
     return res.json({ date: today, snapshot: existing ?? null });
   }
 
