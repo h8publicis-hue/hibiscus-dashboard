@@ -253,6 +253,13 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
   const [toast, setToast]                 = useState<string | null>(null);
   const portaria = usePortaria();
 
+  const handleResetAll = useCallback(async () => {
+    if (!window.confirm('Zerar todos os contadores (Beach, Lounges e Portaria)?')) return;
+    await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
+    actions.resetSilent();
+    portaria.update(0);
+  }, [actions, portaria]);
+
   const showToast = useCallback((msg: string) => { setToast(msg); }, []);
   const totalLounge = occupancy.lounges.reduce((a, b) => a + b, 0);
   const totalMax    = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
@@ -284,7 +291,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             Abrir portaria
           </button>
           <button
-            onClick={actions.reset}
+            onClick={handleResetAll}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Zerar todos os contadores"
           >
