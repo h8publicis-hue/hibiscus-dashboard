@@ -370,51 +370,11 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             </div>
           ))}
 
-          {/* Anexo + Prime (separado) + Gramado */}
-          <div className="flex items-start gap-3">
-            {/* Anexo */}
-            {LOUNGE_GROUPS[2].ids.map((idx) => {
-              const count = occupancy.lounges[idx];
-              const isSelected = selectedLounge === idx;
-              return (
-                <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
-                  <OccupancyCounter
-                    name={loungeName(idx)}
-                    current={count}
-                    max={SPACE_CONFIGS.lounge.max}
-                    selected={isSelected}
-                    onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
-                    onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
-                    compact
-                  />
-                </div>
-              );
-            })}
-
-            {/* Prime — separado com borda dourada */}
-            <div className="ml-4 border-l-2 border-yellow-400 pl-4">
-              {LOUNGE_GROUPS[3].ids.map((idx) => {
-                const count = occupancy.lounges[idx];
-                const isSelected = selectedLounge === idx;
-                return (
-                  <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
-                    <OccupancyCounter
-                      name={<><span className="text-yellow-600">★</span>{` ${SPACE_CONFIGS.lounge.start + idx}`}</>}
-                      current={count}
-                      max={SPACE_CONFIGS.lounge.max}
-                      selected={isSelected}
-                      onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
-                      onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
-                      compact
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Gramado */}
-            <div className="ml-4 border-l-2 border-gray-200 dark:border-gray-600 pl-4 flex gap-1.5">
-              {LOUNGE_GROUPS[4].ids.map((idx) => {
+          {/* Anexo + Gramado à esquerda · Prime★ alinhado à direita (abaixo do 514) */}
+          <div className="flex items-start justify-between">
+            {/* Anexo + Gramado */}
+            <div className="flex items-start gap-1.5">
+              {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
                 const count = occupancy.lounges[idx];
                 const isSelected = selectedLounge === idx;
                 return (
@@ -432,6 +392,25 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
                 );
               })}
             </div>
+
+            {/* Prime★ — alinhado à direita, abaixo do 514 */}
+            {LOUNGE_GROUPS[3].ids.map((idx) => {
+              const count = occupancy.lounges[idx];
+              const isSelected = selectedLounge === idx;
+              return (
+                <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
+                  <OccupancyCounter
+                    name={<><span className="text-yellow-600">★</span>{` ${SPACE_CONFIGS.lounge.start + idx}`}</>}
+                    current={count}
+                    max={SPACE_CONFIGS.lounge.max}
+                    selected={isSelected}
+                    onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                    onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                    compact
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
