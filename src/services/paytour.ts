@@ -54,8 +54,8 @@ interface RawOrder {
 
 // ── Map raw orders → PaytourData ─────────────────────────────────────────────
 function mapOrders(orders: RawOrder[], since: string, until: string): PaytourData {
-  const _now   = new Date();
-  const today  = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+  // Paytour armazena datas em BRT (UTC-3) — usar mesma referência para não zerar ao Vivo em PCs com fuso diferente
+  const today  = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const confirmed  = orders.filter((o) => o.status === 'confirmado' || o.status === 'aprovado');
   const pending    = orders.filter((o) => o.status === 'pendente');
