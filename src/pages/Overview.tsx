@@ -400,6 +400,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 {monthRevTs && (
                   <p className="text-[10px] text-gray-400 text-right">
                     Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    {' · '}próx. às {new Date(monthRevTs + 10 * 60 * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 )}
               </div>

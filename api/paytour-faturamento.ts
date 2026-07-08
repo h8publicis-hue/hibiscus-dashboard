@@ -94,7 +94,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
         const id = Number(o.id);
         if (id <= XLS_JUNE_MAX_ID) continue; // já está no XLS
         const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-        if (d >= since && d <= until && o.status === 'aprovado') {
+        if (d >= since && d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
           extraTotal += parseFloat(o.valor || '0') - parseFloat(o.desconto || '0');
           extraCount++;
         }
@@ -111,7 +111,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   // Cada chamada busca os 50 pedidos mais recentes e acumula os do mês por ID.
   // Sem risco de duplicar: IDs são chave do objeto.
   // Se a API falhar, retorna o total acumulado até agora (nunca zera).
-  const accKey = `ptf-acc:${month}`;
+  const accKey = `ptf-acc2:${month}`;  // v2: inclui confirmado + aprovado
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   // Seed manual: se acumulador vazio e mês tem base conhecida, usa como piso
@@ -123,7 +123,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     let added = 0;
     for (const o of page?.itens ?? []) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-      if (d >= since && d <= until && o.status === 'aprovado') {
+      if (d >= since && d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
         const id = String(o.id);
         if (!acc[id]) {
           acc[id] = { valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') };
@@ -155,7 +155,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v14:${since}_${until}`;
+  const key   = `ptf-v15:${since}_${until}`;  // v15: confirmado + aprovado
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
