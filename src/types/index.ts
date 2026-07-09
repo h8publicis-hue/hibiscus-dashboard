@@ -93,16 +93,18 @@ export interface GoogleReview {
   text: string;
   date: string;
   replied: boolean;
+  replyText?: string;
 }
 
 export interface RatingHistoryEntry {
   month: string;
-  rating: number;
+  rating: number | null;
 }
 
 export interface KeywordEntry {
   word: string;
   count: number;
+  sentiment?: 'pos' | 'neg' | 'neu';
 }
 
 export interface GoogleBusinessData {
@@ -113,6 +115,7 @@ export interface GoogleBusinessData {
   unansweredCount: number;
   ratingHistory: RatingHistoryEntry[];
   topKeywords: KeywordEntry[];
+  last5Avg: number | null;
 }
 
 export type ApiStatusType = 'connected' | 'error' | 'loading';

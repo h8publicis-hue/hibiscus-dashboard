@@ -1,7 +1,7 @@
-import { MessageSquare, AlertCircle, Settings } from 'lucide-react';
+import { MessageSquare, AlertCircle, Settings, ExternalLink, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useState } from 'react';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { Period } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ReviewsProps { period: Period }
 
@@ -23,18 +23,27 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-// ── Loading skeleton ───────────────────────────────────────────────────────────
 function Skeleton({ h = 'h-8', full = false }: { h?: string; full?: boolean }) {
   return <div className={`${full ? 'w-full' : ''} ${h} bg-gray-100 dark:bg-gray-700 rounded animate-pulse`} />;
 }
 
+const GOOGLE_BUSINESS_URL = 'https://business.google.com/reviews';
+
 export function Reviews({ period }: ReviewsProps) {
   const { data, loading, error, notConfigured } = useGoogleBusiness(period);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
   const maxCount = data ? Math.max(...data.ratingDistribution.map((r) => r.count), 1) : 1;
   const maxKw    = data ? (data.topKeywords[0]?.count ?? 1) : 1;
 
-  // ── Not configured banner ──────────────────────────────────────────────────
+  function toggleReply(id: string) {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
   if (!loading && notConfigured) {
     return (
       <div className="p-6 space-y-6">
@@ -50,23 +59,12 @@ export function Reviews({ period }: ReviewsProps) {
 {`GOOGLE_PLACES_API_KEY=sua_chave_aqui
 GOOGLE_PLACE_ID=ChIJ...`}
             </pre>
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
-              Como obter o Place ID:{' '}
-              <a
-                href="https://developers.google.com/maps/documentation/places/web-service/place-id"
-                target="_blank" rel="noreferrer"
-                className="underline hover:text-amber-800"
-              >
-                developers.google.com/maps/documentation/places/web-service/place-id
-              </a>
-            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── API error banner ───────────────────────────────────────────────────────
   if (!loading && error) {
     return (
       <div className="p-6 space-y-6">
@@ -82,15 +80,27 @@ GOOGLE_PLACE_ID=ChIJ...`}
     );
   }
 
-  // ── Main content ───────────────────────────────────────────────────────────
+  // Tendência: últimas reviews vs média geral
+  const trend = data?.last5Avg != null && data?.averageRating
+    ? data.last5Avg - data.averageRating
+    : null;
+
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Avaliações Google</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Avaliações Google</h2>
+        <a
+          href={GOOGLE_BUSINESS_URL}
+          target="_blank" rel="noreferrer"
+          className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+        >
+          <ExternalLink size={12} />
+          Abrir Google Business
+        </a>
+      </div>
 
-      {/* Row 1: nota + distribuição */}
+      {/* Nota média + tendência */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Nota média */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-center gap-1">
           {loading ? (
             <div className="space-y-2 w-32">
@@ -110,6 +120,19 @@ GOOGLE_PLACE_ID=ChIJ...`}
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {data?.totalReviews.toLocaleString('pt-BR')} avaliações
               </p>
+
+              {trend !== null && (
+                <div className={`mt-2 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium ${
+                  trend > 0.1 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' :
+                  trend < -0.1 ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' :
+                  'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {trend > 0.1 ? <TrendingUp size={12} /> : trend < -0.1 ? <TrendingDown size={12} /> : <Minus size={12} />}
+                  Últimas: {data?.last5Avg?.toFixed(1)}★
+                  {trend > 0.1 ? ' (subindo)' : trend < -0.1 ? ' (caindo)' : ' (estável)'}
+                </div>
+              )}
+
               {(data?.unansweredCount ?? 0) > 0 && (
                 <div className="mt-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs px-3 py-1.5 rounded-full font-medium">
                   {data?.unansweredCount} aguardando resposta
@@ -119,7 +142,7 @@ GOOGLE_PLACE_ID=ChIJ...`}
           )}
         </div>
 
-        {/* Distribuição */}
+        {/* Distribuição por estrelas */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Distribuição por Estrelas</h3>
           {loading ? (
@@ -127,7 +150,7 @@ GOOGLE_PLACE_ID=ChIJ...`}
           ) : (
             <>
               <div className="space-y-2">
-                {[...(data?.ratingDistribution ?? [])].reverse().map((r) => (
+                {[...(data?.ratingDistribution ?? [])].map((r) => (
                   <div key={r.stars} className="flex items-center gap-2">
                     <span className="text-xs text-gray-600 dark:text-gray-400 w-4 text-right">{r.stars}</span>
                     <span className="text-yellow-400 text-xs">★</span>
@@ -144,76 +167,86 @@ GOOGLE_PLACE_ID=ChIJ...`}
                 ))}
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                * Distribuição estimada com base nas avaliações recentes disponíveis via API
+                * Estimado com base nas avaliações recentes disponíveis via API
               </p>
             </>
           )}
         </div>
       </div>
 
-      {/* Evolução da nota */}
+      {/* Avaliações recentes com respostas expansíveis */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Evolução da Nota — Últimos 6 Meses</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Avaliações Recentes</h3>
+          {!loading && (data?.unansweredCount ?? 0) > 0 && (
+            <a
+              href={GOOGLE_BUSINESS_URL}
+              target="_blank" rel="noreferrer"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              <MessageSquare size={11} />
+              Responder no Google
+            </a>
+          )}
+        </div>
         {loading ? (
-          <Skeleton h="h-48" full />
-        ) : (
-          <ResponsiveContainer width="100%" height={192}>
-            <LineChart data={data?.ratingHistory}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis domain={[3.5, 5]} tick={{ fontSize: 11 }} tickCount={4} />
-              <Tooltip
-                formatter={(v: number) => [`${v.toFixed(1)} ★`, 'Nota']}
-              />
-              <Line
-                type="monotone" dataKey="rating" name="Nota"
-                stroke="#f59e0b" strokeWidth={2.5}
-                dot={{ fill: '#f59e0b', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
-      {/* Avaliações recentes */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Avaliações Recentes</h3>
-        {loading ? (
-          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h="h-20" full />)}</div>
+          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h="h-24" full />)}</div>
         ) : !data?.recentReviews.length ? (
           <p className="text-sm text-gray-400 text-center py-6">Nenhuma avaliação disponível</p>
         ) : (
           <div className="space-y-3">
             {data.recentReviews.map((r) => (
-              <div key={r.id} className="flex gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                <Avatar name={r.author} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{r.author}</span>
-                    <span className="text-xs text-gray-400">{r.date}</span>
-                  </div>
-                  <Stars rating={r.rating} />
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{r.text}</p>
-                  <div className="mt-1.5">
-                    {r.replied ? (
-                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Respondida</span>
-                    ) : (
-                      <button className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
-                        <MessageSquare size={11} /> Responder
-                      </button>
-                    )}
+              <div key={r.id} className="rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div className="flex gap-3 p-3 bg-gray-50 dark:bg-gray-700/50">
+                  <Avatar name={r.author} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{r.author}</span>
+                      <span className="text-xs text-gray-400">{r.date}</span>
+                    </div>
+                    <Stars rating={r.rating} />
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{r.text}</p>
+                    <div className="mt-1.5">
+                      {r.replied ? (
+                        <button
+                          onClick={() => toggleReply(r.id)}
+                          className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium hover:underline"
+                        >
+                          ✓ Respondida
+                          {expandedReplies.has(r.id) ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                        </button>
+                      ) : (
+                        <a
+                          href={GOOGLE_BUSINESS_URL}
+                          target="_blank" rel="noreferrer"
+                          className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1"
+                        >
+                          <MessageSquare size={11} /> Responder
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Resposta expansível */}
+                {r.replied && r.replyText && expandedReplies.has(r.id) && (
+                  <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-blue-50/60 dark:bg-blue-900/10">
+                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1.5">
+                      💬 Resposta do estabelecimento
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{r.replyText}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Palavras mais mencionadas */}
+      {/* Palavras mais mencionadas com sentimento por cor */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Palavras Mais Mencionadas</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Palavras Mais Mencionadas</h3>
+        <p className="text-xs text-gray-400 mb-4">Verde = mencionadas em avaliações positivas · Vermelho = negativas</p>
         {loading ? (
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-7 w-20 bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />)}
@@ -223,15 +256,20 @@ GOOGLE_PLACE_ID=ChIJ...`}
         ) : (
           <div className="flex flex-wrap gap-2">
             {data.topKeywords.map((kw) => {
-              const size = 12 + Math.round((kw.count / maxKw) * 10);
+              const size = 12 + Math.round((kw.count / maxKw) * 8);
+              const cls = kw.sentiment === 'neg'
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                : kw.sentiment === 'pos'
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300';
               return (
                 <span
                   key={kw.word}
-                  className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium"
+                  className={`px-3 py-1 rounded-full font-medium ${cls}`}
                   style={{ fontSize: `${size}px` }}
                 >
                   {kw.word}{' '}
-                  <span className="text-blue-400 text-xs">({kw.count})</span>
+                  <span className="opacity-60 text-xs">({kw.count})</span>
                 </span>
               );
             })}
