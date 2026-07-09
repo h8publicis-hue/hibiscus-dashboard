@@ -107,7 +107,7 @@ export default async function handler(req: any, res: any) {
       replyText: (r.ownerResponse?.text ?? null) as string | null,
     }));
 
-    const unansweredCount = recentReviews.filter((r) => !r.replied && r.text).length;
+    const unansweredCount = recentReviews.filter((r: { replied: boolean; text: string }) => !r.replied && r.text).length;
 
     // Média das últimas reviews vs média geral (insight de tendência)
     const last5Avg = reviews.length
