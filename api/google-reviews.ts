@@ -24,6 +24,112 @@ const STOP_WORDS = new Set([
   'ele','ela','eles','elas','você','tudo','isso','ser','ter','tem','meu','sua',
 ]);
 
+function buildKeywords(reviews: any[]) {
+  const countsByPol: Record<'pos' | 'neg' | 'neu', Record<string, number>> = { pos: {}, neg: {}, neu: {} };
+  reviews.forEach((r: any) => {
+    const text = (r.text?.text ?? r.text ?? r.originalText?.text ?? '') as string;
+    const pol: 'pos' | 'neg' | 'neu' = r.rating >= 4 ? 'pos' : r.rating <= 2 ? 'neg' : 'neu';
+    text.toLowerCase().replace(/[^\w\sàáâãéêíóôõúç]/g, ' ').split(/\s+/)
+      .filter((w: string) => w.length > 3 && !STOP_WORDS.has(w))
+      .forEach((w: string) => { countsByPol[pol][w] = (countsByPol[pol][w] ?? 0) + 1; });
+  });
+  const allCounts: Record<string, number> = {};
+  for (const pol of ['pos', 'neg', 'neu'] as const) {
+    for (const [w, c] of Object.entries(countsByPol[pol])) {
+      allCounts[w] = (allCounts[w] ?? 0) + (c as number);
+    }
+  }
+  return Object.entries(allCounts)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
+    .slice(0, 12)
+    .map(([word, count]) => ({
+      word, count,
+      sentiment: countsByPol.neg[word] > (countsByPol.pos[word] ?? 0) ? 'neg'
+               : (countsByPol.pos[word] ?? 0) > 0 ? 'pos' : 'neu',
+    }));
+}
+
+function buildDistribution(reviews: any[], total: number) {
+  const sampleDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  reviews.forEach((r: any) => { sampleDist[r.rating] = (sampleDist[r.rating] ?? 0) + 1; });
+  const sN = reviews.length || 1;
+  return [5, 4, 3, 2, 1].map((s) => ({ stars: s, count: Math.round((sampleDist[s] / sN) * total) }));
+}
+
+function buildHistory(reviews: any[], avgRating: number) {
+  const byMonth: Record<string, number[]> = {};
+  reviews.forEach((r: any) => {
+    const ts = r.publishTime ?? r.time;
+    const d  = ts ? (typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts)) : null;
+    if (!d) return;
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    (byMonth[k] = byMonth[k] ?? []).push(r.rating);
+  });
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d     = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const k     = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+    const arr   = byMonth[k];
+    const rating = arr?.length
+      ? Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 10) / 10
+      : avgRating;
+    return { month, rating };
+  });
+}
+
+// ── Tenta Places API v1 (nova) — retorna ownerResponse ──────────────────────
+async function fetchNewApi(placeId: string, apiKey: string) {
+  const url  = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&key=${apiKey}`;
+  const body = await httpsGet(url, {
+    Accept: 'application/json',
+    'X-Goog-FieldMask': 'displayName,rating,userRatingCount,reviews',
+  });
+  const json = JSON.parse(body) as any;
+  if (!json.rating) throw new Error('Places v1: resposta inesperada');
+
+  const reviews   = json.reviews ?? [];
+  const total     = json.userRatingCount ?? 0;
+  const avgRating = json.rating ?? 0;
+
+  const recentReviews = reviews.map((r: any, i: number) => ({
+    id:        String(i + 1),
+    author:    r.authorAttribution?.displayName ?? 'Anônimo',
+    rating:    r.rating,
+    text:      r.text?.text ?? r.originalText?.text ?? '',
+    date:      r.publishTime ? new Date(r.publishTime).toISOString().slice(0, 10) : '',
+    replied:   !!r.ownerResponse?.text,
+    replyText: (r.ownerResponse?.text ?? null) as string | null,
+  }));
+
+  return { reviews, total, avgRating, recentReviews };
+}
+
+// ── Fallback: Places API legada ──────────────────────────────────────────────
+async function fetchLegacyApi(placeId: string, apiKey: string) {
+  const url  = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=name,rating,user_ratings_total,reviews&language=pt-BR&reviews_sort=newest&key=${apiKey}`;
+  const body = await httpsGet(url);
+  const json = JSON.parse(body) as any;
+  if (json.status !== 'OK') throw new Error(`Places legacy: ${json.status}`);
+
+  const place     = json.result;
+  const reviews   = place.reviews ?? [];
+  const total     = place.user_ratings_total ?? 0;
+  const avgRating = place.rating ?? 0;
+
+  const recentReviews = reviews.map((r: any, i: number) => ({
+    id:        String(i + 1),
+    author:    r.author_name ?? 'Anônimo',
+    rating:    r.rating,
+    text:      r.text ?? '',
+    date:      r.time ? new Date(r.time * 1000).toISOString().slice(0, 10) : '',
+    replied:   false,   // API legada não retorna respostas
+    replyText: null,
+  }));
+
+  return { reviews, total, avgRating, recentReviews };
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   const apiKey  = process.env.GOOGLE_PLACES_API_KEY ?? '';
@@ -32,85 +138,23 @@ export default async function handler(req: any, res: any) {
   if (cache && Date.now() - cache.ts < TTL) return res.json(cache.data);
 
   try {
-    // New Places API (v1) — suporta ownerResponse e reviews mais completos
-    const fields = 'displayName,rating,userRatingCount,reviews';
-    const url    = `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?fields=${fields}&languageCode=pt-BR&key=${apiKey}`;
-    const body   = await httpsGet(url, { Accept: 'application/json' });
-    const json   = JSON.parse(body) as any;
-
-    if (!json.rating) throw new Error('Places v1: resposta inesperada');
-
-    const reviews   = json.reviews ?? [];
-    const total     = json.userRatingCount ?? 0;
-    const avgRating = json.rating ?? 0;
-
-    // Palavras-chave com sentimento
-    const countsByPol: Record<'pos' | 'neg' | 'neu', Record<string, number>> = { pos: {}, neg: {}, neu: {} };
-    reviews.forEach((r: any) => {
-      const text = (r.text?.text ?? r.originalText?.text ?? '') as string;
-      const pol: 'pos' | 'neg' | 'neu' = r.rating >= 4 ? 'pos' : r.rating <= 2 ? 'neg' : 'neu';
-      text.toLowerCase().replace(/[^\w\sàáâãéêíóôõúç]/g, ' ').split(/\s+/)
-        .filter((w: string) => w.length > 3 && !STOP_WORDS.has(w))
-        .forEach((w: string) => { countsByPol[pol][w] = (countsByPol[pol][w] ?? 0) + 1; });
-    });
-    const allCounts: Record<string, number> = {};
-    for (const pol of ['pos', 'neg', 'neu'] as const) {
-      for (const [w, c] of Object.entries(countsByPol[pol])) {
-        allCounts[w] = (allCounts[w] ?? 0) + (c as number);
-      }
+    // Tenta nova API (com ownerResponse); cai para legada se não habilitada
+    let result: Awaited<ReturnType<typeof fetchNewApi>>;
+    try {
+      result = await fetchNewApi(placeId, apiKey);
+      console.log('[google] usando Places API v1 (nova)');
+    } catch (e: any) {
+      console.warn(`[google] Places v1 falhou (${e.message}), usando API legada`);
+      result = await fetchLegacyApi(placeId, apiKey);
     }
-    const topKeywords = Object.entries(allCounts)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
-      .slice(0, 12)
-      .map(([word, count]) => ({
-        word, count,
-        sentiment: countsByPol.neg[word] > (countsByPol.pos[word] ?? 0) ? 'neg'
-                 : (countsByPol.pos[word] ?? 0) > 0 ? 'pos' : 'neu',
-      }));
 
-    // Distribuição por estrelas estimada das reviews disponíveis
-    const sampleDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    reviews.forEach((r: any) => { sampleDist[r.rating] = (sampleDist[r.rating] ?? 0) + 1; });
-    const sN = reviews.length || 1;
-    const ratingDistribution = [5, 4, 3, 2, 1].map((s) => ({
-      stars: s,
-      count: Math.round((sampleDist[s] / sN) * total),
-    }));
+    const { reviews, total, avgRating, recentReviews } = result;
 
-    // Histórico por mês a partir das reviews disponíveis
-    const byMonth: Record<string, number[]> = {};
-    reviews.forEach((r: any) => {
-      const d = new Date(r.publishTime ?? 0);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      (byMonth[k] = byMonth[k] ?? []).push(r.rating);
-    });
-    const now = new Date();
-    const ratingHistory = Array.from({ length: 6 }, (_, i) => {
-      const d     = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      const k     = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-      const arr   = byMonth[k];
-      const rating = arr?.length
-        ? Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 10) / 10
-        : null;
-      return { month, rating };
-    });
-
-    // Reviews com resposta do estabelecimento (ownerResponse)
-    const recentReviews = reviews.map((r: any, i: number) => ({
-      id:        String(i + 1),
-      author:    r.authorAttribution?.displayName ?? 'Anônimo',
-      rating:    r.rating,
-      text:      r.text?.text ?? r.originalText?.text ?? '',
-      date:      r.publishTime ? new Date(r.publishTime).toISOString().slice(0, 10) : '',
-      replied:   !!r.ownerResponse?.text,
-      replyText: (r.ownerResponse?.text ?? null) as string | null,
-    }));
-
-    const unansweredCount = recentReviews.filter((r: { replied: boolean; text: string }) => !r.replied && r.text).length;
-
-    // Média das últimas reviews vs média geral (insight de tendência)
-    const last5Avg = reviews.length
+    const topKeywords     = buildKeywords(reviews);
+    const ratingDistribution = buildDistribution(reviews, total);
+    const ratingHistory   = buildHistory(reviews, avgRating);
+    const unansweredCount = recentReviews.filter((r) => !r.replied && r.text).length;
+    const last5Avg        = reviews.length
       ? Math.round((reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length) * 10) / 10
       : null;
 
