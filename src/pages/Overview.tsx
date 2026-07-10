@@ -650,7 +650,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
-        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Avaliações NPS</h2>
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Satisfação &amp; Reputação do Dia</h2>
         {smL
           ? <div className="h-12 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
           : (
@@ -770,7 +770,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
-        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Satisfação &amp; Reputação</h2>
+        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Avaliação NPS</h2>
 
         {/* Combinado */}
         <div className={clsx(
