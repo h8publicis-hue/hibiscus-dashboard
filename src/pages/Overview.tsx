@@ -10,7 +10,7 @@ import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
-import { useAviso } from '../hooks/useAviso';
+import { useAviso, AvisoList } from '../hooks/useAviso';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -311,10 +311,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: survey,  loading: smL } = useSurveyMonkey(period);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour('today');
-  const { aviso, saving: avisoSaving, save: saveAviso } = useAviso();
+  const { avisos, saving: avisoSaving, save: saveAvisos } = useAviso();
   const [avisoDismissed, setAvisoDismissed] = useState(false);
   const [avisoEditing,   setAvisoEditing]   = useState(false);
-  const [avisoText,      setAvisoText]      = useState('');
+  const [avisoCustom,    setAvisoCustom]    = useState('');
+  const [avisoTicker,    setAvisoTicker]    = useState(0);
+  const [avisoFade,      setAvisoFade]      = useState(true);
+  const [avisoPresetsOpen, setAvisoPresetsOpen] = useState(false);
   const [portariaCount, setPortariaCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -897,57 +900,157 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const occMax        = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
   const loungesFull   = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
 
-  // ── Banner de comunicados ─────────────────────────────────────────────────
+  // ── Ticker de comunicados ─────────────────────────────────────────────────
+  const FRASES_PRONTAS = [
+    '🔴 Portaria fechada — capacidade máxima atingida',
+    '🟡 Aproximando da capacidade máxima — portaria em atenção',
+    '✅ Portaria aberta — vagas disponíveis',
+    '➡️ Portaria fechada — indicar Hibiscus Mar & Cia',
+    '🌊 Condições de mar adversas — passeio de lancha suspenso',
+    '⚡ Sistema em manutenção — operar manualmente',
+    '🍽️ A&B com alta demanda — reforçar equipe',
+    '🅿️ Estacionamento lotado — orientar clientes para alternativas',
+    '☀️ Dia de pico — equipe em alerta máximo',
+    '🌧️ Previsão de chuva — ativar plano de contingência',
+    '🎉 Evento especial hoje — seguir briefing do dia',
+  ];
+
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim());
+
+  useEffect(() => {
+    if (activeAvisos.length <= 1) return;
+    const id = setInterval(() => {
+      setAvisoFade(false);
+      setTimeout(() => {
+        setAvisoTicker(t => (t + 1) % activeAvisos.length);
+        setAvisoFade(true);
+      }, 300);
+    }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAvisos.length]);
+
   const bannerAviso = (() => {
-    const hasActive = aviso?.active && aviso.text.trim();
+    const currentAviso = activeAvisos[avisoTicker % Math.max(activeAvisos.length, 1)];
+
     return (
       <div className="px-3 pt-2 lg:px-4 lg:pt-3">
-        {/* Comunicado ativo */}
-        {hasActive && !avisoDismissed && (
-          <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-2.5 mb-2">
-            <Megaphone size={15} className="text-amber-500 shrink-0 mt-0.5" />
-            <p className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug">{aviso!.text}</p>
-            <button onClick={() => setAvisoDismissed(true)} className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors">
-              <X size={14} />
+        {/* Ticker de comunicados ativos */}
+        {activeAvisos.length > 0 && !avisoDismissed && (
+          <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-2 mb-2">
+            <Megaphone size={14} className="text-amber-500 shrink-0" />
+            <p
+              className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug transition-opacity duration-300"
+              style={{ opacity: avisoFade ? 1 : 0 }}
+            >
+              {currentAviso?.text}
+            </p>
+            {activeAvisos.length > 1 && (
+              <span className="text-[10px] text-amber-400 shrink-0 font-medium">
+                {(avisoTicker % activeAvisos.length) + 1}/{activeAvisos.length}
+              </span>
+            )}
+            <button onClick={() => setAvisoDismissed(true)} className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors ml-1">
+              <X size={13} />
             </button>
           </div>
         )}
 
-        {/* Formulário de edição */}
+        {/* Painel de gestão */}
         {avisoEditing ? (
-          <div className="flex gap-2 mb-2">
-            <input
-              className="flex-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              placeholder="Digite o comunicado (máx. 300 caracteres)…"
-              maxLength={300}
-              value={avisoText}
-              onChange={e => setAvisoText(e.target.value)}
-            />
-            <button
-              onClick={async () => { await saveAviso({ text: avisoText.trim(), active: !!avisoText.trim() }); setAvisoEditing(false); setAvisoDismissed(false); }}
-              disabled={avisoSaving}
-              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1 disabled:opacity-50"
-            >
-              <Check size={12} /> Publicar
-            </button>
-            {aviso?.active && (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 mb-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">Comunicados ativos ({activeAvisos.length}/5)</p>
+              <button onClick={() => setAvisoEditing(false)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+            </div>
+
+            {/* Lista dos comunicados */}
+            {avisos.map((a, i) => a.text.trim() ? (
+              <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
+                <p className="flex-1 text-xs text-amber-800 dark:text-amber-300 truncate">{a.text}</p>
+                <button
+                  onClick={async () => {
+                    const next: AvisoList = avisos.filter((_, idx) => idx !== i);
+                    await saveAvisos(next);
+                  }}
+                  className="shrink-0 text-amber-400 hover:text-red-500 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ) : null)}
+
+            {/* Frases prontas */}
+            {avisos.filter(a => a.active && a.text.trim()).length < 5 && (
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <button
+                    onClick={() => setAvisoPresetsOpen(o => !o)}
+                    className="w-full text-left text-xs px-3 py-1.5 rounded-lg border border-dashed border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1"
+                  >
+                    <Megaphone size={11} /> Escolher frase pronta…
+                  </button>
+                  {avisoPresetsOpen && (
+                    <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 max-h-52 overflow-y-auto">
+                      {FRASES_PRONTAS.map((f, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setAvisoCustom(f); setAvisoPresetsOpen(false); }}
+                          className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors"
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    placeholder="Ou escreva um comunicado pontual…"
+                    maxLength={300}
+                    value={avisoCustom}
+                    onChange={e => setAvisoCustom(e.target.value)}
+                    onKeyDown={async e => {
+                      if (e.key === 'Enter' && avisoCustom.trim()) {
+                        const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true }];
+                        await saveAvisos(next);
+                        setAvisoCustom(''); setAvisoDismissed(false);
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!avisoCustom.trim()) return;
+                      const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true }];
+                      await saveAvisos(next);
+                      setAvisoCustom(''); setAvisoDismissed(false);
+                    }}
+                    disabled={avisoSaving || !avisoCustom.trim()}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1 disabled:opacity-40 transition-colors"
+                  >
+                    <Check size={11} /> Adicionar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeAvisos.length > 0 && (
               <button
-                onClick={async () => { await saveAviso({ text: '', active: false }); setAvisoEditing(false); }}
-                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg"
+                onClick={async () => { await saveAvisos([]); setAvisoEditing(false); setAvisoDismissed(false); }}
+                className="text-[10px] text-red-400 hover:text-red-600 transition-colors"
               >
-                Remover
+                Limpar todos os comunicados
               </button>
             )}
-            <button onClick={() => setAvisoEditing(false)} className="text-gray-400 hover:text-gray-600 px-1">
-              <X size={14} />
-            </button>
           </div>
         ) : (
           <button
-            onClick={() => { setAvisoText(aviso?.text ?? ''); setAvisoEditing(true); }}
+            onClick={() => setAvisoEditing(true)}
             className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-amber-500 transition-colors mb-2"
           >
-            <Pencil size={10} /> {aviso?.active ? 'Editar comunicado' : 'Adicionar comunicado'}
+            <Pencil size={10} /> {activeAvisos.length > 0 ? `Gerenciar comunicados (${activeAvisos.length})` : 'Adicionar comunicado'}
           </button>
         )}
       </div>

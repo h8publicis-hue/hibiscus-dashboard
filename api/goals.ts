@@ -41,10 +41,12 @@ export default async function handler(req: any, res: any) {
       return res.json({ aviso: aviso ?? null });
     }
     if (req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
-      const aviso = { text: String(body.text ?? '').slice(0, 300), active: !!body.active };
-      await kvSet(KV_KEY_AVISO, aviso);
-      return res.json({ ok: true, aviso });
+      const body   = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const avisos = (Array.isArray(body.avisos) ? body.avisos : [])
+        .slice(0, 5)
+        .map((a: any) => ({ text: String(a.text ?? '').slice(0, 300), active: !!a.active }));
+      await kvSet(KV_KEY_AVISO, { avisos });
+      return res.json({ ok: true, avisos });
     }
   }
 

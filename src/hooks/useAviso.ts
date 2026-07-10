@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 
 export interface Aviso { text: string; active: boolean }
+export type AvisoList = Aviso[]; // até 5 itens
 
-const LS_KEY = 'hibiscus_aviso_v1';
+const LS_KEY = 'hibiscus_avisos_v2';
+const MAX    = 5;
 
 export function useAviso(): {
-  aviso: Aviso | null;
+  avisos: AvisoList;
   saving: boolean;
-  save: (aviso: Aviso) => Promise<void>;
+  save: (avisos: AvisoList) => Promise<void>;
 } {
-  const [aviso, setAviso]   = useState<Aviso | null>(() => {
-    try { const r = localStorage.getItem(LS_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+  const [avisos, setAvisos] = useState<AvisoList>(() => {
+    try { const r = localStorage.getItem(LS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
   });
   const [saving, setSaving] = useState(false);
 
@@ -18,26 +20,28 @@ export function useAviso(): {
     fetch('/api/goals?type=aviso')
       .then(r => r.json())
       .then((j: any) => {
-        if (j?.aviso) {
-          setAviso(j.aviso);
-          try { localStorage.setItem(LS_KEY, JSON.stringify(j.aviso)); } catch { /* */ }
+        const data: AvisoList = Array.isArray(j?.avisos) ? j.avisos : j?.aviso ? [j.aviso] : [];
+        if (data.length) {
+          setAvisos(data);
+          try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch { /* */ }
         }
       })
       .catch(() => { /* usa localStorage */ });
   }, []);
 
-  const save = async (next: Aviso) => {
+  const save = async (next: AvisoList) => {
+    const clamped = next.slice(0, MAX);
     setSaving(true);
-    setAviso(next);
-    try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* */ }
+    setAvisos(clamped);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(clamped)); } catch { /* */ }
     try {
       await fetch('/api/goals?type=aviso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next),
+        body: JSON.stringify({ avisos: clamped }),
       });
     } catch { /* */ } finally { setSaving(false); }
   };
 
-  return { aviso, saving, save };
+  return { avisos, saving, save };
 }
