@@ -23,7 +23,9 @@ interface OverviewProps {
 // ── Tooltip de informação ─────────────────────────────────────────────────────
 function InfoTooltip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos]   = useState<{ x: string; arrow: string }>({ x: '-translate-x-1/2 left-1/2', arrow: 'left-1/2 -translate-x-1/2' });
+  const ref     = useRef<HTMLDivElement>(null);
+  const tipRef  = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -34,19 +36,36 @@ function InfoTooltip({ text }: { text: string }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  // Ajusta posição horizontal para não sair da tela
+  useEffect(() => {
+    if (!open || !tipRef.current || !ref.current) return;
+    const tip    = tipRef.current.getBoundingClientRect();
+    const margin = 8;
+    if (tip.left < margin) {
+      setPos({ x: 'left-0', arrow: 'left-3' });
+    } else if (tip.right > window.innerWidth - margin) {
+      setPos({ x: 'right-0', arrow: 'right-3' });
+    } else {
+      setPos({ x: '-translate-x-1/2 left-1/2', arrow: 'left-1/2 -translate-x-1/2' });
+    }
+  }, [open]);
+
   return (
     <div ref={ref} className="relative inline-flex items-center">
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { setPos({ x: '-translate-x-1/2 left-1/2', arrow: 'left-1/2 -translate-x-1/2' }); setOpen(o => !o); }}
         className="text-gray-300 hover:text-brand-500 dark:text-gray-500 dark:hover:text-brand-400 transition-colors"
         aria-label="Saiba mais"
       >
         <Info size={11} />
       </button>
       {open && (
-        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 dark:bg-gray-700 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl">
+        <div
+          ref={tipRef}
+          className={`absolute z-50 bottom-full mb-2 w-56 bg-gray-900 dark:bg-gray-700 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl ${pos.x}`}
+        >
           {text}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
+          <div className={`absolute top-full border-4 border-transparent border-t-gray-900 dark:border-t-gray-700 ${pos.arrow}`} />
         </div>
       )}
     </div>
