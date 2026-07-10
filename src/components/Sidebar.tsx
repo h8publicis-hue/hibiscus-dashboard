@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
@@ -17,6 +17,7 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
     { to: '/avaliacoes', icon: Star,            label: 'Avaliações',  alerts: reviewsAlerts },
     { to: '/ocupacao',   icon: Users,           label: 'Ocupação',    alerts: occupancyAlerts },
     { to: '/fluxo',     icon: Activity,        label: 'Fluxo',       alerts: 0 },
+    { to: '/chamadas',  icon: Bell,            label: 'Chamadas',    alerts: 0 },
   ];
 
   const renderLink = ({ to, icon: Icon, label, alerts }: typeof allItems[0]) => (

@@ -11,6 +11,7 @@ import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso, AvisoList } from '../hooks/useAviso';
+import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -326,6 +327,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const id = setInterval(load, 60_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
+  const { chamadas, loading: chamadasL } = useChamadas();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
   const { data: checkinData, loading: checkinL, refresh: checkinRefresh, setData: setCheckinData } = useCheckin();
@@ -1057,6 +1059,65 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     );
   })();
 
+  // ── Bloco: Chamadas ──────────────────────────────────────────────────────────
+  const chamadasHoje = chamadas;
+  const pendentes    = chamadasHoje.filter(c => c.status === 'pendente').length;
+  const finalizadas  = chamadasHoje.filter(c => c.status === 'finalizado').length;
+  const comEspera    = chamadasHoje.filter(c => c.tempoEspera);
+  const avgEspera    = comEspera.length
+    ? Math.round(comEspera.reduce((s, c) => s + parseTempoSec(c.tempoEspera), 0) / comEspera.length)
+    : 0;
+  const avgMin       = Math.floor(avgEspera / 60);
+  const avgSec       = avgEspera % 60;
+  const demoradas    = chamadasHoje.filter(c => parseTempoSec(c.tempoEspera) >= 60).length;
+
+  const setoresCount = chamadasHoje.reduce<Record<string, number>>((acc, c) => {
+    if (c.setor) acc[c.setor] = (acc[c.setor] ?? 0) + 1;
+    return acc;
+  }, {});
+  const setoresTop = Object.entries(setoresCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxSetor   = setoresTop[0]?.[1] ?? 1;
+
+  const blocoChamadas = (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Chamadas — Hoje</h2>
+        {chamadasL && <span className="text-[10px] text-gray-400 animate-pulse">Carregando...</span>}
+      </div>
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        {[
+          { label: 'Total',      val: chamadasHoje.length, color: 'text-gray-800 dark:text-gray-200' },
+          { label: 'Pendentes',  val: pendentes,           color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Finalizadas',val: finalizadas,         color: 'text-green-600 dark:text-green-400' },
+          { label: 'Demoradas',  val: demoradas,           color: demoradas > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' },
+        ].map(({ label, val, color }) => (
+          <div key={label} className="text-center">
+            <p className={`text-xl font-black ${color}`}>{val}</p>
+            <p className="text-[9px] text-gray-400 uppercase tracking-wide mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+      {avgEspera > 0 && (
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3 text-center">
+          Tempo médio de espera: <span className="font-semibold text-gray-700 dark:text-gray-300">{avgMin}m {avgSec}s</span>
+        </p>
+      )}
+      {setoresTop.length > 0 && (
+        <div className="space-y-1.5">
+          {setoresTop.map(([setor, count]) => (
+            <div key={setor} className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 w-20 truncate shrink-0">{setor}</span>
+              <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-brand-500 h-full rounded-full" style={{ width: `${(count / maxSetor) * 100}%` }} />
+              </div>
+              <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 w-4 text-right">{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       {/* ── MOBILE: mesma estrutura do desktop em scroll vertical ────────── */}
@@ -1081,6 +1142,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         {blocoOcupacao}
 
         {blocoCheckin}
+
+        {/* CHAMADAS */}
+        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1 mt-1">Atendimento</p>
+
+        {blocoChamadas}
 
         {/* REPUTAÇÃO */}
         <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1 mt-1">Reputação</p>
@@ -1110,10 +1176,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             {blocoTotalDia}
           </div>
 
-          {/* Coluna 2 — Ocupação + Check-in */}
+          {/* Coluna 2 — Ocupação + Check-in + Chamadas */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoOcupacao}
             {blocoCheckin}
+            {blocoChamadas}
           </div>
 
           {/* Coluna 3 — Reputação */}
