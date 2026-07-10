@@ -1115,7 +1115,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 w-6 text-right">{count}</span>
               <span className="text-[9px] text-gray-400 w-7 text-right">{pct}%</span>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
