@@ -978,22 +978,24 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       <div className="px-3 pt-2 lg:px-4 lg:pt-3">
         {/* Ticker de comunicados ativos */}
         {activeAvisos.length > 0 && !avisoDismissed && (
-          <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-2 mb-2">
-            <Megaphone size={14} className="text-amber-500 shrink-0" />
+          <div className="relative flex items-center bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-2 mb-2">
+            <Megaphone size={14} className="text-amber-500 shrink-0 mr-2" />
             <p
-              className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug transition-opacity duration-300"
+              className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug text-center transition-opacity duration-300"
               style={{ opacity: avisoFade ? 1 : 0 }}
             >
               {currentAviso?.text}
             </p>
-            {activeAvisos.length > 1 && (
-              <span className="text-[10px] text-amber-400 shrink-0 font-medium">
-                {(avisoTicker % activeAvisos.length) + 1}/{activeAvisos.length}
-              </span>
-            )}
-            <button onClick={() => setAvisoDismissed(true)} className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors ml-1">
-              <X size={13} />
-            </button>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              {activeAvisos.length > 1 && (
+                <span className="text-[10px] text-amber-400 font-medium">
+                  {(avisoTicker % activeAvisos.length) + 1}/{activeAvisos.length}
+                </span>
+              )}
+              <button onClick={() => setAvisoDismissed(true)} className="text-amber-400 hover:text-amber-600 transition-colors">
+                <X size={13} />
+              </button>
+            </div>
           </div>
         )}
 
