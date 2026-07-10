@@ -308,8 +308,16 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
 }
 
 // ── Overview ──────────────────────────────────────────────────────────────────
+const NPS_PERIODS = [
+  { key: 'today', label: 'Hoje' },
+  { key: '7d',    label: '7d'   },
+  { key: 'month', label: 'Mês'  },
+  { key: '30d',   label: '30d'  },
+] as const;
+
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
-  const { data: survey,  loading: smL } = useSurveyMonkey(period);
+  const [npsPeriod, setNpsPeriod] = useState<string>('month');
+  const { data: survey,  loading: smL } = useSurveyMonkey(npsPeriod);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour('today');
   const { avisos, saving: avisoSaving, save: saveAvisos } = useAviso();
@@ -770,7 +778,23 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
-        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Avaliação NPS</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Avaliação NPS</h2>
+          <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+            {NPS_PERIODS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setNpsPeriod(p.key)}
+                className={clsx(
+                  'px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors',
+                  npsPeriod === p.key
+                    ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                )}
+              >{p.label}</button>
+            ))}
+          </div>
+        </div>
 
         {/* Combinado */}
         <div className={clsx(
