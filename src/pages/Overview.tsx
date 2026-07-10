@@ -648,13 +648,32 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const detractors = survey?.detractors ?? null;
     const total      = survey?.surveys[0]?.responses ?? 0; // Fix 1: total do período, não all-time
 
-    // Fix 2: Dias sem Putz sempre global (allTimeResponses), independente do período
-    const lastNeg = survey?.allTimeResponses
+    // Dias sem Putz: sempre global, independente do período
+    const allNegs = (survey?.allTimeResponses ?? [])
       .filter(r => r.sentiment === 'negative')
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    const daysSinceNeg = lastNeg
-      ? Math.floor((Date.now() - new Date(lastNeg.date).getTime()) / (1000 * 60 * 60 * 24))
+      .map(r => new Date(r.date).getTime())
+      .sort((a, b) => b - a); // mais recente primeiro
+
+    const lastNegTs   = allNegs[0] ?? null;
+    const daysSinceNeg = lastNegTs !== null
+      ? Math.floor((Date.now() - lastNegTs) / (1000 * 60 * 60 * 24))
       : null;
+
+    // Recorde: maior intervalo entre dois Putz consecutivos (ou desde o 1º Putz até hoje se só houve 1)
+    let recordDays: number | null = null;
+    if (allNegs.length === 1) {
+      recordDays = Math.floor((Date.now() - allNegs[0]) / (1000 * 60 * 60 * 24));
+    } else if (allNegs.length > 1) {
+      const sorted = [...allNegs].sort((a, b) => a - b); // crescente
+      let best = 0;
+      for (let i = 1; i < sorted.length; i++) {
+        const gap = Math.floor((sorted[i] - sorted[i - 1]) / (1000 * 60 * 60 * 24));
+        if (gap > best) best = gap;
+      }
+      // também considera desde o último Putz até hoje
+      const sinceLastMs = Math.floor((Date.now() - sorted[sorted.length - 1]) / (1000 * 60 * 60 * 24));
+      recordDays = Math.max(best, sinceLastMs);
+    }
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
@@ -692,20 +711,25 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   )}
                 </div>
               </div>
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
-                {daysSinceNeg !== null ? (
-                  <>
-                    <p className="text-2xl font-black text-green-600 dark:text-green-400">{daysSinceNeg}</p>
-                    <p className="text-[10px] text-green-600 dark:text-green-500 font-medium">
-                      {daysSinceNeg === 1 ? 'dia sem Putz' : 'dias sem Putz'}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-2xl font-black text-green-600 dark:text-green-400">🏆</p>
-                    <p className="text-[10px] text-green-600 dark:text-green-500 font-medium">Sem registros de Putz</p>
-                  </>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                  <p className="text-2xl font-black text-green-600 dark:text-green-400">
+                    {daysSinceNeg !== null ? daysSinceNeg : '🏆'}
+                  </p>
+                  <p className="text-[10px] text-green-600 dark:text-green-500 font-medium mt-0.5">
+                    {daysSinceNeg !== null ? (daysSinceNeg === 1 ? 'dia sem Putz' : 'dias sem Putz') : 'Sem Putz registrado'}
+                  </p>
+                  <p className="text-[9px] text-green-400 dark:text-green-600 mt-0.5">sequência atual</p>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center border border-amber-100 dark:border-amber-800">
+                  <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
+                    {recordDays !== null ? recordDays : '—'}
+                  </p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-0.5">
+                    {recordDays === 1 ? 'dia' : 'dias'} sem Putz
+                  </p>
+                  <p className="text-[9px] text-amber-400 dark:text-amber-600 mt-0.5">🏆 recorde histórico</p>
+                </div>
               </div>
 
               {/* Ranking inline de colaboradores mais citados */}
