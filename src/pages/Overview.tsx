@@ -1103,14 +1103,17 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         </p>
       )}
       {setoresTop.length > 0 && (
-        <div className="space-y-1.5">
-          {setoresTop.map(([setor, count]) => (
+        <div className="space-y-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+          {setoresTop.map(([setor, count]) => {
+            const pct = Math.round((count / chamadasHoje.length) * 100);
+            return (
             <div key={setor} className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-500 dark:text-gray-400 w-20 truncate shrink-0">{setor}</span>
-              <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-brand-500 h-full rounded-full" style={{ width: `${(count / maxSetor) * 100}%` }} />
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 w-16 truncate shrink-0">{setor}</span>
+              <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${(count / maxSetor) * 100}%`, backgroundColor: '#3b82f6' }} />
               </div>
-              <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 w-4 text-right">{count}</span>
+              <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 w-6 text-right">{count}</span>
+              <span className="text-[9px] text-gray-400 w-7 text-right">{pct}%</span>
             </div>
           ))}
         </div>
