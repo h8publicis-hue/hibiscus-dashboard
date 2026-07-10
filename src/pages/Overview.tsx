@@ -1,4 +1,4 @@
-import { Users, Star, Target, MessageSquare, Smile, Info } from 'lucide-react';
+import { Users, Star, Target, MessageSquare, Smile, Info, Megaphone, X, Check, Pencil } from 'lucide-react';
 import { ReviewsTicker } from '../components/ReviewsTicker';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
@@ -10,6 +10,7 @@ import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
+import { useAviso } from '../hooks/useAviso';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -310,6 +311,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { data: survey,  loading: smL } = useSurveyMonkey(period);
   const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour('today');
+  const { aviso, saving: avisoSaving, save: saveAviso } = useAviso();
+  const [avisoDismissed, setAvisoDismissed] = useState(false);
+  const [avisoEditing,   setAvisoEditing]   = useState(false);
+  const [avisoText,      setAvisoText]      = useState('');
   const [portariaCount, setPortariaCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -692,7 +697,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
               {/* Ranking inline de colaboradores mais citados */}
               {(() => {
-                const allResponses = survey?.allTimeResponses ?? [];
+                const allResponses = (survey?.allTimeResponses ?? []).filter(r => r.date?.startsWith('2026'));
                 let staffList: { id: string; name: string; sector: string; aliases?: string[] }[] = [];
                 try { staffList = JSON.parse(localStorage.getItem('hibiscus-staff') ?? '[]'); } catch { /* */ }
                 if (!staffList.length || !allResponses.length) return null;
@@ -718,7 +723,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 return (
                   <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
                     <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                      <Users size={9} /> Mais citados no survey
+                      <Users size={9} /> Mais citados na pesquisa interna / 2026
                     </p>
                     <div className="space-y-1">
                       {ranked.map((m, i) => (
@@ -794,7 +799,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   color === 'orange' && 'text-yellow-600 dark:text-yellow-400',
                   color === 'red'    && 'text-red-600 dark:text-red-400',
                   color === 'gray'   && 'text-gray-400',
-                )}>{combined ?? '—'}</p>
+                )}>{combined != null ? `${combined}%` : '—'}</p>
                 <p className={clsx('text-[10px] font-medium',
                   color === 'green'  && 'text-green-500',
                   color === 'orange' && 'text-yellow-500',
@@ -847,7 +852,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             <p className="text-xl font-black text-brand-700 dark:text-orange-400">{nacasa}</p>
           </div>
           <div className="border border-red-400 dark:border-red-600 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-red-400 dark:text-red-500 uppercase tracking-wider">↩ Saíram</p>
+            <p className="text-[9px] text-red-400 dark:text-red-500 uppercase tracking-wider">− Gap</p>
             <p className="text-xl font-black text-red-600 dark:text-red-400">
               {portariaCount !== null ? Math.max(0, portariaCount - nacasa) : '—'}
             </p>
@@ -864,7 +869,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <LoungeMap lounges={occupancy.lounges} />
         {loungesFull > 0 && (
           <p className="text-xs text-red-600 font-semibold text-right">
-            {loungesFull} lounge{loungesFull > 1 ? 's' : ''} cheio{loungesFull > 1 ? 's' : ''}
+            {loungesFull} lounge{loungesFull > 1 ? 's' : ''} em Ocupação Máxima
           </p>
         )}
       </div>
@@ -892,10 +897,69 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const occMax        = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count + SPACE_CONFIGS.prime.max;
   const loungesFull   = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
 
+  // ── Banner de comunicados ─────────────────────────────────────────────────
+  const bannerAviso = (() => {
+    const hasActive = aviso?.active && aviso.text.trim();
+    return (
+      <div className="px-3 pt-2 lg:px-4 lg:pt-3">
+        {/* Comunicado ativo */}
+        {hasActive && !avisoDismissed && (
+          <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-2.5 mb-2">
+            <Megaphone size={15} className="text-amber-500 shrink-0 mt-0.5" />
+            <p className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug">{aviso!.text}</p>
+            <button onClick={() => setAvisoDismissed(true)} className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Formulário de edição */}
+        {avisoEditing ? (
+          <div className="flex gap-2 mb-2">
+            <input
+              className="flex-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              placeholder="Digite o comunicado (máx. 300 caracteres)…"
+              maxLength={300}
+              value={avisoText}
+              onChange={e => setAvisoText(e.target.value)}
+            />
+            <button
+              onClick={async () => { await saveAviso({ text: avisoText.trim(), active: !!avisoText.trim() }); setAvisoEditing(false); setAvisoDismissed(false); }}
+              disabled={avisoSaving}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1 disabled:opacity-50"
+            >
+              <Check size={12} /> Publicar
+            </button>
+            {aviso?.active && (
+              <button
+                onClick={async () => { await saveAviso({ text: '', active: false }); setAvisoEditing(false); }}
+                className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg"
+              >
+                Remover
+              </button>
+            )}
+            <button onClick={() => setAvisoEditing(false)} className="text-gray-400 hover:text-gray-600 px-1">
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setAvisoText(aviso?.text ?? ''); setAvisoEditing(true); }}
+            className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-amber-500 transition-colors mb-2"
+          >
+            <Pencil size={10} /> {aviso?.active ? 'Editar comunicado' : 'Adicionar comunicado'}
+          </button>
+        )}
+      </div>
+    );
+  })();
+
   return (
     <>
       {/* ── MOBILE: mesma estrutura do desktop em scroll vertical ────────── */}
-      <div className="lg:hidden overflow-y-auto p-3 flex flex-col gap-3 pb-20">
+      <div className="lg:hidden overflow-y-auto flex flex-col pb-20">
+        {bannerAviso}
+        <div className="p-3 flex flex-col gap-3">
 
         {/* RECEITA */}
         <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1">Receita</p>
@@ -926,10 +990,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
         {blocoStaffRanking}
 
+        </div>{/* fecha div p-3 flex flex-col */}
       </div>
 
       {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
-      <div className="hidden lg:flex p-4 h-full overflow-hidden">
+      <div className="hidden lg:flex flex-col h-full overflow-hidden">
+        {bannerAviso}
+        <div className="flex flex-1 overflow-hidden px-4 pb-4">
         <div className="grid grid-cols-3 gap-3 w-full min-h-0">
 
           {/* Coluna 1 — Receita: Ao Vivo + Faturamento + A&BS + Total */}
@@ -955,6 +1022,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
 
         </div>
+        </div>{/* fecha flex flex-1 overflow-hidden */}
       </div>
     </>
   );

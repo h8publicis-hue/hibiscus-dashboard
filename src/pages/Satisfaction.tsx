@@ -1064,8 +1064,10 @@ export function Satisfaction({ period }: SatisfactionProps) {
                           {isSelected ? <CheckSquare size={16} className="text-brand-600 dark:text-brand-400" /> : <Square size={16} />}
                         </button>
 
-                        <div className={clsx('shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white', scoreColor(r.score))}>
-                          {r.score}
+                        <div className="shrink-0 flex flex-col items-center gap-0.5">
+                          <span className={clsx('text-xs font-bold leading-none', r.score >= 4 ? 'text-green-600 dark:text-green-400' : r.score === 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-500 dark:text-red-400')}>
+                            {'★'.repeat(r.score)}{'☆'.repeat(5 - r.score)}
+                          </span>
                         </div>
 
                         <div className="min-w-0 flex-1">

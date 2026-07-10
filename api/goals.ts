@@ -1,8 +1,9 @@
-// Metas do dashboard — compartilhadas via KV (todos os PCs veem o mesmo valor).
+// Metas e comunicados do dashboard — compartilhados via KV (todos os PCs veem o mesmo valor).
 
 const KV_URL   = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN = process.env.KV_REST_API_TOKEN ?? '';
-const KV_KEY   = 'dashboard:goals';
+const KV_KEY        = 'dashboard:goals';
+const KV_KEY_AVISO  = 'dashboard:aviso';
 const TTL_SEC  = 365 * 24 * 3600; // 1 ano
 
 async function kvGet(key: string) {
@@ -31,6 +32,23 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-store');
 
+  const type = (req.query?.type ?? req.body?.type ?? '') as string;
+
+  // ── Comunicados rápidos ──────────────────────────────────────────────────────
+  if (type === 'aviso') {
+    if (req.method === 'GET') {
+      const aviso = await kvGet(KV_KEY_AVISO);
+      return res.json({ aviso: aviso ?? null });
+    }
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const aviso = { text: String(body.text ?? '').slice(0, 300), active: !!body.active };
+      await kvSet(KV_KEY_AVISO, aviso);
+      return res.json({ ok: true, aviso });
+    }
+  }
+
+  // ── Metas ────────────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
     const goals = await kvGet(KV_KEY);
     return res.json({ goals: goals ?? null });
