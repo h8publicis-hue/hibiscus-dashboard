@@ -20,7 +20,7 @@ export function useAviso(): {
     fetch('/api/goals?type=aviso')
       .then(r => r.json())
       .then((j: any) => {
-        const data: AvisoList = Array.isArray(j?.avisos) ? j.avisos : j?.aviso ? [j.aviso] : [];
+        const data: AvisoList = Array.isArray(j?.avisos) ? j.avisos : [];
         if (data.length) {
           setAvisos(data);
           try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch { /* */ }

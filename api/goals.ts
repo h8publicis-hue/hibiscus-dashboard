@@ -37,8 +37,9 @@ export default async function handler(req: any, res: any) {
   // ── Comunicados rápidos ──────────────────────────────────────────────────────
   if (type === 'aviso') {
     if (req.method === 'GET') {
-      const aviso = await kvGet(KV_KEY_AVISO);
-      return res.json({ aviso: aviso ?? null });
+      const stored = await kvGet(KV_KEY_AVISO);
+      const avisos = Array.isArray(stored?.avisos) ? stored.avisos : [];
+      return res.json({ avisos });
     }
     if (req.method === 'POST') {
       const body   = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
