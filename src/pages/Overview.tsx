@@ -1168,19 +1168,19 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <div className="flex flex-1 overflow-hidden px-4 pb-4">
         <div className="grid grid-cols-3 gap-3 w-full min-h-0">
 
-          {/* Coluna 1 — Receita: Ao Vivo + Faturamento + A&BS + Total */}
+          {/* Coluna 1 — Receita + Chamadas */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoAoVivo}
             {blocoJaVendido}
             {blocoReceitaABS}
             {blocoTotalDia}
+            {blocoChamadas}
           </div>
 
-          {/* Coluna 2 — Ocupação + Check-in + Chamadas */}
+          {/* Coluna 2 — Ocupação + Check-in */}
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoOcupacao}
             {blocoCheckin}
-            {blocoChamadas}
           </div>
 
           {/* Coluna 3 — Reputação */}
