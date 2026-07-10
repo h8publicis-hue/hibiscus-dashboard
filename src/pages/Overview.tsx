@@ -711,30 +711,30 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 relative">
+              <div className="grid grid-cols-2 gap-2 items-stretch">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-100 dark:border-green-800 relative flex flex-col items-center justify-center gap-0.5 pt-6">
                   <div className="absolute top-1.5 right-1.5">
                     <InfoTooltip text="Quantos dias seguidos passaram desde o último cliente que deu nota 1 ou 2 (Putz). Reinicia sempre que um novo Putz é registrado." />
                   </div>
                   <p className="text-2xl font-black text-green-600 dark:text-green-400">
                     {daysSinceNeg !== null ? daysSinceNeg : '🏆'}
                   </p>
-                  <p className="text-[10px] text-green-600 dark:text-green-500 font-medium mt-0.5">
+                  <p className="text-[10px] text-green-600 dark:text-green-500 font-medium text-center">
                     {daysSinceNeg !== null ? (daysSinceNeg === 1 ? 'dia sem Putz' : 'dias sem Putz') : 'Sem Putz registrado'}
                   </p>
-                  <p className="text-[9px] text-green-400 dark:text-green-600 mt-0.5">sequência atual</p>
+                  <p className="text-[9px] text-green-400 dark:text-green-600">sequência atual</p>
                 </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center border border-amber-100 dark:border-amber-800 relative">
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-100 dark:border-amber-800 relative flex flex-col items-center justify-center gap-0.5 pt-6">
                   <div className="absolute top-1.5 right-1.5">
                     <InfoTooltip text="O maior intervalo sem nenhum Putz já registrado em todo o histórico. Meta da equipe: superar esse número e bater o recorde." />
                   </div>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
                     {recordDays !== null ? recordDays : '—'}
                   </p>
-                  <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-0.5">
-                    {recordDays === 1 ? 'dia' : 'dias'} sem Putz
+                  <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium text-center">
+                    {recordDays !== null && recordDays !== 1 ? 'dias' : 'dia'} sem Putz
                   </p>
-                  <p className="text-[9px] text-amber-400 dark:text-amber-600 mt-0.5">🏆 recorde histórico</p>
+                  <p className="text-[9px] text-amber-400 dark:text-amber-600">🏆 recorde histórico</p>
                 </div>
               </div>
 
