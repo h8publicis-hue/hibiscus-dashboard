@@ -712,7 +712,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center border border-green-100 dark:border-green-800 relative">
+                  <div className="absolute top-1.5 right-1.5">
+                    <InfoTooltip text="Quantos dias seguidos passaram desde o último cliente que deu nota 1 ou 2 (Putz). Reinicia sempre que um novo Putz é registrado." />
+                  </div>
                   <p className="text-2xl font-black text-green-600 dark:text-green-400">
                     {daysSinceNeg !== null ? daysSinceNeg : '🏆'}
                   </p>
@@ -721,7 +724,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   </p>
                   <p className="text-[9px] text-green-400 dark:text-green-600 mt-0.5">sequência atual</p>
                 </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center border border-amber-100 dark:border-amber-800">
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center border border-amber-100 dark:border-amber-800 relative">
+                  <div className="absolute top-1.5 right-1.5">
+                    <InfoTooltip text="O maior intervalo sem nenhum Putz já registrado em todo o histórico. Meta da equipe: superar esse número e bater o recorde." />
+                  </div>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
                     {recordDays !== null ? recordDays : '—'}
                   </p>
