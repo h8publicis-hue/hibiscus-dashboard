@@ -49,6 +49,7 @@ export const mockPaytourData: PaytourData = {
 
 export const mockSurveyMonkeyData: SurveyMonkeyData = {
   npsScore: 52,
+  avgScore: 4.2,
   promoters: 67,
   neutrals: 18,
   detractors: 15,

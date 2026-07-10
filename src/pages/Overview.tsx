@@ -638,10 +638,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const promoters  = survey?.promoters  ?? null;
     const neutrals   = survey?.neutrals   ?? null;
     const detractors = survey?.detractors ?? null;
-    const total      = survey?.totalResponses ?? 0;
+    const total      = survey?.surveys[0]?.responses ?? 0; // Fix 1: total do período, não all-time
 
-    // Dias sem Putz: calcula desde o último detrator (sentiment=negative)
-    const lastNeg = survey?.recentResponses
+    // Fix 2: Dias sem Putz sempre global (allTimeResponses), independente do período
+    const lastNeg = survey?.allTimeResponses
       .filter(r => r.sentiment === 'negative')
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
     const daysSinceNeg = lastNeg
@@ -754,34 +754,25 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Satisfação ─────────────────────────────────────────────────────
   const blocoSatisfacao = (() => {
-    const surveyNPS    = survey?.npsScore ?? null;
-    const surveyVol    = survey?.totalResponses ?? 0;
-    const googleRating = google?.averageRating ?? null;
+    const surveyAvg    = survey?.avgScore ?? null;
+    const surveyVol    = survey?.surveys[0]?.responses ?? 0;
+    const googleAvg    = google?.averageRating ?? null;
     const googleVol    = google?.totalReviews ?? 0;
-    const googleNPS    = (() => {
-      const dist = google?.ratingDistribution;
-      if (!dist) return null;
-      const tot = dist.reduce((s, e) => s + e.count, 0);
-      if (!tot) return null;
-      const p = dist.filter(e => e.stars >= 4).reduce((s, e) => s + e.count, 0);
-      const d = dist.filter(e => e.stars <= 2).reduce((s, e) => s + e.count, 0);
-      return Math.round((p / tot - d / tot) * 100);
-    })();
-    const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
-    const combined     = totalVol > 0
-      ? Math.round(
-          ((surveyNPS ?? 0) * (surveyNPS !== null ? surveyVol : 0) +
-           (googleNPS ?? 0) * (googleNPS !== null ? googleVol : 0)) / totalVol
-        )
-      : null;
+
+    // Combinado: média simples das duas notas na escala 0–5
+    const combined = surveyAvg !== null && googleAvg !== null
+      ? Math.round(((surveyAvg + googleAvg) / 2) * 10) / 10
+      : surveyAvg ?? googleAvg;
+
     const loading = smL || gL;
-    const color   = combined === null ? 'gray' : combined >= 50 ? 'green' : combined >= 0 ? 'orange' : 'red';
-    const label   = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
+    const color   = combined === null ? 'gray' : combined >= 4.5 ? 'green' : combined >= 4.0 ? 'orange' : 'red';
+    const label   = combined === null ? '—' : combined >= 4.5 ? 'Excelente' : combined >= 4.0 ? 'Bom' : 'Atenção';
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Satisfação &amp; Reputação</h2>
 
+        {/* Combinado */}
         <div className={clsx(
           'rounded-xl p-3 flex items-center justify-between',
           color === 'green'  && 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800',
@@ -791,10 +782,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         )}>
           <div>
             <div className="flex items-center gap-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Satisfação Geral</p>
-              <InfoTooltip text="Média ponderada entre o NPS da pesquisa interna e a nota do Google (convertida para a mesma escala de -100 a +100). Quanto maior o número, melhor a percepção geral dos clientes." />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nota Geral</p>
+              <InfoTooltip text="Média entre a nota média da pesquisa interna e a nota do Google, ambas na escala 0–5. Ex.: Survey 4.6 + Google 4.5 → (4.6+4.5)/2 = 4.5." />
             </div>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Survey + Google · {fmtN(totalVol)} votos</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Survey + Google · escala 0–5</p>
           </div>
           {loading
             ? <div className="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
@@ -804,7 +795,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   color === 'orange' && 'text-yellow-600 dark:text-yellow-400',
                   color === 'red'    && 'text-red-600 dark:text-red-400',
                   color === 'gray'   && 'text-gray-400',
-                )}>{combined != null ? `${combined}%` : '—'}</p>
+                )}>{combined != null ? `${combined} ★` : '—'}</p>
                 <p className={clsx('text-[10px] font-medium',
                   color === 'green'  && 'text-green-500',
                   color === 'orange' && 'text-yellow-500',
@@ -815,15 +806,16 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           }
         </div>
 
+        {/* Notas individuais */}
         <div className="grid grid-cols-2 gap-2">
-          <MiniKPI icon={<Target size={14} />} label="NPS Score" value={survey ? String(survey.npsScore) : '—'} sub="SurveyMonkey" color="green" loading={smL}
-            info="Net Promoter Score da pesquisa interna. Vai de -100 a +100. Acima de 50 é considerado Excelente. Calculado como % Promotores (nota 4-5) menos % Detratores (nota 1-2)." />
-          <MiniKPI icon={<Star size={14} />} label="Nota Google" value={google ? `${google.averageRating} ★` : '—'} sub={google ? `${fmtN(google.totalReviews)} avaliações` : undefined} color="orange" loading={gL}
-            info="Média das avaliações públicas no Google Maps. Escala de 1 a 5 estrelas. Nota acima de 4.5 coloca o negócio no top 10% da categoria." />
-          <MiniKPI icon={<Smile size={14} />} label="Arretados" value={survey ? `${survey.promoters}%` : '—'} sub="NPS Survey" color="purple" loading={smL}
-            info="Percentual de clientes que deram nota 4 ou 5 na pesquisa. São os mais propensos a indicar o Hibiscus para amigos e família." />
+          <MiniKPI icon={<Smile size={14} />} label="Survey" value={surveyAvg != null ? `${surveyAvg} ★` : '—'} sub={surveyVol > 0 ? `${surveyVol} respostas` : 'sem respostas'} color="green" loading={smL}
+            info="Média das notas da pesquisa interna no período selecionado. Escala 1–5." />
+          <MiniKPI icon={<Star size={14} />} label="Google" value={googleAvg != null ? `${googleAvg} ★` : '—'} sub={googleVol > 0 ? `${fmtN(googleVol)} avaliações · acumulado` : undefined} color="orange" loading={gL}
+            info="Nota acumulada no Google Maps (escala 1–5). Não é filtrável por período — reflete todo o histórico do estabelecimento." />
+          <MiniKPI icon={<Target size={14} />} label="NPS Survey" value={survey ? String(survey.npsScore) : '—'} sub="−100 a +100" color="purple" loading={smL}
+            info="Net Promoter Score da pesquisa interna. Calculado como % Arretados (nota 4-5) menos % Putz (nota 1-2). Acima de 50 é Excelente." />
           <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL}
-            info="Quantidade de avaliações do Google que ainda não receberam resposta da equipe. Responder avaliações (positivas e negativas) melhora o posicionamento no Google e demonstra cuidado com o cliente." />
+            info="Avaliações do Google que ainda não receberam resposta da equipe." />
         </div>
       </div>
     );
@@ -882,20 +874,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   })();
 
   // ── Dados de satisfação (compartilhado entre mobile e desktop) ──────────────
-  const surveyNPS    = survey?.npsScore ?? null;
-  const surveyVol    = survey?.totalResponses ?? 0;
-  const googleRating = google?.averageRating ?? null;
-  const googleVol    = google?.totalReviews ?? 0;
-  const googleNPS    = googleRating !== null ? Math.round((googleRating - 3) / 2 * 100) : null;
-  const totalVol     = (surveyNPS !== null ? surveyVol : 0) + (googleNPS !== null ? googleVol : 0);
-  const combined     = totalVol > 0
-    ? Math.round(
-        ((surveyNPS ?? 0) * (surveyNPS !== null ? surveyVol : 0) +
-         (googleNPS ?? 0) * (googleNPS !== null ? googleVol : 0)) / totalVol
-      )
-    : null;
-  const satColor = combined === null ? 'gray' : combined >= 50 ? 'green' : combined >= 0 ? 'orange' : 'red';
-  const satLabel = combined === null ? '—' : combined >= 50 ? 'Excelente' : combined >= 0 ? 'Bom' : 'Atenção';
+  const surveyAvgShared  = survey?.avgScore ?? null;
+  const googleAvgShared  = google?.averageRating ?? null;
+  const combinedShared   = surveyAvgShared !== null && googleAvgShared !== null
+    ? Math.round(((surveyAvgShared + googleAvgShared) / 2) * 10) / 10
+    : surveyAvgShared ?? googleAvgShared;
+  const satColor = combinedShared === null ? 'gray' : combinedShared >= 4.5 ? 'green' : combinedShared >= 4.0 ? 'orange' : 'red';
+  const satLabel = combinedShared === null ? '—' : combinedShared >= 4.5 ? 'Excelente' : combinedShared >= 4.0 ? 'Bom' : 'Atenção';
 
   // ── Resumo de ocupação ────────────────────────────────────────────────────
   const occTotal      = occupancy.beach + occupancy.lounges.reduce((a, b) => a + b, 0) + occupancy.prime;

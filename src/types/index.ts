@@ -69,6 +69,7 @@ export interface Survey {
 
 export interface SurveyMonkeyData {
   npsScore: number;
+  avgScore: number;        // média das notas no período, escala 0–5
   promoters: number;
   neutrals: number;
   detractors: number;

@@ -201,6 +201,10 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
   const pctD = total > 0 ? Math.round((nD / total) * 100) : 0;
   const nps  = pctP - pctD;
 
+  const avgScore = total > 0
+    ? Math.round((entries.reduce((s, e) => s + e.score, 0) / total) * 10) / 10
+    : 0;
+
   // Daily NPS history
   const byDay: Record<string, { p: number; d: number; t: number }> = {};
   for (const e of entries) {
@@ -248,6 +252,7 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
 
   return {
     npsScore:       nps,
+    avgScore,
     promoters:      pctP,
     neutrals:       pctN,
     detractors:     pctD,
