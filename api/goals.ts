@@ -51,6 +51,38 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // ── Vendas diárias ───────────────────────────────────────────────────────────
+  if (type === 'vendas') {
+    const months: string[] = [];
+    const now = new Date();
+    // suporta ?months=2 para buscar mês atual + anterior
+    const monthsParam = parseInt(String(req.query?.months ?? '1'), 10) || 1;
+    for (let i = 0; i < Math.min(monthsParam, 3); i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+
+    if (req.method === 'GET') {
+      const results = await Promise.all(months.map(m => kvGet(`dashboard:vendas:${m}`)));
+      const merged: Record<string, unknown> = {};
+      for (const r of results.reverse()) {
+        if (r && typeof r === 'object') Object.assign(merged, r);
+      }
+      return res.json({ vendas: merged });
+    }
+
+    if (req.method === 'POST') {
+      const body  = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const entry = body.entry as { date?: string; [k: string]: unknown } | undefined;
+      if (!entry?.date) return res.status(400).json({ error: 'entry.date required' });
+      const monthKey = `dashboard:vendas:${entry.date.slice(0, 7)}`;
+      const existing = (await kvGet(monthKey)) ?? {};
+      const updated  = { ...existing, [entry.date]: entry };
+      await kvSet(monthKey, updated);
+      return res.json({ ok: true });
+    }
+  }
+
   // ── Metas ────────────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
     const goals = await kvGet(KV_KEY);

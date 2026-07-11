@@ -124,7 +124,7 @@ function Dashboard() {
               : (
                 <Routes>
                   <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
-                  <Route path="/vendas"     element={<Sales period={period} />} />
+                  <Route path="/vendas"     element={<Sales />} />
                   <Route path="/satisfacao" element={<Satisfaction period={period} />} />
                   <Route path="/avaliacoes" element={<Reviews period={period} />} />
                   <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
