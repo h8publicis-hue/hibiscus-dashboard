@@ -25,6 +25,8 @@ import { Satisfaction } from './pages/Satisfaction';
 import { Reviews } from './pages/Reviews';
 import { Occupancy } from './pages/Occupancy';
 import { OccupancyInput } from './pages/OccupancyInput';
+import { Rh } from './pages/Rh';
+import { Cozinha } from './pages/Cozinha';
 import { Portaria } from './pages/Portaria';
 import { Fluxo } from './pages/Fluxo';
 import { Chamadas } from './pages/Chamadas';
@@ -163,6 +165,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/entrada"  element={<OccupancyInput />} />
+        <Route path="/rh"       element={<Rh />} />
+        <Route path="/cozinha"  element={<Cozinha />} />
         <Route path="/portaria" element={<Portaria />} />
         <Route path="/*"        element={<Dashboard />} />
       </Routes>

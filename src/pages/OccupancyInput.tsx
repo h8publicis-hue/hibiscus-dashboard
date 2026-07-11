@@ -9,7 +9,7 @@ const LOUNGE_GROUPS = [
   { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
-const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0 };
+const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0 };
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -21,10 +21,11 @@ async function fetchOcc(): Promise<OccupancyState> {
     if (!r.ok) throw new Error();
     const d = await r.json() as Partial<OccupancyState>;
     return {
-      beach:     clamp(d.beach ?? 0, 0, 500),
-      lounges:   Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
-      prime:     clamp(d.prime ?? 0, 0, 10),
-      parceiros: clamp(d.parceiros ?? 0, 0, 999),
+      beach:         clamp(d.beach ?? 0, 0, 500),
+      lounges:       Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
+      prime:         clamp(d.prime ?? 0, 0, 10),
+      parceiros:     clamp(d.parceiros ?? 0, 0, 999),
+      colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
     };
   } catch { return { ...DEFAULT, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) }; }
 }
@@ -429,7 +430,7 @@ export function OccupancyInput() {
             const senha = window.prompt('Digite a senha para zerar:');
             if (senha === null) return;
             if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
-            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0 });
+            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: occ.colaboradores });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
         >
