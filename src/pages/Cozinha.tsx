@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Megaphone } from 'lucide-react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
+import { useAviso } from '../hooks/useAviso';
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -22,88 +24,168 @@ async function fetchOcc(): Promise<OccupancyState> {
   }
 }
 
+function pctColor(pct: number) {
+  if (pct >= 0.9) return { border: 'border-red-400',    bg: 'bg-red-50',    num: 'text-red-600',    badge: 'bg-red-100 text-red-700',    bar: 'bg-red-500'    };
+  if (pct >= 0.6) return { border: 'border-yellow-400', bg: 'bg-yellow-50', num: 'text-yellow-700', badge: 'bg-yellow-100 text-yellow-700', bar: 'bg-yellow-400' };
+  return               { border: 'border-green-400',  bg: 'bg-green-50',  num: 'text-green-700',  badge: 'bg-green-100 text-green-700',  bar: 'bg-green-500'  };
+}
+
 function KitchenCard({
-  emoji, label, value, sub, accent,
+  emoji, label, value, max, sub, accent,
 }: {
-  emoji: string; label: string; value: number | string; sub?: string; accent: string;
+  emoji: string; label: string; value: number; max?: number; sub?: string;
+  accent?: { border: string; bg: string; num: string; badge: string; bar: string };
 }) {
+  const pct    = max ? value / max : null;
+  const colors = accent ?? { border: 'border-blue-300', bg: 'bg-blue-50', num: 'text-blue-700', badge: 'bg-blue-100 text-blue-700', bar: 'bg-blue-400' };
+
   return (
-    <div className={`rounded-2xl border-2 ${accent} p-6 flex flex-col items-center gap-2 bg-white`}>
-      <span className="text-4xl">{emoji}</span>
-      <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">{label}</p>
-      <p className="text-8xl font-black text-gray-900 tabular-nums leading-none">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-5 flex flex-col items-center gap-2 flex-1`}>
+      <span className="text-3xl">{emoji}</span>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest text-center">{label}</p>
+      <p className={`text-[5.5rem] font-black tabular-nums leading-none ${colors.num}`}>{value}</p>
+      {pct !== null && max && (
+        <>
+          <div className="w-full h-2 bg-black/10 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-500 ${colors.bar}`} style={{ width: `${Math.min(100, Math.round(pct * 100))}%` }} />
+          </div>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>
+            {Math.round(pct * 100)}% · de {max}
+          </span>
+        </>
+      )}
+      {sub && <p className="text-[10px] text-gray-400 text-center mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function Clock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hhmm = time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const ss   = time.toLocaleTimeString('pt-BR', { second: '2-digit' });
+  const data = time.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+  return (
+    <div className="text-center">
+      <div className="flex items-end justify-center gap-1">
+        <span className="text-5xl font-black text-gray-800 tabular-nums leading-none">{hhmm}</span>
+        <span className="text-2xl font-bold text-gray-400 tabular-nums leading-none mb-0.5">{ss}</span>
+      </div>
+      <p className="text-xs text-gray-400 capitalize mt-0.5">{data}</p>
     </div>
   );
 }
 
 export function Cozinha() {
-  const [occ, setOcc]         = useState<OccupancyState | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [occ, setOcc]           = useState<OccupancyState | null>(null);
+  const [ticker, setTicker]     = useState(0);
+  const [fade, setFade]         = useState(true);
+  const { avisos }              = useAviso();
+  const activeAvisos            = avisos.filter(a => a.active && a.text.trim());
 
   useEffect(() => {
-    const load = () => fetchOcc().then(d => { setOcc(d); setLastUpdate(new Date()); });
+    const load = () => fetchOcc().then(d => setOcc(d));
     load();
     const id = setInterval(load, 30_000);
     return () => clearInterval(id);
   }, []);
 
-  const loungesTotal = occ ? occ.lounges.reduce((a, b) => a + b, 0) : 0;
-  const refeitorio   = occ ? (occ.colaboradores ?? 0) + (occ.parceiros ?? 0) : 0;
+  useEffect(() => {
+    if (activeAvisos.length <= 1) return;
+    const id = setInterval(() => {
+      setFade(false);
+      setTimeout(() => { setTicker(t => (t + 1) % activeAvisos.length); setFade(true); }, 300);
+    }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAvisos.length]);
 
-  const hora = lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const loungesTotal = occ ? occ.lounges.reduce((a, b) => a + b, 0) : 0;
+  const loungesMax   = SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
+  const refeitorio   = occ ? (occ.colaboradores ?? 0) + (occ.parceiros ?? 0) : 0;
+  const currentAviso = activeAvisos[ticker % Math.max(activeAvisos.length, 1)];
+
+  const beachColors  = occ ? pctColor(occ.beach / SPACE_CONFIGS.beach.max) : undefined;
+  const loungeColors = occ ? pctColor(loungesTotal / loungesMax)             : undefined;
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wider">Hibiscus Beach Club</p>
-          <h1 className="text-lg font-black text-gray-900">🍳 Cozinha — Ocupação</h1>
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🍳</span>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Hibiscus Beach Club</p>
+            <h1 className="text-base font-black text-gray-900 leading-tight">Cozinha — Ocupação</h1>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] text-gray-400 uppercase tracking-wider">Atualizado</p>
-          <p className="text-sm font-bold text-gray-600">{hora}</p>
-        </div>
+
+        {/* Relógio */}
+        <Clock />
+
+        <p className="text-[10px] text-gray-300 hidden lg:block">↺ atualiza a cada 30s</p>
       </div>
 
-      {/* Cards */}
+      {/* Banner comunicados */}
+      {activeAvisos.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
+          <Megaphone size={14} className="text-amber-500 shrink-0" />
+          <p
+            className="flex-1 text-sm text-amber-800 font-medium leading-snug text-center transition-opacity duration-300"
+            style={{ opacity: fade ? 1 : 0 }}
+          >
+            {currentAviso?.text}
+          </p>
+          {activeAvisos.length > 1 && (
+            <span className="text-[10px] text-amber-400 font-medium shrink-0">
+              {(ticker % activeAvisos.length) + 1}/{activeAvisos.length}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Cards — horizontal no desktop, vertical no mobile */}
       {!occ ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-gray-400 text-sm animate-pulse">Carregando...</p>
         </div>
       ) : (
-        <div className="flex-1 p-4 grid grid-cols-1 gap-4 max-w-lg mx-auto w-full">
+        <div className="flex-1 p-4 flex flex-col lg:flex-row gap-4 max-w-6xl mx-auto w-full items-stretch">
           <KitchenCard
             emoji="🏖️"
             label="Espaço Beach"
             value={occ.beach}
-            sub={`de ${SPACE_CONFIGS.beach.max} capacidade`}
-            accent="border-orange-300"
+            max={SPACE_CONFIGS.beach.max}
+            accent={beachColors}
           />
           <KitchenCard
             emoji="🛋️"
             label="Espaço Lounge"
             value={loungesTotal}
-            sub={`de ${SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} capacidade`}
-            accent="border-purple-300"
+            max={loungesMax}
+            accent={loungeColors}
           />
-          <div className={`rounded-2xl border-2 border-blue-300 p-6 flex flex-col items-center gap-2 bg-white`}>
-            <span className="text-4xl">🍽️</span>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Refeitório</p>
-            <p className="text-8xl font-black text-gray-900 tabular-nums leading-none">{refeitorio}</p>
+          {/* Refeitório */}
+          <div className="rounded-2xl border-2 border-blue-300 bg-blue-50 p-5 flex flex-col items-center gap-2 flex-1">
+            <span className="text-3xl">🍽️</span>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Refeitório</p>
+            <p className="text-[5.5rem] font-black tabular-nums leading-none text-blue-700">{refeitorio}</p>
             <div className="flex gap-4 mt-1">
-              <span className="text-xs text-gray-400">👷 {occ.colaboradores ?? 0} colaboradores</span>
-              <span className="text-xs text-gray-400">🤝 {occ.parceiros ?? 0} parceiros</span>
+              <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                👷 {occ.colaboradores ?? 0} colab.
+              </span>
+              <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                🤝 {occ.parceiros ?? 0} parceiros
+              </span>
             </div>
           </div>
         </div>
       )}
-
-      {/* Auto-refresh indicator */}
-      <div className="text-center py-3">
-        <p className="text-[10px] text-gray-300">Atualiza automaticamente a cada 30s</p>
-      </div>
     </div>
   );
 }
