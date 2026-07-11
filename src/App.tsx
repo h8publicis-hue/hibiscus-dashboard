@@ -150,9 +150,9 @@ function Dashboard() {
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
 
-      <footer className="fixed bottom-0 left-0 right-0 z-40 text-center py-2.5 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight bg-gray-200/80 dark:bg-gray-900/80 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 text-center py-3 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight bg-gray-200/80 dark:bg-gray-900/80 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
         <span className="opacity-70">Desenvolvido por</span>{' '}
-        <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Sistemas</span>
+        <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Publicis</span>
       </footer>
     </>
   );
