@@ -128,7 +128,10 @@ export function Cozinha() {
         {/* Relógio */}
         <Clock />
 
-        <p className="text-[10px] text-gray-300 hidden lg:block">↺ atualiza a cada 30s</p>
+        <div className="flex flex-col items-end gap-0.5">
+        <img src="/logo.png" alt="Hibiscus Beach Club" className="h-7 object-contain" />
+        <p className="text-[9px] text-gray-300 hidden lg:block">↺ atualiza a cada 30s</p>
+      </div>
       </div>
 
       {/* Banner comunicados */}
@@ -186,6 +189,12 @@ export function Cozinha() {
           </div>
         </div>
       )}
+
+      {/* Rodapé */}
+      <div className="text-center py-3 border-t border-gray-200">
+        <p className="text-[9px] text-gray-300 leading-tight">Desenvolvido por</p>
+        <p className="text-[11px] font-bold text-gray-400 leading-tight">H8 Publicis</p>
+      </div>
     </div>
   );
 }
