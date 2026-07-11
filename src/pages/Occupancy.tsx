@@ -248,7 +248,7 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
 
 
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
-  const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | null>(null);
+  const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | 'rh' | null>(null);
   const [selectedLounge, setSelectedLounge] = useState<number | null>(null);
   const [toast, setToast]                 = useState<string | null>(null);
   const portaria = usePortaria();
@@ -271,6 +271,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
     <div className="p-6 space-y-6">
       {showQr === 'entrada'  && <QrModal path="/entrada"  title="Controle de Ocupação" onClose={() => setShowQr(null)} />}
       {showQr === 'portaria' && <QrModal path="/portaria" title="Controle de Portaria"  onClose={() => setShowQr(null)} />}
+      {showQr === 'rh'       && <QrModal path="/rh"       title="Contador RH"           onClose={() => setShowQr(null)} />}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ocupação em Tempo Real</h2>
         <div className="flex items-center gap-2">
@@ -289,6 +290,14 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
           >
             <QrCode size={13} />
             Abrir portaria
+          </button>
+          <button
+            onClick={() => setShowQr('rh')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+            title="Abrir QR code do contador RH"
+          >
+            <QrCode size={13} />
+            Abrir RH
           </button>
           <button
             onClick={handleResetAll}
