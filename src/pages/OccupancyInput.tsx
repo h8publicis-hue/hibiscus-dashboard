@@ -367,7 +367,7 @@ export function OccupancyInput() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-gray-800">🤝 Parceiros</p>
-              <p className="text-xs text-gray-400">Visitantes parceiros no dia</p>
+              <p className="text-xs text-gray-400">Uber, Táxi e Guias</p>
             </div>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
               hoje
