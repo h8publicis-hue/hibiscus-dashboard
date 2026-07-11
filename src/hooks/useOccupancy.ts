@@ -5,6 +5,7 @@ const DEFAULT_STATE: OccupancyState = {
   beach: 0,
   lounges: Array(SPACE_CONFIGS.lounge.count).fill(0),
   prime: 0,
+  parceiros: 0,
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -17,9 +18,10 @@ async function fetchOcc(): Promise<OccupancyState> {
     if (!r.ok) throw new Error();
     const d = await r.json() as Partial<OccupancyState>;
     return {
-      beach:   clamp(d.beach ?? 0, 0, 500),
-      lounges: Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
-      prime:   clamp(d.prime ?? 0, 0, 10),
+      beach:     clamp(d.beach ?? 0, 0, 500),
+      lounges:   Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
+      prime:     clamp(d.prime ?? 0, 0, 10),
+      parceiros: clamp(d.parceiros ?? 0, 0, 999),
     };
   } catch {
     return { ...DEFAULT_STATE, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) };
@@ -40,6 +42,7 @@ export interface OccupancyActions {
   setBeach: (n: number) => void;
   setLounge: (idx: number, n: number) => void;
   setPrime: (n: number) => void;
+  setParceiros: (n: number) => void;
   resetSilent: () => void;
   reset: () => void;
 }
@@ -62,20 +65,21 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
   }, []);
 
   const actions: OccupancyActions = {
-    setBeach:  (n) => update({ ...state, beach: clamp(n, 0, 500), lounges: state.lounges, prime: state.prime }),
-    setLounge: (idx, n) => {
+    setBeach:     (n) => update({ ...state, beach: clamp(n, 0, 500) }),
+    setLounge:    (idx, n) => {
       const lounges = [...state.lounges];
       lounges[idx] = clamp(n, 0, 10);
       update({ ...state, lounges });
     },
-    setPrime: (n) => update({ ...state, lounges: state.lounges, beach: state.beach, prime: clamp(n, 0, 10) }),
+    setPrime:     (n) => update({ ...state, prime: clamp(n, 0, 10) }),
+    setParceiros: (n) => update({ ...state, parceiros: clamp(n, 0, 999) }),
     resetSilent: () => {
-      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 });
+      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0 });
     },
     reset: async () => {
       if (window.confirm('Zerar todos os contadores de ocupação?')) {
         await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
-        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 });
+        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0 });
       }
     },
   };

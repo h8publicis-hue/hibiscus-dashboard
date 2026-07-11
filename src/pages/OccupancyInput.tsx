@@ -9,7 +9,7 @@ const LOUNGE_GROUPS = [
   { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
-const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 };
+const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0 };
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -21,9 +21,10 @@ async function fetchOcc(): Promise<OccupancyState> {
     if (!r.ok) throw new Error();
     const d = await r.json() as Partial<OccupancyState>;
     return {
-      beach:   clamp(d.beach ?? 0, 0, 500),
-      lounges: Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
-      prime:   clamp(d.prime ?? 0, 0, 10),
+      beach:     clamp(d.beach ?? 0, 0, 500),
+      lounges:   Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
+      prime:     clamp(d.prime ?? 0, 0, 10),
+      parceiros: clamp(d.parceiros ?? 0, 0, 999),
     };
   } catch { return { ...DEFAULT, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) }; }
 }
@@ -361,6 +362,26 @@ export function OccupancyInput() {
 
       <div className="max-w-lg mx-auto px-4 pt-5 flex flex-col gap-4">
 
+        {/* Parceiros */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-gray-800">🤝 Parceiros</p>
+              <p className="text-xs text-gray-400">Visitantes parceiros no dia</p>
+            </div>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+              hoje
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <StepBtn label="−" onClick={() => update({ ...occ, parceiros: clamp((occ.parceiros ?? 0) - 1, 0, 999) })} />
+            <div className="flex-1 text-center">
+              <span className="text-5xl font-bold text-gray-900">{occ.parceiros ?? 0}</span>
+            </div>
+            <StepBtn label="+" onClick={() => update({ ...occ, parceiros: clamp((occ.parceiros ?? 0) + 1, 0, 999) })} />
+          </div>
+        </div>
+
         {/* Beach */}
         <Counter
           label="🏖️ Beach"
@@ -408,7 +429,7 @@ export function OccupancyInput() {
             const senha = window.prompt('Digite a senha para zerar:');
             if (senha === null) return;
             if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
-            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0 });
+            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0 });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
         >

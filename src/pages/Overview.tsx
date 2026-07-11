@@ -911,26 +911,30 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <a href="/ocupacao" className="text-[10px] text-brand-600 dark:text-white hover:underline">detalhes →</a>
         </div>
 
-        {/* Portaria + Na Casa + Gap */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">🚪 Portaria</p>
-            <p className="text-xl font-black text-slate-800 dark:text-slate-100">{portariaCount ?? '—'}</p>
+        {/* Portaria + Na Casa + Gap + Parceiros */}
+        <div className="grid grid-cols-4 gap-1.5">
+          <div className="border border-slate-400 dark:border-slate-500 rounded-lg p-1.5 text-center">
+            <p className="text-[8px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">🚪 Portaria</p>
+            <p className="text-lg font-black text-slate-800 dark:text-slate-100">{portariaCount ?? '—'}</p>
           </div>
-          <div className="border border-brand-400 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-brand-500 dark:text-orange-300 uppercase tracking-wider">👥 Na Casa</p>
-            <p className="text-xl font-black text-brand-700 dark:text-orange-400">{nacasa}</p>
+          <div className="border border-brand-400 rounded-lg p-1.5 text-center">
+            <p className="text-[8px] text-brand-500 dark:text-orange-300 uppercase tracking-wider">👥 Na Casa</p>
+            <p className="text-lg font-black text-brand-700 dark:text-orange-400">{nacasa}</p>
           </div>
-          <div className="border border-red-400 dark:border-red-600 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-red-400 dark:text-red-500 uppercase tracking-wider">− Gap</p>
-            <p className="text-xl font-black text-red-600 dark:text-red-400">
+          <div className="border border-red-400 dark:border-red-600 rounded-lg p-1.5 text-center">
+            <p className="text-[8px] text-red-400 dark:text-red-500 uppercase tracking-wider">− Gap</p>
+            <p className="text-lg font-black text-red-600 dark:text-red-400">
               {portariaCount !== null ? Math.max(0, portariaCount - nacasa) : '—'}
             </p>
+          </div>
+          <div className="border border-blue-400 dark:border-blue-600 rounded-lg p-1.5 text-center">
+            <p className="text-[8px] text-blue-500 dark:text-blue-400 uppercase tracking-wider">🤝 Parceiros</p>
+            <p className="text-lg font-black text-blue-700 dark:text-blue-400">{occupancy.parceiros ?? 0}</p>
           </div>
         </div>
 
         {/* Beach / Lounges / Prime */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
           <OccupancyRow label="🛋️ Lounges" current={loungesTotal}       max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
           <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} />

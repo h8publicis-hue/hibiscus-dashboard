@@ -162,6 +162,7 @@ export interface OccupancyState {
   beach: number;      // 0–500
   lounges: number[];  // 18 elementos (501–518), cada 0–10
   prime: number;      // 0–10
+  parceiros: number;  // 0–999 (sem limite fixo)
 }
 
 export const SPACE_CONFIGS = {
