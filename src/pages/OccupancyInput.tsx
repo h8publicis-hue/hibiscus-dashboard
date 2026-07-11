@@ -142,9 +142,9 @@ function LoungeModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div
-        className="bg-white rounded-t-3xl w-full max-w-sm p-6 flex flex-col gap-5 shadow-xl"
+        className="bg-white rounded-3xl w-full max-w-sm p-6 flex flex-col gap-5 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         {step === 'edit' ? (
