@@ -312,6 +312,9 @@ export function OccupancyInput() {
   const [saved, setSaved]     = useState(false);
   const [loading, setLoading] = useState(true);
   const saveTimer             = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ref always current — evita stale closure nos callbacks do long-press
+  const occRef                = useRef(occ);
+  occRef.current              = occ;
 
   useEffect(() => {
     fetchOcc().then(d => { setOcc(d); setLoading(false); });
@@ -375,12 +378,13 @@ export function OccupancyInput() {
             </span>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <StepBtn label="−" onClick={() => update({ ...occ, parceiros: clamp((occ.parceiros ?? 0) - 1, 0, 999) })} />
+            <StepBtn label="−" onClick={() => update({ ...occRef.current, parceiros: clamp((occRef.current.parceiros ?? 0) - 1, 0, 999) })} />
             <div className="flex-1 text-center">
               <span className="text-5xl font-bold text-gray-900">{occ.parceiros ?? 0}</span>
             </div>
-            <StepBtn label="+" onClick={() => update({ ...occ, parceiros: clamp((occ.parceiros ?? 0) + 1, 0, 999) })} />
+            <StepBtn label="+" onClick={() => update({ ...occRef.current, parceiros: clamp((occRef.current.parceiros ?? 0) + 1, 0, 999) })} />
           </div>
+          <p className="text-xs text-gray-300 text-center">Toque e segure +/− para alterar rapidamente</p>
         </div>
 
         {/* Beach */}
@@ -390,8 +394,8 @@ export function OccupancyInput() {
           value={occ.beach}
           max={SPACE_CONFIGS.beach.max}
           color={badgeColor(pctBeach)}
-          onInc={() => update({ ...occ, beach: clamp(occ.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
-          onDec={() => update({ ...occ, beach: clamp(occ.beach - 1, 0, SPACE_CONFIGS.beach.max) })}
+          onInc={() => update({ ...occRef.current, beach: clamp(occRef.current.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
+          onDec={() => update({ ...occRef.current, beach: clamp(occRef.current.beach - 1, 0, SPACE_CONFIGS.beach.max) })}
         />
 
         {/* Lounges */}
@@ -430,7 +434,7 @@ export function OccupancyInput() {
             const senha = window.prompt('Digite a senha para zerar:');
             if (senha === null) return;
             if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
-            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: occ.colaboradores });
+            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: occRef.current.colaboradores });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
         >

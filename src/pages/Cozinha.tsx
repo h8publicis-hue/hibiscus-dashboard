@@ -91,7 +91,7 @@ export function Cozinha() {
   useEffect(() => {
     const load = () => fetchOcc().then(d => setOcc(d));
     load();
-    const id = setInterval(load, 30_000);
+    const id = setInterval(load, 10_000);
     return () => clearInterval(id);
   }, []);
 
@@ -130,7 +130,7 @@ export function Cozinha() {
 
         <div className="flex flex-col items-end gap-0.5">
         <img src="/logo.png" alt="Hibiscus Beach Club" className="h-7 object-contain" />
-        <p className="text-[9px] text-gray-300 hidden lg:block">↺ atualiza a cada 30s</p>
+        <p className="text-[9px] text-gray-300 hidden lg:block">↺ atualiza a cada 10s</p>
       </div>
       </div>
 
