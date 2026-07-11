@@ -145,6 +145,18 @@ export function Rh() {
           </p>
         </div>
 
+        {/* Zerar */}
+        <button
+          onClick={() => {
+            if (window.confirm('Zerar o contador de colaboradores?')) {
+              update({ ...occ, colaboradores: 0 });
+            }
+          }}
+          className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
+        >
+          Zerar colaboradores
+        </button>
+
         {/* Info refeitório */}
         <div className="w-full bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
           <span className="text-xl">🍽️</span>
