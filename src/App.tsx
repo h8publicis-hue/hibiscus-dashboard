@@ -46,6 +46,7 @@ const KDS_INTERVAL_MS = 8000;
 
 function Dashboard() {
   useEffect(() => { ensureStaffSeed(); }, []);
+  const isKiosk = new URLSearchParams(window.location.search).has('kiosk');
   const [period, setPeriod]       = useState<Period>('today');
   const [lastSync, setLastSync]   = useState<Date | null>(new Date());
   const [darkMode, setDarkMode]   = useState(false);
@@ -87,6 +88,15 @@ function Dashboard() {
       return next;
     });
   }, []);
+
+  // ── Modo Quiosque (?kiosk) — Overview fullscreen sem chrome ─────────────────
+  if (isKiosk) {
+    return (
+      <div className="min-h-screen bg-gray-200 dark:bg-gray-900 overflow-y-auto">
+        <Overview period={period} goals={goals} occupancy={occupancy} />
+      </div>
+    );
+  }
 
   return (
     <>

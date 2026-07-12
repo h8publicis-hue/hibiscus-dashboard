@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { RotateCcw, QrCode, X } from 'lucide-react';
+import { RotateCcw, QrCode, X, Tv2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
@@ -298,6 +298,14 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
           >
             <QrCode size={13} />
             Abrir RH
+          </button>
+          <button
+            onClick={() => window.open(`${window.location.origin}/?kiosk`, '_blank')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
+            title="Abrir Visão Geral em modo quiosque (sem menu)"
+          >
+            <Tv2 size={13} />
+            Quiosque
           </button>
           <button
             onClick={handleResetAll}
