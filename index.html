@@ -3,6 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Smart TV viewport fix: força largura de 1280px em navegadores embutidos de TV
+         que reportam viewports pequenos mesmo em telas físicas grandes.
+         Roda inline antes do CSS para evitar flash de layout mobile. -->
+    <script>
+      (function () {
+        var TV_PATTERNS = [
+          'SmartTV', 'Tizen', 'WebOS', 'Web0S', 'NetCast', 'HbbTV',
+          'BRAVIA', 'GoogleTV', 'AndroidTV', 'AFT', 'CrKey', 'SMART-TV',
+          'PhilipsTV', 'SMART_TV', 'SmartHub', 'Viera'
+        ];
+        var ua = navigator.userAgent || '';
+        var isTV = TV_PATTERNS.some(function (p) {
+          return ua.indexOf(p) !== -1;
+        });
+        if (isTV) {
+          var vp = document.querySelector('meta[name="viewport"]');
+          if (vp) vp.setAttribute('content', 'width=1280');
+        }
+      })();
+    </script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
