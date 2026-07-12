@@ -92,8 +92,14 @@ function Dashboard() {
   // ── Modo Quiosque (?kiosk) — Overview fullscreen sem chrome ─────────────────
   if (isKiosk) {
     return (
-      <div className="min-h-screen bg-gray-200 dark:bg-gray-900 overflow-y-auto">
-        <Overview period={period} goals={goals} occupancy={occupancy} />
+      <div className="min-h-screen bg-gray-200 dark:bg-gray-900 overflow-y-auto flex flex-col">
+        <div className="flex-1">
+          <Overview period={period} goals={goals} occupancy={occupancy} />
+        </div>
+        <footer className="text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight">
+          <span className="opacity-70">Desenvolvido por</span>{' '}
+          <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Publicis</span>
+        </footer>
       </div>
     );
   }
