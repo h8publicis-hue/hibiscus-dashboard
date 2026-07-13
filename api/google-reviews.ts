@@ -153,7 +153,7 @@ export default async function handler(req: any, res: any) {
     const topKeywords     = buildKeywords(reviews);
     const ratingDistribution = buildDistribution(reviews, total);
     const ratingHistory   = buildHistory(reviews, avgRating);
-    const unansweredCount = recentReviews.filter((r) => !r.replied && r.text).length;
+    const unansweredCount = recentReviews.filter((r: any) => !r.replied && r.text).length;
     const last5Avg        = reviews.length
       ? Math.round((reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length) * 10) / 10
       : null;

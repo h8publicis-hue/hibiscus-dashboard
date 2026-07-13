@@ -132,7 +132,7 @@ async function fetchCheckin(): Promise<CheckinData> {
 
   // Loja — opcional, só se houver PHPSESSID
   const session = await getSession();
-  if (!session) return { sessionActive: false, ts: Date.now() };
+  if (!session) return { reservados, sessionActive: false, ts: Date.now() };
 
   const calRes = await lojaFetch(
     `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
@@ -144,14 +144,14 @@ async function fetchCheckin(): Promise<CheckinData> {
     activeSession = '';
     await kvSet(SESSION_KV, '', 1);
     // Retorna dado parcial — sem crash
-    return { sessionActive: false, ts: Date.now() };
+    return { reservados, sessionActive: false, ts: Date.now() };
   }
 
   const items = JSON.parse(rawText) as any[];
-  if (!Array.isArray(items)) return { sessionActive: false, ts: Date.now() };
+  if (!Array.isArray(items)) return { reservados, sessionActive: false, ts: Date.now() };
 
   const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
-  if (!dayuse) return { sessionActive: false, ts: Date.now() };
+  if (!dayuse) return { reservados, sessionActive: false, ts: Date.now() };
 
   const total       = Number(dayuse.total      ?? 0);
   const lojaRes     = Number(dayuse.reservados ?? 0);
