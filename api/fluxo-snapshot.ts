@@ -74,7 +74,20 @@ export default async function handler(req: any, res: any) {
       }
 
       await kvSet(kvKey, snap, TTL_2Y);
-      return res.json({ ok: true, snapshot: snap });
+
+      // Zera ocupação para o próximo dia (mantém colaboradores)
+      const ocupacaoAtual = (await kvGet('ocupacao')) ?? {};
+      const ocupacaoZerada = {
+        beach: 0,
+        lounges: Array(19).fill(0),
+        prime: 0,
+        parceiros: 0,
+        colaboradores: Number(ocupacaoAtual.colaboradores ?? 0),
+        loungeObs: Array(19).fill(''),
+      };
+      await kvSet('ocupacao', ocupacaoZerada);
+
+      return res.json({ ok: true, snapshot: snap, reset: true });
     } catch (err: any) {
       console.error('[fluxo-snapshot cron]', err.message);
       return res.status(500).json({ error: String(err) });
