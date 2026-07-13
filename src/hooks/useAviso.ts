@@ -17,16 +17,19 @@ export function useAviso(): {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch('/api/goals?type=aviso')
-      .then(r => r.json())
-      .then((j: any) => {
-        const data: AvisoList = Array.isArray(j?.avisos) ? j.avisos : [];
-        if (data.length) {
-          setAvisos(data);
-          try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch { /* */ }
-        }
-      })
-      .catch(() => { /* usa localStorage */ });
+    const fetchAvisos = () =>
+      fetch('/api/goals?type=aviso')
+        .then(r => r.json())
+        .then((j: any) => {
+          if (!Array.isArray(j?.avisos)) return;
+          setAvisos(j.avisos);
+          try { localStorage.setItem(LS_KEY, JSON.stringify(j.avisos)); } catch { /* */ }
+        })
+        .catch(() => { /* usa localStorage */ });
+
+    fetchAvisos();
+    const id = setInterval(fetchAvisos, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const save = async (next: AvisoList) => {
