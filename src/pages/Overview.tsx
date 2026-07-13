@@ -151,7 +151,29 @@ function loungeBg(v: number, pct: number) {
 }
 
 // ── Mapa de lounges — desktop ────────────────────────────────────────────────
-function LoungeMap({ lounges }: { lounges: number[] }) {
+function LoungeMap({ lounges, loungeObs }: { lounges: number[]; loungeObs?: string[] }) {
+  const obs = loungeObs ?? [];
+
+  function LoungeCell({ idx, extraClass }: { idx: number; extraClass?: string }) {
+    const v = lounges[idx];
+    const pct = v / SPACE_CONFIGS.lounge.max;
+    const num = SPACE_CONFIGS.lounge.start + idx;
+    const note = obs[idx] ?? '';
+    return (
+      <div
+        key={idx}
+        title={note || undefined}
+        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct), extraClass)}
+      >
+        <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
+        <span className="text-2xl font-black leading-tight">{v}</span>
+        {note && (
+          <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white dark:border-gray-800" />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🛋️ Lounges</p>
@@ -162,17 +184,9 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
           <div key={group.label} className="flex gap-1 items-center">
             <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 w-16 shrink-0 leading-tight" />
             <div className="flex flex-1 gap-1">
-              {group.ids.map((idx) => {
-                const v = lounges[idx];
-                const pct = v / SPACE_CONFIGS.lounge.max;
-                const num = SPACE_CONFIGS.lounge.start + idx;
-                return (
-                  <div key={idx} className={clsx('flex-1 rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct))}>
-                    <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
-                    <span className="text-2xl font-black leading-tight">{v}</span>
-                  </div>
-                );
-              })}
+              {group.ids.map((idx) => (
+                <LoungeCell key={idx} idx={idx} extraClass="flex-1" />
+              ))}
             </div>
           </div>
         ))}
@@ -188,17 +202,9 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
             <div key={group.label} className="flex flex-col gap-1">
               <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
               <div className="flex gap-1">
-                {group.ids.map((idx) => {
-                  const v = lounges[idx];
-                  const pct = v / SPACE_CONFIGS.lounge.max;
-                  const num = SPACE_CONFIGS.lounge.start + idx;
-                  return (
-                    <div key={idx} className={clsx('w-11 rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct))}>
-                      <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
-                      <span className="text-2xl font-black leading-tight">{v}</span>
-                    </div>
-                  );
-                })}
+                {group.ids.map((idx) => (
+                  <LoungeCell key={idx} idx={idx} extraClass="w-11" />
+                ))}
               </div>
             </div>
           ))}
@@ -208,17 +214,9 @@ function LoungeMap({ lounges }: { lounges: number[] }) {
         <div className="flex flex-col gap-1 items-end">
           <LoungeLabel label="Prime ★" className="text-[10px] font-semibold text-yellow-600" />
           <div className="flex gap-1">
-            {LOUNGE_GROUPS[3].ids.map((idx) => {
-              const v = lounges[idx];
-              const pct = v / SPACE_CONFIGS.lounge.max;
-              const num = SPACE_CONFIGS.lounge.start + idx;
-              return (
-                <div key={idx} className={clsx('w-11 rounded flex flex-col items-center justify-center py-2 text-center ring-1 ring-yellow-400', loungeBg(v, pct))}>
-                  <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
-                  <span className="text-2xl font-black leading-tight">{v}</span>
-                </div>
-              );
-            })}
+            {LOUNGE_GROUPS[3].ids.map((idx) => (
+              <LoungeCell key={idx} idx={idx} extraClass="w-11 ring-1 ring-yellow-400" />
+            ))}
           </div>
         </div>
       </div>
@@ -940,7 +938,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} />
         </div>
 
-        <LoungeMap lounges={occupancy.lounges} />
+        <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} />
         {loungesFull > 0 && (
           <p className="text-xs text-red-600 font-semibold text-right">
             {loungesFull} lounge{loungesFull > 1 ? 's' : ''} em Ocupação Máxima
