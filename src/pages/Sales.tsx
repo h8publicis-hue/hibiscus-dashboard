@@ -147,6 +147,15 @@ export function Sales() {
 
   return (
     <div className="p-3 lg:p-5 max-w-3xl mx-auto flex flex-col gap-4">
+      {/* Banner em desenvolvimento */}
+      <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+        <span className="text-base shrink-0">🚧</span>
+        <div>
+          <p className="font-semibold leading-tight">Módulo em desenvolvimento</p>
+          <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Os dados aqui são inseridos manualmente. Em breve teremos integração automática com o sistema de vendas.</p>
+        </div>
+      </div>
+
       {/* KPIs mês atual */}
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
