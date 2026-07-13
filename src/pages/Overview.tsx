@@ -1142,6 +1142,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const setoresTop = Object.entries(setoresCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxSetor   = setoresTop[0]?.[1] ?? 1;
 
+  // Setores com chamadas pendentes agora
+  const setoresPendentes = [...new Set(
+    chamadasHoje.filter(c => c.status === 'pendente' && c.setor).map(c => c.setor)
+  )];
+
   const blocoChamadas = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center justify-between mb-3">
@@ -1161,6 +1166,18 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
         ))}
       </div>
+      {setoresPendentes.length > 0 && (
+        <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-1.5 mb-3">
+          <span className="text-amber-500 text-xs shrink-0">⚠️</span>
+          <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium leading-snug">
+            <span className="font-semibold">Aguardando:</span>{' '}
+            {setoresPendentes.length <= 3
+              ? setoresPendentes.join(' · ')
+              : `${setoresPendentes.slice(0, 3).join(' · ')} +${setoresPendentes.length - 3}`
+            }
+          </p>
+        </div>
+      )}
       {avgEspera > 0 && (
         <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3 text-center">
           Tempo médio de espera: <span className="font-semibold text-gray-700 dark:text-gray-300">{avgMin}m {avgSec}s</span>
