@@ -89,7 +89,9 @@ export default async function handler(req: any, res: any) {
       const id = uuid(); const qrCode = uuid();
       const data = { id, qrCode, nome: String(req.body?.nome ?? '').slice(0, 100), categoria: String(req.body?.categoria ?? 'colaborador'), empresa: String(req.body?.empresa ?? '').slice(0, 100), setor: String(req.body?.setor ?? '').slice(0, 100), foto: String(req.body?.foto ?? '').slice(0, 500), ativo: req.body?.ativo !== false };
       try {
-        await fetch(`${BASE}/pessoas_refeicao/${id}?key=${API_KEY}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toFirestore(data)) });
+        const fsRes = await fetch(`${BASE}/pessoas_refeicao/${id}?key=${API_KEY}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toFirestore(data)) });
+        const fsJson = await fsRes.json() as any;
+        if (!fsRes.ok) return res.status(500).json({ error: 'Firestore recusou a escrita', details: fsJson });
         return res.json({ ok: true, pessoa: data });
       } catch (err: any) { return res.status(500).json({ error: String(err) }); }
     }
