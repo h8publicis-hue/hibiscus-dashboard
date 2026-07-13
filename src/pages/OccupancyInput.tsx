@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Pencil } from 'lucide-react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 
 const LOUNGE_GROUPS = [
@@ -116,58 +115,6 @@ function Counter({
   );
 }
 
-// ── Modal de observação de lounge ────────────────────────────────────────────
-function ObsModal({
-  idx, obs, onClose, onSave,
-}: {
-  idx: number; obs: string; onClose: () => void; onSave: (text: string) => void;
-}) {
-  const [text, setText] = useState(obs);
-  const name = SPACE_CONFIGS.lounge.start + idx;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
-      <div
-        className="bg-white rounded-3xl w-full max-w-sm p-5 flex flex-col gap-4 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Pencil size={14} className="text-amber-500" />
-            <h3 className="text-sm font-bold text-gray-800">Obs · Lounge {name}</h3>
-          </div>
-          <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
-        </div>
-        <textarea
-          autoFocus
-          className="w-full border border-gray-200 rounded-2xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
-          rows={4}
-          maxLength={200}
-          placeholder="Ex: reservado para cliente VIP, manutenção, grupo familiar..."
-          value={text}
-          onChange={e => setText(e.target.value)}
-        />
-        <div className="flex gap-2">
-          {text && (
-            <button
-              onClick={() => { onSave(''); onClose(); }}
-              className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-xs text-gray-400 hover:text-red-400 hover:border-red-200 transition-colors"
-            >
-              Limpar
-            </button>
-          )}
-          <button
-            onClick={() => { onSave(text.trim()); onClose(); }}
-            className="flex-1 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-semibold active:bg-amber-600"
-          >
-            Salvar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Modal de edição de lounge individual ─────────────────────────────────────
 function LoungeModal({
   idx, value, currentBeach, max, onClose, onSave,
@@ -272,7 +219,6 @@ function LoungeModal({
 
 function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: OccupancyState) => void }) {
   const [editing, setEditing] = useState<number | null>(null);
-  const [editingObs, setEditingObs] = useState<number | null>(null);
 
 
   function cellColor(v: number, p: number) {
@@ -307,13 +253,7 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
                         <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
                       </div>
                     </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
-                      className={`absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white border-gray-200 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
-                      title={obs || 'Adicionar observação'}
-                    >
-                      <Pencil size={9} />
-                    </button>
+                    {obs && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white" title={obs} />}
                   </div>
                 );
               })}
@@ -344,13 +284,7 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
                           <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
                         </div>
                       </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
-                        className={`absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white border-gray-200 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
-                        title={obs || 'Adicionar observação'}
-                      >
-                        <Pencil size={9} />
-                      </button>
+                      {obs && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white" title={obs} />}
                     </div>
                   );
                 })}
@@ -375,18 +309,6 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
         />
       )}
 
-      {editingObs !== null && (
-        <ObsModal
-          idx={editingObs}
-          obs={occ.loungeObs?.[editingObs] ?? ''}
-          onClose={() => setEditingObs(null)}
-          onSave={(text) => {
-            const loungeObs = [...(occ.loungeObs ?? Array(SPACE_CONFIGS.lounge.count).fill(''))];
-            loungeObs[editingObs] = text;
-            update({ ...occ, loungeObs });
-          }}
-        />
-      )}
     </>
   );
 }

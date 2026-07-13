@@ -45,6 +45,7 @@ async function saveOcc(state: OccupancyState): Promise<void> {
 export interface OccupancyActions {
   setBeach: (n: number) => void;
   setLounge: (idx: number, n: number) => void;
+  setLoungeObs: (idx: number, text: string) => void;
   setPrime: (n: number) => void;
   setParceiros: (n: number) => void;
   setColaboradores: (n: number) => void;
@@ -75,6 +76,11 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
       const lounges = [...state.lounges];
       lounges[idx] = clamp(n, 0, 10);
       update({ ...state, lounges });
+    },
+    setLoungeObs: (idx, text) => {
+      const loungeObs = [...(state.loungeObs ?? Array(SPACE_CONFIGS.lounge.count).fill(''))];
+      loungeObs[idx] = text.slice(0, 200);
+      update({ ...state, loungeObs });
     },
     setPrime:     (n) => update({ ...state, prime: clamp(n, 0, 10) }),
     setParceiros:     (n) => update({ ...state, parceiros: clamp(n, 0, 999) }),

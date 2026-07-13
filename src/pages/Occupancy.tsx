@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { RotateCcw, QrCode, X, Tv2 } from 'lucide-react';
+import { RotateCcw, QrCode, X, Tv2, Pencil } from 'lucide-react';
 import QRCode from 'qrcode';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
@@ -247,9 +247,47 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
 }
 
 
+function ObsModal({ idx, obs, onClose, onSave }: { idx: number; obs: string; onClose: () => void; onSave: (text: string) => void }) {
+  const [text, setText] = useState(obs);
+  const name = SPACE_CONFIGS.lounge.start + idx;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm p-5 flex flex-col gap-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Pencil size={14} className="text-amber-500" />
+            <h3 className="text-sm font-bold text-gray-800 dark:text-white">Obs · Lounge {name}</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
+        </div>
+        <textarea
+          autoFocus
+          className="w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-2xl px-3 py-2 text-sm placeholder-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
+          rows={4}
+          maxLength={200}
+          placeholder="Ex: reservado para cliente VIP, manutenção, grupo familiar..."
+          value={text}
+          onChange={e => setText(e.target.value)}
+        />
+        <div className="flex gap-2">
+          {text && (
+            <button onClick={() => { onSave(''); onClose(); }} className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-xs text-gray-400 hover:text-red-400 hover:border-red-200 transition-colors">
+              Limpar
+            </button>
+          )}
+          <button onClick={() => { onSave(text.trim()); onClose(); }} className="flex-1 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-semibold active:bg-amber-600">
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
   const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | 'rh' | null>(null);
   const [selectedLounge, setSelectedLounge] = useState<number | null>(null);
+  const [editingObs, setEditingObs]       = useState<number | null>(null);
   const [toast, setToast]                 = useState<string | null>(null);
   const portaria = usePortaria();
 
@@ -369,17 +407,27 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
                 {group.ids.map((idx) => {
                   const count = occupancy.lounges[idx];
                   const isSelected = selectedLounge === idx;
+                  const obs = occupancy.loungeObs?.[idx] ?? '';
                   return (
-                    <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
-                      <OccupancyCounter
-                        name={`${SPACE_CONFIGS.lounge.start + idx}`}
-                        current={count}
-                        max={SPACE_CONFIGS.lounge.max}
-                        selected={isSelected}
-                        onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
-                        onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
-                        compact
-                      />
+                    <div key={idx} className="relative">
+                      <div onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
+                        <OccupancyCounter
+                          name={`${SPACE_CONFIGS.lounge.start + idx}`}
+                          current={count}
+                          max={SPACE_CONFIGS.lounge.max}
+                          selected={isSelected}
+                          onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                          onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                          compact
+                        />
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
+                        className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors z-10 ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
+                        title={obs || 'Adicionar observação'}
+                      >
+                        <Pencil size={9} />
+                      </button>
                     </div>
                   );
                 })}
@@ -394,17 +442,27 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
               {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
                 const count = occupancy.lounges[idx];
                 const isSelected = selectedLounge === idx;
+                const obs = occupancy.loungeObs?.[idx] ?? '';
                 return (
-                  <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
-                    <OccupancyCounter
-                      name={loungeName(idx)}
-                      current={count}
-                      max={SPACE_CONFIGS.lounge.max}
-                      selected={isSelected}
-                      onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
-                      onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
-                      compact
-                    />
+                  <div key={idx} className="relative">
+                    <div onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
+                      <OccupancyCounter
+                        name={loungeName(idx)}
+                        current={count}
+                        max={SPACE_CONFIGS.lounge.max}
+                        selected={isSelected}
+                        onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                        onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                        compact
+                      />
+                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
+                      className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors z-10 ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
+                      title={obs || 'Adicionar observação'}
+                    >
+                      <Pencil size={9} />
+                    </button>
                   </div>
                 );
               })}
@@ -414,17 +472,27 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             {LOUNGE_GROUPS[3].ids.map((idx) => {
               const count = occupancy.lounges[idx];
               const isSelected = selectedLounge === idx;
+              const obs = occupancy.loungeObs?.[idx] ?? '';
               return (
-                <div key={idx} onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
-                  <OccupancyCounter
-                    name={<><span className="text-yellow-600">★</span>{` ${SPACE_CONFIGS.lounge.start + idx}`}</>}
-                    current={count}
-                    max={SPACE_CONFIGS.lounge.max}
-                    selected={isSelected}
-                    onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
-                    onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
-                    compact
-                  />
+                <div key={idx} className="relative">
+                  <div onClick={() => setSelectedLounge(prev => prev === idx ? null : idx)} className="cursor-pointer">
+                    <OccupancyCounter
+                      name={<><span className="text-yellow-600">★</span>{` ${SPACE_CONFIGS.lounge.start + idx}`}</>}
+                      current={count}
+                      max={SPACE_CONFIGS.lounge.max}
+                      selected={isSelected}
+                      onIncrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count + 1); }}
+                      onDecrement={() => { if (!isSelected) { showToast('Selecione o lounge antes'); return; } actions.setLounge(idx, count - 1); }}
+                      compact
+                    />
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
+                    className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors z-10 ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
+                    title={obs || 'Adicionar observação'}
+                  >
+                    <Pencil size={9} />
+                  </button>
                 </div>
               );
             })}
@@ -433,6 +501,15 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
       </div>
 
       {toast && <Toast msg={toast} onDone={() => setToast(null)} />}
+
+      {editingObs !== null && (
+        <ObsModal
+          idx={editingObs}
+          obs={occupancy.loungeObs?.[editingObs] ?? ''}
+          onClose={() => setEditingObs(null)}
+          onSave={(text) => actions.setLoungeObs(editingObs, text)}
+        />
+      )}
     </div>
   );
 }
