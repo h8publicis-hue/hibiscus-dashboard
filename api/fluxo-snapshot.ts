@@ -62,20 +62,7 @@ export default async function handler(req: any, res: any) {
     try {
       const snap = await buildSnapshot(today);
 
-      // Só grava se portaria > 0 (dia com atividade real)
-      if (snap.portaria === 0) {
-        return res.json({ ok: true, skipped: true, reason: 'portaria=0', snap });
-      }
-
-      // Não sobrescreve se o registro existente já tem portaria maior
-      const existing = await kvGet(kvKey) as { portaria?: number } | null;
-      if (existing && (existing.portaria ?? 0) >= snap.portaria) {
-        return res.json({ ok: true, skipped: true, reason: 'existing is better', existing, snap });
-      }
-
-      await kvSet(kvKey, snap, TTL_2Y);
-
-      // Zera ocupação para o próximo dia (mantém colaboradores)
+      // Zeragem sempre acontece (independente de portaria ou snapshot)
       const ocupacaoAtual = (await kvGet('ocupacao')) ?? {};
       const ocupacaoZerada = {
         beach: 0,
@@ -86,6 +73,19 @@ export default async function handler(req: any, res: any) {
         loungeObs: Array(19).fill(''),
       };
       await kvSet('ocupacao', ocupacaoZerada);
+
+      // Só grava snapshot se portaria > 0 (dia com atividade real)
+      if (snap.portaria === 0) {
+        return res.json({ ok: true, skipped: true, reason: 'portaria=0', snap, reset: true });
+      }
+
+      // Não sobrescreve se o registro existente já tem portaria maior
+      const existing = await kvGet(kvKey) as { portaria?: number } | null;
+      if (existing && (existing.portaria ?? 0) >= snap.portaria) {
+        return res.json({ ok: true, skipped: true, reason: 'existing is better', existing, snap, reset: true });
+      }
+
+      await kvSet(kvKey, snap, TTL_2Y);
 
       return res.json({ ok: true, snapshot: snap, reset: true });
     } catch (err: any) {
