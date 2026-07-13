@@ -77,8 +77,9 @@ export default async function handler(req: any, res: any) {
   if (action === 'pessoas') {
     if (req.method === 'GET') {
       try {
-        const docs = await runQuery({ structuredQuery: { from: [{ collectionId: 'pessoas_refeicao' }], limit: 500 } });
-        const pessoas = docs.filter((d: any) => d.document).map((d: any) => fromPessoa(d.document));
+        const r = await fetch(`${BASE}/pessoas_refeicao?pageSize=500&key=${API_KEY}`);
+        const j = await r.json() as any;
+        const pessoas = (j.documents ?? []).map((d: any) => fromPessoa(d));
         pessoas.sort((a: any, b: any) => a.nome.localeCompare(b.nome, 'pt-BR'));
         return res.json({ pessoas });
       } catch (err: any) { return res.status(500).json({ error: String(err) }); }
