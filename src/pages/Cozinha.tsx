@@ -110,6 +110,18 @@ export function Cozinha() {
   const refeitorio   = occ ? (occ.colaboradores ?? 0) + (occ.parceiros ?? 0) : 0;
   const currentAviso = activeAvisos[ticker % Math.max(activeAvisos.length, 1)];
 
+  // Horário do refeitório: 11h–15h (BRT)
+  const REFEITORIO_OPEN  = 11;
+  const REFEITORIO_CLOSE = 15;
+  const nowBRT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Recife' }));
+  const nowH   = nowBRT.getHours() + nowBRT.getMinutes() / 60;
+  const refeitorioAberto = nowH >= REFEITORIO_OPEN && nowH < REFEITORIO_CLOSE;
+  const refeitorioProgresso = refeitorioAberto
+    ? Math.min(100, Math.round(((nowH - REFEITORIO_OPEN) / (REFEITORIO_CLOSE - REFEITORIO_OPEN)) * 100))
+    : 0;
+  const minutosParaAbrir  = refeitorioAberto ? 0 : Math.round((REFEITORIO_OPEN - nowH) * 60);
+  const minutosParaFechar = refeitorioAberto ? Math.round((REFEITORIO_CLOSE - nowH) * 60) : 0;
+
   const beachColors  = occ ? pctColor(occ.beach / SPACE_CONFIGS.beach.max) : undefined;
   const loungeColors = occ ? pctColor(loungesTotal / loungesMax)             : undefined;
 
@@ -174,16 +186,44 @@ export function Cozinha() {
             accent={loungeColors}
           />
           {/* Refeitório */}
-          <div className="rounded-2xl border-2 border-blue-300 bg-blue-50 p-5 flex flex-col items-center gap-2 flex-1">
+          <div className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 flex-1 ${refeitorioAberto ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}>
             <span className="text-3xl">🍽️</span>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Refeitório</p>
-            <p className="text-[5.5rem] font-black tabular-nums leading-none text-blue-700">{refeitorio}</p>
+
+            {/* Badge de status */}
+            {refeitorioAberto ? (
+              <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-0.5 rounded-full">
+                ● Aberto · fecha em {minutosParaFechar}min
+              </span>
+            ) : (
+              <span className="text-xs font-bold bg-gray-200 text-gray-500 px-3 py-0.5 rounded-full">
+                ○ Encerrado · {minutosParaAbrir > 0 ? `abre em ${minutosParaAbrir}min` : 'abre às 11h'}
+              </span>
+            )}
+
+            <p className={`text-[5.5rem] font-black tabular-nums leading-none ${refeitorioAberto ? 'text-blue-700' : 'text-gray-400'}`}>{refeitorio}</p>
             <p className="text-sm text-gray-400 -mt-1">Previsão de ocupação do refeitório</p>
+
+            {/* Barra de progresso do período */}
+            <div className="w-full flex flex-col gap-1 mt-1">
+              <div className="w-full h-2.5 bg-black/10 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${refeitorioAberto ? 'bg-blue-500' : 'bg-gray-300'}`}
+                  style={{ width: `${refeitorioProgresso}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-gray-400">
+                <span>11h</span>
+                <span>{refeitorioAberto ? `${refeitorioProgresso}% do período` : '—'}</span>
+                <span>15h</span>
+              </div>
+            </div>
+
             <div className="flex gap-4 mt-1">
-              <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
                 👷 {occ.colaboradores ?? 0} colab.
               </span>
-              <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
                 🤝 {occ.parceiros ?? 0} parceiros
               </span>
             </div>
