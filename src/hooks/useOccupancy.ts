@@ -7,6 +7,7 @@ const DEFAULT_STATE: OccupancyState = {
   prime: 0,
   parceiros: 0,
   colaboradores: 0,
+  loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -24,9 +25,10 @@ async function fetchOcc(): Promise<OccupancyState> {
       prime:         clamp(d.prime ?? 0, 0, 10),
       parceiros:     clamp(d.parceiros ?? 0, 0, 999),
       colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
+      loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
     };
   } catch {
-    return { ...DEFAULT_STATE, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) };
+    return { ...DEFAULT_STATE };
   }
 }
 
@@ -78,12 +80,12 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
     setParceiros:     (n) => update({ ...state, parceiros: clamp(n, 0, 999) }),
     setColaboradores: (n) => update({ ...state, colaboradores: clamp(n, 0, 999) }),
     resetSilent: () => {
-      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: state.colaboradores });
+      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: state.colaboradores, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill('') });
     },
     reset: async () => {
       if (window.confirm('Zerar todos os contadores de ocupação?')) {
         await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
-        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0 });
+        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill('') });
       }
     },
   };

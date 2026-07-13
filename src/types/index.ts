@@ -169,10 +169,11 @@ export const DEFAULT_GOALS: Goals = {
 // Occupancy / Contador de Pessoas
 export interface OccupancyState {
   beach: number;        // 0–500
-  lounges: number[];    // 18 elementos (501–518), cada 0–10
+  lounges: number[];    // 19 elementos (501–519), cada 0–10
   prime: number;        // 0–10
   parceiros: number;    // 0–999 (Uber, Táxi e Guias)
   colaboradores: number; // 0–999 (registrado pelo RH diariamente)
+  loungeObs: string[];  // observações por lounge (mesmo índice que lounges[])
 }
 
 export const SPACE_CONFIGS = {

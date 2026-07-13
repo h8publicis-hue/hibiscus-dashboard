@@ -3,7 +3,7 @@ import { OccupancyState, SPACE_CONFIGS } from '../types';
 
 const DEFAULT: OccupancyState = {
   beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0),
-  prime: 0, parceiros: 0, colaboradores: 0,
+  prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -21,8 +21,9 @@ async function fetchOcc(): Promise<OccupancyState> {
       prime:         clamp(d.prime ?? 0, 0, 10),
       parceiros:     clamp(d.parceiros ?? 0, 0, 999),
       colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
+      loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
     };
-  } catch { return { ...DEFAULT, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) }; }
+  } catch { return { ...DEFAULT }; }
 }
 
 async function saveOcc(state: OccupancyState) {

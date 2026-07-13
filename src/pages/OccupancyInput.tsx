@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Pencil } from 'lucide-react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 
 const LOUNGE_GROUPS = [
@@ -9,7 +10,7 @@ const LOUNGE_GROUPS = [
   { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
-const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0 };
+const DEFAULT: OccupancyState = { beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill('') };
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -26,8 +27,9 @@ async function fetchOcc(): Promise<OccupancyState> {
       prime:         clamp(d.prime ?? 0, 0, 10),
       parceiros:     clamp(d.parceiros ?? 0, 0, 999),
       colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
+      loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
     };
-  } catch { return { ...DEFAULT, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0) }; }
+  } catch { return { ...DEFAULT }; }
 }
 
 async function saveOcc(state: OccupancyState) {
@@ -109,6 +111,58 @@ function Counter({
           <span className="text-lg text-gray-400 ml-1">/{max}</span>
         </div>
         <StepBtn label="+" onClick={onInc} />
+      </div>
+    </div>
+  );
+}
+
+// ── Modal de observação de lounge ────────────────────────────────────────────
+function ObsModal({
+  idx, obs, onClose, onSave,
+}: {
+  idx: number; obs: string; onClose: () => void; onSave: (text: string) => void;
+}) {
+  const [text, setText] = useState(obs);
+  const name = SPACE_CONFIGS.lounge.start + idx;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-3xl w-full max-w-sm p-5 flex flex-col gap-4 shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Pencil size={14} className="text-amber-500" />
+            <h3 className="text-sm font-bold text-gray-800">Obs · Lounge {name}</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
+        </div>
+        <textarea
+          autoFocus
+          className="w-full border border-gray-200 rounded-2xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
+          rows={4}
+          maxLength={200}
+          placeholder="Ex: reservado para cliente VIP, manutenção, grupo familiar..."
+          value={text}
+          onChange={e => setText(e.target.value)}
+        />
+        <div className="flex gap-2">
+          {text && (
+            <button
+              onClick={() => { onSave(''); onClose(); }}
+              className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-xs text-gray-400 hover:text-red-400 hover:border-red-200 transition-colors"
+            >
+              Limpar
+            </button>
+          )}
+          <button
+            onClick={() => { onSave(text.trim()); onClose(); }}
+            className="flex-1 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-semibold active:bg-amber-600"
+          >
+            Salvar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -218,6 +272,7 @@ function LoungeModal({
 
 function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: OccupancyState) => void }) {
   const [editing, setEditing] = useState<number | null>(null);
+  const [editingObs, setEditingObs] = useState<number | null>(null);
 
 
   function cellColor(v: number, p: number) {
@@ -236,22 +291,30 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label.includes('★') ? <>{group.label.replace('★','')}<span className="text-yellow-400">★</span></> : group.label}</p>
             <div className="grid grid-cols-7 gap-1.5">
               {group.ids.map((idx) => {
-                const v = occ.lounges[idx];
-                const p = v / SPACE_CONFIGS.lounge.max;
+                const v   = occ.lounges[idx];
+                const p   = v / SPACE_CONFIGS.lounge.max;
                 const num = SPACE_CONFIGS.lounge.start + idx;
+                const obs = occ.loungeObs?.[idx] ?? '';
                 return (
-                  <button
-                    key={idx}
-                    onClick={() => setEditing(idx)}
-                    className={`rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p)}`}
-                  >
-                    <span className="text-[9px] opacity-60 leading-none">{num}</span>
-                    <span className="text-xl font-black leading-tight">{v}</span>
-                    {/* mini barra de ocupação */}
-                    <div className="w-5 h-0.5 bg-black/10 rounded-full mt-1 overflow-hidden">
-                      <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
-                    </div>
-                  </button>
+                  <div key={idx} className="relative">
+                    <button
+                      onClick={() => setEditing(idx)}
+                      className={`w-full rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p)}`}
+                    >
+                      <span className="text-[9px] opacity-60 leading-none">{num}</span>
+                      <span className="text-xl font-black leading-tight">{v}</span>
+                      <div className="w-5 h-0.5 bg-black/10 rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
+                      </div>
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
+                      className={`absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white border-gray-200 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
+                      title={obs || 'Adicionar observação'}
+                    >
+                      <Pencil size={9} />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -265,21 +328,30 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
               <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">{group.label.includes('★') ? <>{group.label.replace('★','')}<span className="text-yellow-400">★</span></> : group.label}</p>
               <div className="flex gap-1.5">
                 {group.ids.map((idx) => {
-                  const v = occ.lounges[idx];
-                  const p = v / SPACE_CONFIGS.lounge.max;
+                  const v   = occ.lounges[idx];
+                  const p   = v / SPACE_CONFIGS.lounge.max;
                   const num = SPACE_CONFIGS.lounge.start + idx;
+                  const obs = occ.loungeObs?.[idx] ?? '';
                   return (
-                    <button
-                      key={idx}
-                      onClick={() => setEditing(idx)}
-                      className={`w-14 rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p)}`}
-                    >
-                      <span className="text-[9px] opacity-60 leading-none">{num}</span>
-                      <span className="text-xl font-black leading-tight">{v}</span>
-                      <div className="w-5 h-0.5 bg-black/10 rounded-full mt-1 overflow-hidden">
-                        <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
-                      </div>
-                    </button>
+                    <div key={idx} className="relative">
+                      <button
+                        onClick={() => setEditing(idx)}
+                        className={`w-14 rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p)}`}
+                      >
+                        <span className="text-[9px] opacity-60 leading-none">{num}</span>
+                        <span className="text-xl font-black leading-tight">{v}</span>
+                        <div className="w-5 h-0.5 bg-black/10 rounded-full mt-1 overflow-hidden">
+                          <div className="h-full bg-current rounded-full" style={{ width: `${Math.round(p * 100)}%` }} />
+                        </div>
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
+                        className={`absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white border-gray-200 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
+                        title={obs || 'Adicionar observação'}
+                      >
+                        <Pencil size={9} />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -299,6 +371,19 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
             const lounges = [...occ.lounges];
             lounges[editing] = novoLounge;
             update({ ...occ, lounges, beach: novoBeach });
+          }}
+        />
+      )}
+
+      {editingObs !== null && (
+        <ObsModal
+          idx={editingObs}
+          obs={occ.loungeObs?.[editingObs] ?? ''}
+          onClose={() => setEditingObs(null)}
+          onSave={(text) => {
+            const loungeObs = [...(occ.loungeObs ?? Array(SPACE_CONFIGS.lounge.count).fill(''))];
+            loungeObs[editingObs] = text;
+            update({ ...occ, loungeObs });
           }}
         />
       )}
@@ -434,7 +519,7 @@ export function OccupancyInput() {
             const senha = window.prompt('Digite a senha para zerar:');
             if (senha === null) return;
             if (senha !== '@!$') { window.alert('Senha incorreta.'); return; }
-            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: occRef.current.colaboradores });
+            update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: occRef.current.colaboradores, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill('') });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"
         >

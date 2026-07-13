@@ -1,4 +1,4 @@
-const DEFAULT = { beach: 0, lounges: Array(19).fill(0), prime: 0, parceiros: 0, colaboradores: 0 };
+const DEFAULT = { beach: 0, lounges: Array(19).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(19).fill('') };
 const clamp = (n: unknown, min: number, max: number) =>
   Math.min(max, Math.max(min, Number(n) || 0));
 
@@ -40,12 +40,14 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'POST') {
     const d = req.body;
+    const obs = Array.isArray(d.loungeObs) ? d.loungeObs : [];
     const data = {
       beach:         clamp(d.beach, 0, 500),
       lounges:       Array(19).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 10)),
       prime:         clamp(d.prime, 0, 10),
       parceiros:     clamp(d.parceiros, 0, 999),
       colaboradores: clamp(d.colaboradores, 0, 999),
+      loungeObs:     Array(19).fill('').map((_: unknown, i: number) => String(obs[i] ?? '').slice(0, 200)),
     };
     await kvSet('ocupacao', data);
     return res.json(data);
