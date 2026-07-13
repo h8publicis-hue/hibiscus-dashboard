@@ -72,7 +72,7 @@ export function Refeicao() {
 
   const processarQR = async (qr: string, tipoRefeicao: TipoRefeicao) => {
     try {
-      const lookupRes = await fetch(`/api/refeicoes-lookup?qr=${encodeURIComponent(qr)}`);
+      const lookupRes = await fetch(`/api/refeicoes?action=lookup&qr=${encodeURIComponent(qr)}`);
       const lookup    = await lookupRes.json();
 
       if (!lookup.found || !lookup.pessoa?.ativo) {

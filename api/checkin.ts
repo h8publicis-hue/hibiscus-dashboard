@@ -181,6 +181,28 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  // GET ?action=keepalive → ping para renovar sessão (chamado pelo cron)
+  if (req.method === 'GET' && req.query?.action === 'keepalive') {
+    const session = await getSession();
+    if (!session) return res.status(503).json({ ok: false, error: 'Sem sessão ativa' });
+    try {
+      const today = todayBRT();
+      const r = await lojaFetch(
+        `/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
+        session,
+      );
+      const text = await r.text();
+      const alive = !isSessionExpired(text, r.status);
+      if (alive) {
+        await kvSet(`checkin:${today}`, '', 1); // invalida cache para dados frescos
+      }
+      await kvSet('checkin:keepalive', { ok: alive, ts: Date.now() });
+      return res.json({ ok: alive, ts: new Date().toISOString(), message: alive ? 'Sessão ativa' : 'Sessão expirada' });
+    } catch (err: any) {
+      return res.status(200).json({ ok: false, error: String(err) });
+    }
+  }
+
   // POST → salva PHPSESSID
   if (req.method === 'POST') {
     try {

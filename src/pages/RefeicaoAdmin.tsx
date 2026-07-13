@@ -9,7 +9,7 @@ function todayBRT(): string {
 
 async function fetchPessoas(): Promise<Pessoa[]> {
   try {
-    const r = await fetch('/api/pessoas-refeicao');
+    const r = await fetch('/api/refeicoes?action=pessoas');
     const j = await r.json();
     return j.pessoas ?? [];
   } catch { return []; }
@@ -153,7 +153,7 @@ export function RefeicaoAdmin() {
   const criarPessoa = async (data: Partial<Pessoa>) => {
     setSaving(true);
     try {
-      await fetch('/api/pessoas-refeicao', {
+      await fetch('/api/refeicoes?action=pessoas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -167,7 +167,7 @@ export function RefeicaoAdmin() {
     if (!editando) return;
     setSaving(true);
     try {
-      await fetch(`/api/pessoas-refeicao?id=${editando.id}`, {
+      await fetch(`/api/refeicoes?action=pessoas&id=${editando.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
