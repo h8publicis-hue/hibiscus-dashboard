@@ -30,6 +30,8 @@ import { Cozinha } from './pages/Cozinha';
 import { Portaria } from './pages/Portaria';
 import { Fluxo } from './pages/Fluxo';
 import { Chamadas } from './pages/Chamadas';
+import { Refeicao } from './pages/Refeicao';
+import { RefeicaoAdmin } from './pages/RefeicaoAdmin';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -154,7 +156,8 @@ function Dashboard() {
                   <Route path="/avaliacoes" element={<Reviews period={period} />} />
                   <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
                   <Route path="/fluxo"     element={<Fluxo />} />
-                  <Route path="/chamadas"  element={<Chamadas />} />
+                  <Route path="/chamadas"       element={<Chamadas />} />
+                  <Route path="/refeicao/admin" element={<RefeicaoAdmin />} />
                 </Routes>
               )
             }
@@ -192,8 +195,9 @@ export default function App() {
         <Route path="/entrada"  element={<OccupancyInput />} />
         <Route path="/rh"       element={<Rh />} />
         <Route path="/cozinha"  element={<Cozinha />} />
-        <Route path="/portaria" element={<Portaria />} />
-        <Route path="/*"        element={<Dashboard />} />
+        <Route path="/portaria"  element={<Portaria />} />
+        <Route path="/refeicao"  element={<Refeicao />} />
+        <Route path="/*"         element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   );

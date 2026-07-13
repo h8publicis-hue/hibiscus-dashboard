@@ -18,7 +18,8 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
     { to: '/ocupacao',   icon: Users,           label: 'Ocupação',    alerts: occupancyAlerts },
     { to: '/fluxo',     icon: Activity,        label: 'Fluxo',       alerts: 0 },
     { to: '/chamadas',  icon: Bell,            label: 'Chamadas',    alerts: 0 },
-    { to: '/cozinha',   icon: UtensilsCrossed, label: 'Cozinha',     alerts: 0 },
+    { to: '/cozinha',          icon: UtensilsCrossed, label: 'Cozinha',     alerts: 0 },
+    { to: '/refeicao/admin',   icon: UtensilsCrossed, label: 'Refeitório',  alerts: 0 },
   ];
 
   const renderLink = ({ to, icon: Icon, label, alerts }: typeof allItems[0]) => (

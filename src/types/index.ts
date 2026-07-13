@@ -167,6 +167,34 @@ export const DEFAULT_GOALS: Goals = {
 };
 
 // Occupancy / Contador de Pessoas
+// ── Módulo Refeitório ─────────────────────────────────────────────────────────
+export type TipoRefeicao = 'almoco' | 'jantar' | 'cafe' | 'lanche';
+
+export interface Pessoa {
+  id: string;
+  nome: string;
+  categoria: 'colaborador' | 'parceiro' | 'visitante';
+  empresa: string;
+  setor: string;
+  foto: string;
+  qrCode: string;
+  ativo: boolean;
+}
+
+export interface Refeicao {
+  id: string;
+  pessoaId: string;
+  nome: string;
+  categoria: string;
+  empresa: string;
+  tipoRefeicao: TipoRefeicao;
+  data: string;
+  hora: string;
+  timestamp: number;
+  origemRegistro: 'QRCode' | 'Manual';
+  status: 'registrada' | 'duplicada' | 'invalida' | 'fora_horario';
+}
+
 export interface OccupancyState {
   beach: number;        // 0–500
   lounges: number[];    // 19 elementos (501–519), cada 0–10

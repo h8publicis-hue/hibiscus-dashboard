@@ -83,16 +83,28 @@ function Clock() {
 }
 
 export function Cozinha() {
-  const [occ, setOcc]           = useState<OccupancyState | null>(null);
-  const [ticker, setTicker]     = useState(0);
-  const [fade, setFade]         = useState(true);
-  const { avisos }              = useAviso();
-  const activeAvisos            = avisos.filter(a => a.active && a.text.trim());
+  const [occ, setOcc]                 = useState<OccupancyState | null>(null);
+  const [almocosHoje, setAlmocosHoje] = useState(0);
+  const [ticker, setTicker]           = useState(0);
+  const [fade, setFade]               = useState(true);
+  const { avisos }                    = useAviso();
+  const activeAvisos                  = avisos.filter(a => a.active && a.text.trim());
 
   useEffect(() => {
     const load = () => fetchOcc().then(d => setOcc(d));
     load();
     const id = setInterval(load, 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const loadAlmocos = () =>
+      fetch('/api/refeicoes')
+        .then(r => r.json())
+        .then(j => setAlmocosHoje(j?.porTipo?.almoco ?? 0))
+        .catch(() => {});
+    loadAlmocos();
+    const id = setInterval(loadAlmocos, 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -204,6 +216,25 @@ export function Cozinha() {
 
             <p className={`text-[5.5rem] font-black tabular-nums leading-none ${refeitorioAberto ? 'text-blue-700' : 'text-gray-400'}`}>{refeitorio}</p>
             <p className="text-sm text-gray-400 -mt-1">Previsão de ocupação do refeitório</p>
+
+            {/* Contador de almoços registrados */}
+            {refeitorio > 0 && (
+              <div className="w-full flex flex-col gap-1.5 mt-1 bg-white/60 rounded-xl px-3 py-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-green-700">✅ {almocosHoje} já almoçaram</span>
+                  <span className="text-gray-500">🕐 {Math.max(0, refeitorio - almocosHoje)} faltam</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-green-500 transition-all duration-700"
+                    style={{ width: `${Math.min(100, Math.round((almocosHoje / refeitorio) * 100))}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 text-center">
+                  {Math.min(100, Math.round((almocosHoje / refeitorio) * 100))}% do previsto
+                </p>
+              </div>
+            )}
 
             {/* Barra de progresso do período */}
             <div className="w-full flex flex-col gap-1 mt-1">

@@ -162,7 +162,8 @@
       "mcp__b001c75b-f610-4028-9b6c-ba06578583c0__get_deployment",
       "Bash(vercel deploy *)",
       "Read(//Users/moaferraz/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/e7b1da27-c04b-48aa-a9d5-70ec7034bc19/eae29f0e-d4e1-4825-a38d-bf54fdb20981/skills/xlsx/**)",
-      "Bash(curl -s https://hibiscus-dashboard.vercel.app/api/my-ip)"
+      "Bash(curl -s https://hibiscus-dashboard.vercel.app/api/my-ip)",
+      "Bash(git rm *)"
     ]
   }
 }
