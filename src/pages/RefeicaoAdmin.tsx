@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X } from 'lucide-react';
+import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X, Upload, Trash2 } from 'lucide-react';
 import QRCode from 'qrcode';
+import * as XLSX from 'xlsx';
 import { Pessoa } from '../types';
 
 function todayBRT(): string {
@@ -139,6 +140,8 @@ export function RefeicaoAdmin() {
   const [editando,   setEditando]   = useState<Pessoa | null>(null);
   const [contagem,   setContagem]   = useState<any>(null);
   const [search,     setSearch]     = useState('');
+  const [importMsg,  setImportMsg]  = useState('');
+  const fileInputRef                = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -161,6 +164,52 @@ export function RefeicaoAdmin() {
       setShowForm(false);
       await load();
     } finally { setSaving(false); }
+  };
+
+  const zerarTudo = async () => {
+    if (!confirm('Zerar TODAS as pessoas cadastradas? Esta ação não pode ser desfeita.')) return;
+    setSaving(true);
+    try {
+      await fetch('/api/refeicoes?action=pessoas', { method: 'DELETE' });
+      await load();
+    } finally { setSaving(false); }
+  };
+
+  const importarArquivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    setImportMsg('');
+    try {
+      const buf = await file.arrayBuffer();
+      const wb  = XLSX.read(buf, { type: 'array' });
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
+
+      const pessoas = rows.map((r: any) => ({
+        nome:      String(r['nome'] ?? r['Nome'] ?? r['NOME'] ?? '').trim(),
+        categoria: String(r['categoria'] ?? r['Categoria'] ?? r['CATEGORIA'] ?? 'colaborador').trim().toLowerCase(),
+        empresa:   String(r['empresa']   ?? r['Empresa']   ?? r['EMPRESA']   ?? '').trim(),
+        setor:     String(r['setor']     ?? r['Setor']     ?? r['SETOR']     ?? '').trim(),
+      })).filter((p: any) => p.nome);
+
+      if (pessoas.length === 0) { setImportMsg('Nenhuma linha válida encontrada. Verifique as colunas: nome, categoria, empresa, setor'); setSaving(false); return; }
+
+      const substituir = confirm(`Importar ${pessoas.length} pessoa(s)?\n\nOK = substituir cadastro atual\nCancelar = adicionar ao existente`);
+      const res = await fetch('/api/refeicoes?action=pessoas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pessoas, substituir }),
+      });
+      const j = await res.json();
+      setImportMsg(`✅ ${j.importadas} pessoa(s) importada(s) com sucesso`);
+      await load();
+    } catch (err) {
+      setImportMsg('Erro ao processar o arquivo');
+    } finally {
+      setSaving(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const editarPessoa = async (data: Partial<Pessoa>) => {
@@ -189,15 +238,24 @@ export function RefeicaoAdmin() {
           <h1 className="text-xl font-black text-gray-900 dark:text-white">Refeitório</h1>
           <p className="text-xs text-gray-400">Cadastro de pessoas e QR Codes</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Atualizar
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={saving} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <Upload size={14} /> Importar Excel/CSV
+          </button>
+          <button onClick={zerarTudo} disabled={saving} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 dark:border-red-800 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <Trash2 size={14} /> Zerar Tudo
           </button>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors">
             <Plus size={14} /> Nova Pessoa
           </button>
         </div>
       </div>
+
+      <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={importarArquivo} />
+      {importMsg && <p className="text-sm text-center text-green-600 dark:text-green-400 font-medium">{importMsg}</p>}
 
       {/* KPIs do dia */}
       {contagem && (

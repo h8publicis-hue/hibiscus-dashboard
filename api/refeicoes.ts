@@ -93,6 +93,24 @@ export default async function handler(req: any, res: any) {
       } catch (err: any) { return res.status(500).json({ error: String(err) }); }
     }
 
+    if (req.method === 'POST' && Array.isArray(req.body?.pessoas)) {
+      // Importação em lote — substitui tudo
+      try {
+        const importadas = (req.body.pessoas as any[]).map((p: any) => ({
+          id: uuid(), qrCode: uuid(),
+          nome:      String(p.nome      ?? '').trim().slice(0, 100),
+          categoria: String(p.categoria ?? 'colaborador').trim(),
+          empresa:   String(p.empresa   ?? '').trim().slice(0, 100),
+          setor:     String(p.setor     ?? '').trim().slice(0, 100),
+          foto:      '',
+          ativo:     true,
+        })).filter((p: any) => p.nome);
+        const existing = req.body.substituir ? [] : await getPessoas();
+        await savePessoas([...existing, ...importadas]);
+        return res.json({ ok: true, importadas: importadas.length });
+      } catch (err: any) { return res.status(500).json({ error: String(err) }); }
+    }
+
     if (req.method === 'POST') {
       const id = uuid(); const qrCode = uuid();
       const nova = {
@@ -123,6 +141,13 @@ export default async function handler(req: any, res: any) {
         for (const k of allowed) { if (req.body?.[k] !== undefined) pessoas[idx][k] = req.body[k]; }
         await savePessoas(pessoas);
         return res.json({ ok: true, pessoa: pessoas[idx] });
+      } catch (err: any) { return res.status(500).json({ error: String(err) }); }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        await savePessoas([]);
+        return res.json({ ok: true });
       } catch (err: any) { return res.status(500).json({ error: String(err) }); }
     }
 
