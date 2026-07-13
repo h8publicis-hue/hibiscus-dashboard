@@ -153,6 +153,7 @@ function loungeBg(v: number, pct: number) {
 // ── Mapa de lounges — desktop ────────────────────────────────────────────────
 function LoungeMap({ lounges, loungeObs }: { lounges: number[]; loungeObs?: string[] }) {
   const obs = loungeObs ?? [];
+  const [activeObs, setActiveObs] = useState<{ num: number; note: string } | null>(null);
 
   function LoungeCell({ idx, extraClass }: { idx: number; extraClass?: string }) {
     const v = lounges[idx];
@@ -162,8 +163,8 @@ function LoungeMap({ lounges, loungeObs }: { lounges: number[]; loungeObs?: stri
     return (
       <div
         key={idx}
-        title={note || undefined}
-        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct), extraClass)}
+        onClick={() => note && setActiveObs({ num, note })}
+        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct), note ? 'cursor-pointer' : '', extraClass)}
       >
         <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
         <span className="text-2xl font-black leading-tight">{v}</span>
@@ -227,6 +228,20 @@ function LoungeMap({ lounges, loungeObs }: { lounges: number[]; loungeObs?: stri
         <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-green-200 dark:bg-green-800 inline-block"/>Ocupado</span>
         <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-red-200 dark:bg-red-800 inline-block"/>Cheio</span>
       </div>
+
+      {/* Painel de obs ao clicar no lounge */}
+      {activeObs && (
+        <div className="mt-1 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2 flex items-start gap-2">
+          <span className="text-amber-500 shrink-0 mt-0.5">📝</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Obs · Lounge {activeObs.num}</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-snug">{activeObs.note}</p>
+          </div>
+          <button onClick={() => setActiveObs(null)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-200 shrink-0">
+            <X size={13} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
