@@ -178,7 +178,7 @@ export function Cozinha() {
             <span className="text-3xl">🍽️</span>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Refeitório</p>
             <p className="text-[5.5rem] font-black tabular-nums leading-none text-blue-700">{refeitorio}</p>
-            <p className="text-[10px] text-gray-400 -mt-1">Previsão de ocupação do refeitório</p>
+            <p className="text-sm text-gray-400 -mt-1">Previsão de ocupação do refeitório</p>
             <div className="flex gap-4 mt-1">
               <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                 👷 {occ.colaboradores ?? 0} colab.
