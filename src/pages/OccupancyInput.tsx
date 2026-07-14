@@ -117,28 +117,29 @@ function Counter({
 
 // ── Modal de edição de lounge individual ─────────────────────────────────────
 function LoungeModal({
-  idx, value, currentBeach, max, onClose, onSave,
+  idx, value, obs: obsInicial, currentBeach, max, onClose, onSave,
 }: {
-  idx: number; value: number; currentBeach: number; max: number;
-  onClose: () => void; onSave: (novoLounge: number, novoBeach: number) => void;
+  idx: number; value: number; obs: string; currentBeach: number; max: number;
+  onClose: () => void; onSave: (novoLounge: number, novoBeach: number, obs: string) => void;
 }) {
   const [qty,      setQty]      = useState(value);
+  const [obs,      setObs]      = useState(obsInicial);
   const [step,     setStep]     = useState<'edit' | 'transfer'>('edit');
   const name = SPACE_CONFIGS.lounge.start + idx;
-  const delta = qty - value; // positivo = adicionou pessoas no lounge
+  const delta = qty - value;
 
   function handleConfirm() {
     if (delta > 0) {
       setStep('transfer');
     } else {
-      onSave(qty, currentBeach);
+      onSave(qty, currentBeach, obs);
       onClose();
     }
   }
 
   function handleTransfer(isTransfer: boolean) {
     const novoBeach = isTransfer ? clamp(currentBeach - delta, 0, SPACE_CONFIGS.beach.max) : currentBeach;
-    onSave(qty, novoBeach);
+    onSave(qty, novoBeach, obs);
     onClose();
   }
 
@@ -170,6 +171,17 @@ function LoungeModal({
                   qty / max >= 0.9 ? 'bg-red-500' : qty / max >= 0.6 ? 'bg-yellow-400' : 'bg-green-500'
                 }`}
                 style={{ width: `${Math.round((qty / max) * 100)}%` }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Observação</label>
+              <textarea
+                value={obs}
+                onChange={e => setObs(e.target.value)}
+                placeholder="Ex: cliente VIP, guarda-sol extra..."
+                rows={2}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-gray-300"
               />
             </div>
 
@@ -298,13 +310,16 @@ function LoungeGrid({ occ, update }: { occ: OccupancyState; update: (s: Occupanc
         <LoungeModal
           idx={editing}
           value={occ.lounges[editing]}
+          obs={occ.loungeObs?.[editing] ?? ''}
           currentBeach={occ.beach}
           max={SPACE_CONFIGS.lounge.max}
           onClose={() => setEditing(null)}
-          onSave={(novoLounge, novoBeach) => {
-            const lounges = [...occ.lounges];
-            lounges[editing] = novoLounge;
-            update({ ...occ, lounges, beach: novoBeach });
+          onSave={(novoLounge, novoBeach, novaObs) => {
+            const lounges    = [...occ.lounges];
+            const loungeObs  = [...(occ.loungeObs ?? Array(SPACE_CONFIGS.lounge.count).fill(''))];
+            lounges[editing]   = novoLounge;
+            loungeObs[editing] = novaObs;
+            update({ ...occ, lounges, beach: novoBeach, loungeObs });
           }}
         />
       )}
