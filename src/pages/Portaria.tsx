@@ -140,6 +140,20 @@ export function Portaria() {
             </div>
             <StepBtn label="+" onClick={() => update(clamp(count + 1, 0, MAX))} disabled={count >= MAX} />
           </div>
+
+          {/* Atalhos de volume */}
+          <div className="flex gap-2 pt-1">
+            {[2, 5, 10].map(n => (
+              <button
+                key={n}
+                onClick={() => update(clamp(count + n, 0, MAX))}
+                disabled={count >= MAX}
+                className="flex-1 py-3 rounded-2xl bg-gray-900 text-white text-sm font-bold active:bg-gray-700 disabled:opacity-30 select-none"
+              >
+                +{n}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Zerar */}
