@@ -413,6 +413,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
   onReservaUpdate: (r: LoungeReserva) => void;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
+  const [moveOrigem, setMoveOrigem] = useState<number | null>(null);
 
   function hasActiveReserva(idx: number) {
     return reservas.some(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
@@ -424,6 +425,27 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
     if (p >= 0.9) return 'bg-red-100 border-red-400 text-red-700';
     if (p >= 0.6) return 'bg-yellow-100 border-yellow-400 text-yellow-700';
     return 'bg-green-100 border-green-400 text-green-700';
+  }
+
+  function executarMove(ori: number, dest: number) {
+    const oriNum = SPACE_CONFIGS.lounge.start + ori;
+    const destNum = SPACE_CONFIGS.lounge.start + dest;
+    const destOcup = occ.lounges[dest] > 0;
+    const msg = destOcup
+      ? `Mover Lounge ${oriNum} → ${destNum}?\n\nATENÇÃO: o destino já tem ${occ.lounges[dest]} pessoa(s). Os dados serão substituídos.`
+      : `Mover Lounge ${oriNum} → ${destNum}?\n\nTodos os dados serão transferidos.`;
+    if (!window.confirm(msg)) return;
+    const lounges    = [...occ.lounges];
+    const loungeData = [...(occ.loungeData ?? Array(SPACE_CONFIGS.lounge.count).fill(null).map(emptyInfo))];
+    const loungeObs  = [...occ.loungeObs];
+    lounges[dest]    = lounges[ori];
+    loungeData[dest] = { ...loungeData[ori] };
+    loungeObs[dest]  = loungeObs[ori];
+    lounges[ori]     = 0;
+    loungeData[ori]  = emptyInfo();
+    loungeObs[ori]   = '';
+    update({ ...occ, lounges, loungeData, loungeObs });
+    setMoveOrigem(null);
   }
 
   function handleChegou(reserva: LoungeReserva) {
@@ -446,11 +468,36 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
     const hasData = info && (info.nome || info.obs);
     const transferred = info?.transferido;
     const reserva = reservas.find(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
+    const isOrigem = moveOrigem !== null && moveOrigem >= 0 && moveOrigem === idx;
+    const inMoveMode = moveOrigem !== null;
+
+    function handleClick() {
+      if (!inMoveMode) { setEditing(idx); return; }
+      // Waiting for origin selection
+      if (moveOrigem === -1) {
+        if (v === 0) { window.alert('Selecione um lounge ocupado como origem.'); return; }
+        setMoveOrigem(idx);
+        return;
+      }
+      // Origin already selected
+      if (isOrigem) { setMoveOrigem(-1); return; } // deselect origin, pick again
+      if (idx === moveOrigem) return;
+      executarMove(moveOrigem, idx);
+    }
+
+    let extraBorder = '';
+    if (inMoveMode) {
+      if (isOrigem) extraBorder = '!border-orange-400 !bg-orange-50 !text-orange-700 animate-pulse';
+      else if (moveOrigem === -1 && v > 0) extraBorder = '!border-green-400';
+      else if (moveOrigem >= 0 && !isOrigem) extraBorder = v === 0
+        ? '!border-blue-300 border-dashed'
+        : '!border-purple-300';
+    }
 
     return (
       <div className="relative">
-        <button onClick={() => setEditing(idx)}
-          className={`w-full rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p, idx)}`}>
+        <button onClick={handleClick}
+          className={`w-full rounded-lg flex flex-col items-center justify-center py-2.5 border-2 transition-colors active:scale-95 ${cellColor(v, p, idx)} ${extraBorder}`}>
           <span className="text-[9px] opacity-60 leading-none">{num}</span>
           {reserva && v === 0 ? (
             <span className="text-[10px] font-bold leading-tight">📋</span>
@@ -475,6 +522,28 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
 
   return (
     <>
+      {/* Botão mover + banner de instrução */}
+      <div className="flex items-center justify-between mb-1">
+        <button
+          onClick={() => setMoveOrigem(prev => prev !== null ? null : -1)}
+          className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${
+            moveOrigem !== null
+              ? 'bg-orange-100 text-orange-700 border border-orange-300'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          {moveOrigem !== null ? '✕ Cancelar mover' : '↔ Mover lounge'}
+        </button>
+        {moveOrigem !== null && moveOrigem === -1 && (
+          <span className="text-[10px] text-gray-400">Toque no lounge de origem</span>
+        )}
+        {moveOrigem !== null && moveOrigem >= 0 && (
+          <span className="text-[10px] text-orange-600 font-semibold">
+            {SPACE_CONFIGS.lounge.start + moveOrigem} selecionado → toque no destino
+          </span>
+        )}
+      </div>
+
       <div className="flex flex-col gap-3 pt-1">
         {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map(group => (
           <div key={group.label}>
