@@ -151,24 +151,30 @@ function loungeBg(v: number, pct: number) {
 }
 
 // ── Mapa de lounges — desktop ────────────────────────────────────────────────
-function LoungeMap({ lounges, loungeObs }: { lounges: number[]; loungeObs?: string[] }) {
+function LoungeMap({ lounges, loungeObs, loungeData }: { lounges: number[]; loungeObs?: string[]; loungeData?: import('../types').LoungeInfo[] }) {
   const obs = loungeObs ?? [];
-  const [activeObs, setActiveObs] = useState<{ num: number; note: string } | null>(null);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
+  function hasInfo(idx: number) {
+    if ((lounges[idx] ?? 0) > 0) return true;
+    const d = loungeData?.[idx];
+    return !!(d && (d.nome || d.canal || d.veiculo || d.parceiro || d.obs));
+  }
 
   function LoungeCell({ idx, extraClass }: { idx: number; extraClass?: string }) {
     const v = lounges[idx];
     const pct = v / SPACE_CONFIGS.lounge.max;
     const num = SPACE_CONFIGS.lounge.start + idx;
-    const note = obs[idx] ?? '';
+    const active = hasInfo(idx);
     return (
       <div
         key={idx}
-        onClick={() => note && setActiveObs({ num, note })}
-        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct), note ? 'cursor-pointer' : '', extraClass)}
+        onClick={() => active && setActiveIdx(idx)}
+        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct), active ? 'cursor-pointer' : '', extraClass)}
       >
         <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
         <span className="text-2xl font-black leading-tight">{v}</span>
-        {note && (
+        {active && (
           <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white dark:border-gray-800" />
         )}
       </div>
@@ -229,19 +235,30 @@ function LoungeMap({ lounges, loungeObs }: { lounges: number[]; loungeObs?: stri
         <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-red-200 dark:bg-red-800 inline-block"/>Cheio</span>
       </div>
 
-      {/* Painel de obs ao clicar no lounge */}
-      {activeObs && (
-        <div className="mt-1 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2 flex items-start gap-2">
-          <span className="text-amber-500 shrink-0 mt-0.5">📝</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Obs · Lounge {activeObs.num}</p>
-            <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-snug">{activeObs.note}</p>
+      {/* Painel de resumo ao clicar no lounge */}
+      {activeIdx !== null && (() => {
+        const idx = activeIdx;
+        const num = SPACE_CONFIGS.lounge.start + idx;
+        const d   = loungeData?.[idx];
+        const note = obs[idx] ?? '';
+        return (
+          <div className="mt-1 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2 flex items-start gap-2">
+            <span className="text-amber-500 shrink-0 mt-0.5">📝</span>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Lounge {num} · {lounges[idx]} pax</p>
+              {d?.nome      && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Nome:</b> {d.nome}{d.telefone ? ` · ${d.telefone}` : ''}</p>}
+              {d?.canal     && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Canal:</b> {d.canal}</p>}
+              {d?.veiculo   && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Veículo:</b> {d.veiculo}</p>}
+              {d?.parceiro  && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Parceiro:</b> {d.parceiro}{d.codParceiro ? ` (${d.codParceiro})` : ''}</p>}
+              {d?.transferido && <p className="text-xs text-orange-500 leading-snug">🔄 Transferência do Beach</p>}
+              {(d?.obs || note) && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug italic">{d?.obs || note}</p>}
+            </div>
+            <button onClick={() => setActiveIdx(null)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-200 shrink-0">
+              <X size={13} />
+            </button>
           </div>
-          <button onClick={() => setActiveObs(null)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-200 shrink-0">
-            <X size={13} />
-          </button>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -953,7 +970,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} />
         </div>
 
-        <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} />
+        <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} />
         {loungesFull > 0 && (
           <p className="text-xs text-red-600 font-semibold text-right">
             {loungesFull} lounge{loungesFull > 1 ? 's' : ''} em Ocupação Máxima
