@@ -328,6 +328,11 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
   }, [actions, portaria]);
 
   const showToast = useCallback((msg: string) => { setToast(msg); }, []);
+
+  function hasLoungeData(idx: number) {
+    const d = occupancy.loungeData?.[idx];
+    return !!(d && (d.nome || d.telefone || d.canal || d.veiculo || d.parceiro || d.obs));
+  }
   const totalLounge = occupancy.lounges.reduce((a, b) => a + b, 0);
   const totalMax    = SPACE_CONFIGS.beach.max + SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
   const totalNow    = occupancy.beach + totalLounge;
@@ -452,8 +457,8 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
                       </div>
                       <button
                         onClick={e => { e.stopPropagation(); setEditingObs(idx); }}
-                        className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors z-10 ${obs ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
-                        title={obs || 'Adicionar observação'}
+                        className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-sm border transition-colors z-10 ${(obs || hasLoungeData(idx)) ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-300 hover:text-amber-400 hover:border-amber-300'}`}
+                        title={obs || 'Ver informações'}
                       >
                         <Pencil size={9} />
                       </button>
