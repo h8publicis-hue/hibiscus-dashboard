@@ -88,12 +88,14 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
     setParceiros:     (n) => update({ ...state, parceiros: clamp(n, 0, 999) }),
     setColaboradores: (n) => update({ ...state, colaboradores: clamp(n, 0, 999) }),
     resetSilent: () => {
-      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: state.colaboradores, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill('') });
+      const emptyData = Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY }));
+      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: state.colaboradores, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''), loungeData: emptyData });
     },
     reset: async () => {
       if (window.confirm('Zerar todos os contadores de ocupação?')) {
         await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
-        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill('') });
+        const emptyData = Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY }));
+        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''), loungeData: emptyData });
       }
     },
   };

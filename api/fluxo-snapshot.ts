@@ -64,6 +64,7 @@ export default async function handler(req: any, res: any) {
 
       // Zeragem sempre acontece (independente de portaria ou snapshot)
       const ocupacaoAtual = (await kvGet('ocupacao')) ?? {};
+      const emptyInfo = () => ({ nome:'',telefone:'',canal:'',veiculo:'',parceiro:'',codParceiro:'',obs:'',transferido:false });
       const ocupacaoZerada = {
         beach: 0,
         lounges: Array(19).fill(0),
@@ -71,6 +72,7 @@ export default async function handler(req: any, res: any) {
         parceiros: 0,
         colaboradores: Number(ocupacaoAtual.colaboradores ?? 0),
         loungeObs: Array(19).fill(''),
+        loungeData: Array(19).fill(null).map(emptyInfo),
       };
       await kvSet('ocupacao', ocupacaoZerada);
 
