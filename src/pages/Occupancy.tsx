@@ -247,38 +247,67 @@ function Toast({ msg, onDone }: { msg: string; onDone: () => void }) {
 }
 
 
-function ObsModal({ idx, obs, onClose, onSave }: { idx: number; obs: string; onClose: () => void; onSave: (text: string) => void }) {
-  const [text, setText] = useState(obs);
+function ObsModal({ idx, obs, loungeInfo, onClose, onSave }: {
+  idx: number; obs: string; loungeInfo?: import('../types').LoungeInfo;
+  onClose: () => void; onSave: (text: string) => void;
+}) {
   const name = SPACE_CONFIGS.lounge.start + idx;
+  const info = loungeInfo;
+  const hasInfo = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone);
+
+  function Row({ label, value }: { label: string; value?: string }) {
+    if (!value) return null;
+    return (
+      <div className="flex gap-2 text-xs">
+        <span className="text-gray-400 w-20 shrink-0">{label}</span>
+        <span className="text-gray-800 dark:text-gray-200 font-medium">{value}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-sm p-5 flex flex-col gap-4 shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Pencil size={14} className="text-amber-500" />
-            <h3 className="text-sm font-bold text-gray-800 dark:text-white">Obs · Lounge {name}</h3>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-white">Lounge {name}</h3>
           </div>
           <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
         </div>
-        <textarea
-          autoFocus
-          className="w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-2xl px-3 py-2 text-sm placeholder-gray-300 resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
-          rows={4}
-          maxLength={200}
-          placeholder="Ex: reservado para cliente VIP, manutenção, grupo familiar..."
-          value={text}
-          onChange={e => setText(e.target.value)}
-        />
-        <div className="flex gap-2">
-          {text && (
-            <button onClick={() => { onSave(''); onClose(); }} className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-xs text-gray-400 hover:text-red-400 hover:border-red-200 transition-colors">
-              Limpar
-            </button>
-          )}
-          <button onClick={() => { onSave(text.trim()); onClose(); }} className="flex-1 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-semibold active:bg-amber-600">
-            Salvar
-          </button>
-        </div>
+
+        {hasInfo ? (
+          <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-3">
+            <Row label="Nome"      value={info?.nome} />
+            <Row label="Telefone"  value={info?.telefone} />
+            <Row label="Canal"     value={info?.canal} />
+            <Row label="Veículo"   value={info?.veiculo} />
+            <Row label="Parceiro"  value={info?.parceiro} />
+            <Row label="Cód."      value={info?.codParceiro} />
+            {info?.transferido && (
+              <div className="flex gap-2 text-xs">
+                <span className="text-gray-400 w-20 shrink-0">Origem</span>
+                <span className="text-orange-500 font-medium">🔄 Transferência do Beach</span>
+              </div>
+            )}
+            {info?.obs && (
+              <div className="flex gap-2 text-xs pt-1 border-t border-gray-200 dark:border-gray-600 mt-1">
+                <span className="text-gray-400 w-20 shrink-0">Obs</span>
+                <span className="text-gray-700 dark:text-gray-300 italic">{info.obs}</span>
+              </div>
+            )}
+          </div>
+        ) : obs ? (
+          <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-3">{obs}</p>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-2">Nenhuma informação registrada</p>
+        )}
+
+        <p className="text-[10px] text-gray-400 text-center">Edite as informações na tela de Entrada (/entrada)</p>
+
+        <button onClick={onClose} className="w-full py-2.5 rounded-2xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700">
+          Fechar
+        </button>
       </div>
     </div>
   );
@@ -506,6 +535,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
         <ObsModal
           idx={editingObs}
           obs={occupancy.loungeObs?.[editingObs] ?? ''}
+          loungeInfo={occupancy.loungeData?.[editingObs]}
           onClose={() => setEditingObs(null)}
           onSave={(text) => actions.setLoungeObs(editingObs, text)}
         />

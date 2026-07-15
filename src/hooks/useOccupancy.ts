@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { OccupancyState, SPACE_CONFIGS } from '../types';
+import { OccupancyState, SPACE_CONFIGS, LOUNGE_INFO_EMPTY } from '../types';
 
 const DEFAULT_STATE: OccupancyState = {
   beach: 0,
@@ -8,6 +8,7 @@ const DEFAULT_STATE: OccupancyState = {
   parceiros: 0,
   colaboradores: 0,
   loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
+  loungeData: Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY })),
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -26,6 +27,7 @@ async function fetchOcc(): Promise<OccupancyState> {
       parceiros:     clamp(d.parceiros ?? 0, 0, 999),
       colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
       loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
+      loungeData:    Array(SPACE_CONFIGS.lounge.count).fill(null).map((_, i) => d.loungeData?.[i] ?? { ...LOUNGE_INFO_EMPTY }),
     };
   } catch {
     return { ...DEFAULT_STATE };
