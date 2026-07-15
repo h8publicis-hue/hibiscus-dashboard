@@ -526,8 +526,8 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
-async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[]) {
-  const today = todayBRT();
+async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?: string) {
+  const today = dataRef || todayBRT();
   const totalOcup = occ.lounges.reduce((a, b) => a + b, 0);
 
   const linhas = Array.from({ length: SPACE_CONFIGS.lounge.count }, (_, i) => {
@@ -614,6 +614,56 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[]) {
   win.document.close();
   win.focus();
   setTimeout(() => win.print(), 500);
+}
+
+// ── Histórico de dias anteriores ─────────────────────────────────────────────
+function HistoricoBtn() {
+  const [data,    setData]    = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg,     setMsg]     = useState('');
+  const hoje = todayBRT();
+
+  async function handleCarregar() {
+    if (!data) return;
+    setLoading(true); setMsg('');
+    try {
+      const r = await fetch(`/api/ocupacao?action=historico&data=${data}`);
+      const j = await r.json() as any;
+      if (!j.historico) { setMsg('Nenhum histórico encontrado para esta data.'); return; }
+      const hist = j.historico;
+      const occHist: OccupancyState = {
+        beach:         hist.beach ?? 0,
+        lounges:       Array(SPACE_CONFIGS.lounge.count).fill(0).map((_: unknown, i: number) => hist.lounges?.[i] ?? 0),
+        prime:         hist.prime ?? 0,
+        parceiros:     hist.parceiros ?? 0,
+        colaboradores: hist.colaboradores ?? 0,
+        loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_: unknown, i: number) => hist.loungeObs?.[i] ?? ''),
+        loungeData:    Array(SPACE_CONFIGS.lounge.count).fill(null).map((_: unknown, i: number) => hist.loungeData?.[i] ?? emptyInfo()),
+      };
+      const reservasHist: LoungeReserva[] = [];
+      gerarPDF(occHist, reservasHist, data);
+    } catch { setMsg('Erro ao carregar histórico.'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        <input
+          type="date" value={data} max={hoje}
+          onChange={e => { setData(e.target.value); setMsg(''); }}
+          className="flex-1 rounded-2xl border-2 border-dashed border-gray-200 px-3 py-2.5 text-sm text-gray-600 focus:outline-none focus:border-blue-300"
+        />
+        <button
+          onClick={handleCarregar} disabled={!data || loading}
+          className="px-4 py-2.5 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-500 hover:border-blue-300 hover:text-blue-500 transition-colors disabled:opacity-40"
+        >
+          {loading ? '...' : '🕐 Histórico'}
+        </button>
+      </div>
+      {msg && <p className="text-xs text-center text-gray-400">{msg}</p>}
+    </div>
+  );
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
@@ -786,12 +836,15 @@ export function OccupancyInput() {
         </div>
 
         {/* Exportar PDF */}
-        <button
-          onClick={() => gerarPDF(occ, reservas)}
-          className="w-full py-3 rounded-2xl border-2 border-dashed border-blue-200 text-sm text-blue-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
-        >
-          📄 Exportar relatório do dia (PDF)
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => gerarPDF(occ, reservas)}
+            className="w-full py-3 rounded-2xl border-2 border-dashed border-blue-200 text-sm text-blue-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+          >
+            📄 Exportar relatório de hoje (PDF)
+          </button>
+          <HistoricoBtn />
+        </div>
 
         {/* Zerar tudo */}
         <button

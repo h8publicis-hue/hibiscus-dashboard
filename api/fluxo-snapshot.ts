@@ -65,6 +65,10 @@ export default async function handler(req: any, res: any) {
       // Zeragem sempre acontece (independente de portaria ou snapshot)
       const ocupacaoAtual = (await kvGet('ocupacao')) ?? {};
       const emptyInfo = () => ({ nome:'',telefone:'',canal:'',veiculo:'',parceiro:'',codParceiro:'',obs:'',transferido:false });
+
+      // Salva histórico do dia antes de zerar (TTL 60 dias)
+      await kvSet(`historico:lounges:${today}`, { ...ocupacaoAtual, data: today }, 60 * 24 * 3600);
+
       const ocupacaoZerada = {
         beach: 0,
         lounges: Array(19).fill(0),

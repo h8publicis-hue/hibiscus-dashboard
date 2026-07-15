@@ -59,6 +59,13 @@ export default async function handler(req: any, res: any) {
 
   const action = (req.query?.action as string) ?? '';
 
+  // ── HISTÓRICO ────────────────────────────────────────────────────────────────
+  if (action === 'historico' && req.method === 'GET') {
+    const data = ((req.query?.data as string) || todayBRT()).trim();
+    const hist = await kvGet(`historico:lounges:${data}`);
+    return res.json({ data, historico: hist ?? null });
+  }
+
   // ── RESERVAS ──────────────────────────────────────────────────────────────────
   if (action === 'reservas') {
     const data = ((req.query?.data as string) || todayBRT()).trim();
