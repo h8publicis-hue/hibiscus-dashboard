@@ -330,6 +330,7 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
   const showToast = useCallback((msg: string) => { setToast(msg); }, []);
 
   function hasLoungeData(idx: number) {
+    if ((occupancy.lounges[idx] ?? 0) > 0) return true;
     const d = occupancy.loungeData?.[idx];
     return !!(d && (d.nome || d.telefone || d.canal || d.veiculo || d.parceiro || d.obs));
   }
