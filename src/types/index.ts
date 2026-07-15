@@ -195,13 +195,38 @@ export interface Refeicao {
   status: 'registrada' | 'duplicada' | 'invalida' | 'fora_horario';
 }
 
+export interface LoungeInfo {
+  nome:        string;
+  telefone:    string;
+  canal:       'Balcão' | 'Paytour' | 'Comercial' | 'Diretoria' | 'Edilene' | 'Outros' | '';
+  veiculo:     'TX/UBER/PRIV' | 'Particular' | 'Luck' | 'WS' | 'CTZ' | 'Van' | 'Não identificado' | '';
+  parceiro:    string;
+  codParceiro: string;
+  obs:         string;
+  transferido: boolean;
+}
+
+export const LOUNGE_INFO_EMPTY: LoungeInfo = {
+  nome: '', telefone: '', canal: '', veiculo: '', parceiro: '', codParceiro: '', obs: '', transferido: false,
+};
+
+export interface LoungeReserva {
+  id:        string;
+  loungeIdx: number;
+  data:      string;
+  info:      LoungeInfo;
+  status:    'reserva' | 'confirmada' | 'chegou' | 'cancelada';
+  criadaEm:  number;
+}
+
 export interface OccupancyState {
-  beach: number;        // 0–500
-  lounges: number[];    // 19 elementos (501–519), cada 0–10
-  prime: number;        // 0–10
-  parceiros: number;    // 0–999 (Uber, Táxi e Guias)
-  colaboradores: number; // 0–999 (registrado pelo RH diariamente)
-  loungeObs: string[];  // observações por lounge (mesmo índice que lounges[])
+  beach: number;
+  lounges: number[];
+  prime: number;
+  parceiros: number;
+  colaboradores: number;
+  loungeObs: string[];
+  loungeData?: LoungeInfo[];
 }
 
 export const SPACE_CONFIGS = {
