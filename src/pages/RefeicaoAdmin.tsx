@@ -214,6 +214,8 @@ export function RefeicaoAdmin() {
         empresa:        String(r['empresa']   ?? r['Empresa']   ?? r['EMPRESA']   ?? '').trim(),
         setor:          String(r['setor']     ?? r['Setor']     ?? r['SETOR']     ?? '').trim(),
         cargo:          String(r['Cargo'] ?? r['cargo'] ?? r['CARGO'] ?? '').trim(),
+        setor:          String(r['Departamento'] ?? r['departamento'] ?? r['DEPARTAMENTO'] ?? r['setor'] ?? r['Setor'] ?? r['SETOR'] ?? '').trim(),
+        empresa:        'Hibiscus Beach Club',
         dataNascimento: String(r['Data Nascimento (DD/MM/AAAA)'] ?? r['dataNascimento'] ?? r['Data Nascimento'] ?? '').trim(),
         dataAdmissao:   String(r['Data Admissão (DD/MM/AAAA)'] ?? r['Data Admissao (DD/MM/AAAA)'] ?? r['dataAdmissao'] ?? r['Data Admissão'] ?? '').trim(),
       })).filter((p: any) => p.nome);
@@ -276,25 +278,30 @@ export function RefeicaoAdmin() {
     const lista = pessoas.filter(p => selecionados.has(p.id));
     if (lista.length === 0) return;
 
-    const qrDataUrls: { pessoa: Pessoa; dataUrl: string }[] = await Promise.all(
-      lista.map(p => new Promise<{ pessoa: Pessoa; dataUrl: string }>(resolve => {
+    const [qrDataUrls, logoSrc] = await Promise.all([
+      Promise.all(lista.map(p => new Promise<{ pessoa: Pessoa; dataUrl: string }>(resolve => {
         const canvas = document.createElement('canvas');
         QRCode.toCanvas(canvas, p.qrCode, { width: 200, margin: 2 }, () => {
           resolve({ pessoa: p, dataUrl: canvas.toDataURL('image/png') });
         });
-      }))
-    );
+      }))),
+      fetch('/logo.png').then(r => r.blob()).then(b => new Promise<string>(res => {
+        const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.readAsDataURL(b);
+      })).catch(() => ''),
+    ]);
 
     const POR_PAGINA = 16; // 4 colunas × 4 linhas
     const paginas: string[] = [];
     for (let i = 0; i < qrDataUrls.length; i += POR_PAGINA) {
       const grupo = qrDataUrls.slice(i, i + POR_PAGINA);
       const cards = grupo.map(({ pessoa, dataUrl }) => `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border:1px solid #d1d5db;border-radius:8px;">
-          <img src="${dataUrl}" style="width:130px;height:130px;" />
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border:1px solid #d1d5db;border-radius:8px;background:#fff;">
+          ${logoSrc ? `<img src="${logoSrc}" style="width:48px;height:48px;object-fit:contain;" />` : ''}
+          <img src="${dataUrl}" style="width:120px;height:120px;" />
           <div style="text-align:center;max-width:130px;overflow:hidden;">
             <div style="font-weight:700;font-size:11px;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pessoa.nome}</div>
-            ${pessoa.cargo ? `<div style="font-size:10px;color:#6b7280;">${pessoa.cargo}</div>` : ''}
+            <div style="font-size:10px;color:#374151;">${pessoa.empresa || 'Hibiscus Beach Club'}</div>
+            <div style="font-size:10px;color:#6b7280;text-transform:capitalize;">${pessoa.categoria}${pessoa.cargo ? ` · ${pessoa.cargo}` : ''}</div>
           </div>
         </div>`).join('');
       paginas.push(`
