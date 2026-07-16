@@ -49,12 +49,17 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
     </NavLink>
   );
 
+  const mainItems   = allItems.filter(i => i.to !== '/configuracoes');
+  const bottomItems = allItems.filter(i => i.to === '/configuracoes');
+
   return (
     <aside className="hidden lg:flex w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col py-4 px-3 shrink-0 self-stretch">
-      <nav className="flex flex-col gap-1">
-        {allItems.map(renderLink)}
+      <nav className="flex flex-col gap-1 flex-1">
+        {mainItems.map(renderLink)}
       </nav>
-
+      <div className="border-t border-gray-100 dark:border-gray-700 pt-2 mt-2 flex flex-col gap-1">
+        {bottomItems.map(renderLink)}
+      </div>
     </aside>
   );
 }
