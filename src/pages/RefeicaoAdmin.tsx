@@ -160,9 +160,12 @@ export function RefeicaoAdmin() {
   const [showForm,   setShowForm]   = useState(false);
   const [editando,   setEditando]   = useState<Pessoa | null>(null);
   const [contagem,   setContagem]   = useState<any>(null);
+  const [refeicoes,  setRefeicoes]  = useState<any[]>([]);
   const [search,     setSearch]     = useState('');
   const [importMsg,  setImportMsg]  = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [aba,        setAba]        = useState<'cadastro' | 'presenca'>('cadastro');
+  const [tipoFiltro, setTipoFiltro] = useState<string>('almoco');
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -170,6 +173,7 @@ export function RefeicaoAdmin() {
     const [ps, c] = await Promise.all([fetchPessoas(), fetchContagem(todayBRT())]);
     setPessoas(ps);
     setContagem(c);
+    setRefeicoes(c?.refeicoes ?? []);
     setLoading(false);
   };
 
@@ -403,6 +407,107 @@ export function RefeicaoAdmin() {
         </div>
       )}
 
+      {/* Abas */}
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        {([['cadastro', 'Cadastro'], ['presenca', 'Presença do Dia']] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setAba(key)}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${aba === key ? 'border-brand-600 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── ABA PRESENÇA ── */}
+      {aba === 'presenca' && (() => {
+        const tipos = [
+          { key: 'almoco', label: 'Almoço' },
+          { key: 'jantar', label: 'Jantar' },
+          { key: 'cafe',   label: 'Café'   },
+          { key: 'lanche', label: 'Lanche' },
+        ];
+        const registradosHoje = refeicoes.filter((r: any) => r.status === 'registrada' && r.tipoRefeicao === tipoFiltro);
+        const idsComeram = new Set(registradosHoje.map((r: any) => r.pessoaId));
+        const colaboradores = pessoas.filter(p => p.ativo && p.categoria === 'colaborador');
+        const comeram    = colaboradores.filter(p => idsComeram.has(p.id));
+        const naoComeram = colaboradores.filter(p => !idsComeram.has(p.id));
+
+        return (
+          <div className="flex flex-col gap-4">
+            {/* Filtro tipo */}
+            <div className="flex gap-2 flex-wrap">
+              {tipos.map(t => (
+                <button key={t.key} onClick={() => setTipoFiltro(t.key)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${tipoFiltro === t.key ? 'bg-brand-600 text-white' : 'border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                  {t.label}
+                </button>
+              ))}
+              <button onClick={load} className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Atualizar
+              </button>
+            </div>
+
+            {/* Resumo */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Comeram', value: comeram.length, color: 'text-green-600 dark:text-green-400' },
+                { label: 'Não comeram', value: naoComeram.length, color: 'text-red-500 dark:text-red-400' },
+                { label: 'Total cadastros', value: colaboradores.length, color: 'text-gray-700 dark:text-gray-200' },
+              ].map(k => (
+                <div key={k.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 text-center">
+                  <p className={`text-2xl font-black leading-none ${k.color}`}>{k.value}</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-1">{k.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Comeram */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div className="px-4 py-2 bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-800">
+                  <p className="text-sm font-bold text-green-700 dark:text-green-400">✅ Comeram ({comeram.length})</p>
+                </div>
+                <div className="divide-y divide-gray-50 dark:divide-gray-700/50 max-h-96 overflow-y-auto">
+                  {comeram.length === 0 ? (
+                    <p className="text-center text-gray-400 text-sm py-6">Nenhum registro ainda</p>
+                  ) : comeram.map(p => {
+                    const reg = registradosHoje.find((r: any) => r.pessoaId === p.id);
+                    return (
+                      <div key={p.id} className="px-4 py-2.5 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{p.nome}</p>
+                          <p className="text-xs text-gray-400">{p.cargo || p.setor || '—'}</p>
+                        </div>
+                        <span className="text-xs text-gray-400">{reg?.hora ?? ''}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Não comeram */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800">
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">❌ Não comeram ({naoComeram.length})</p>
+                </div>
+                <div className="divide-y divide-gray-50 dark:divide-gray-700/50 max-h-96 overflow-y-auto">
+                  {naoComeram.length === 0 ? (
+                    <p className="text-center text-gray-400 text-sm py-6">Todos comeram!</p>
+                  ) : naoComeram.map(p => (
+                    <div key={p.id} className="px-4 py-2.5">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{p.nome}</p>
+                      <p className="text-xs text-gray-400">{p.cargo || p.setor || '—'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── ABA CADASTRO ── */}
+      {aba === 'cadastro' && <>
+
       {/* Formulário de nova pessoa */}
       {showForm && (
         <PessoaForm onSave={criarPessoa} onCancel={() => setShowForm(false)} />
@@ -497,6 +602,8 @@ export function RefeicaoAdmin() {
       )}
 
       {qrPessoa && <QrModal pessoa={qrPessoa} onClose={() => setQrPessoa(null)} />}
+
+      </> /* fim aba cadastro */}
     </div>
   );
 }
