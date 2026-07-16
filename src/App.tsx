@@ -33,6 +33,7 @@ import { Fluxo } from './pages/Fluxo';
 import { Chamadas } from './pages/Chamadas';
 import { Refeicao } from './pages/Refeicao';
 import { RefeicaoAdmin } from './pages/RefeicaoAdmin';
+import { Configuracoes } from './pages/Configuracoes';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -158,7 +159,8 @@ function Dashboard() {
                   <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
                   <Route path="/fluxo"     element={<Fluxo />} />
                   <Route path="/chamadas"       element={<Chamadas />} />
-                  <Route path="/refeicao/admin" element={<RefeicaoAdmin />} />
+                  <Route path="/refeicao/admin"   element={<RefeicaoAdmin />} />
+                  <Route path="/configuracoes"    element={<Configuracoes />} />
                 </Routes>
               )
             }
