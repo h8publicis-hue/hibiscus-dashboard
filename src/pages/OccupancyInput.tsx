@@ -595,9 +595,22 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
+async function getLogoBase64(): Promise<string> {
+  try {
+    const r = await fetch('/logo.png');
+    const blob = await r.blob();
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch { return ''; }
+}
+
 async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?: string) {
   const today = dataRef || todayBRT();
   const totalOcup = occ.lounges.reduce((a, b) => a + b, 0);
+  const logoSrc = await getLogoBase64();
 
   const linhas = Array.from({ length: SPACE_CONFIGS.lounge.count }, (_, i) => {
     const num   = 501 + i;
@@ -611,21 +624,31 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
   <title>Relatório Lounges ${today}</title>
   <style>
     body { font-family: Arial, sans-serif; font-size: 11px; color: #222; margin: 20px; }
-    h1 { font-size: 16px; margin-bottom: 4px; }
-    .sub { color: #666; font-size: 11px; margin-bottom: 16px; }
+    .header { display:flex; align-items:center; gap:14px; margin-bottom:14px; border-bottom:2px solid #1a1a2e; padding-bottom:10px; }
+    .header img { height:52px; width:auto; }
+    .header-text { display:flex; flex-direction:column; gap:2px; }
+    .header-text .club { font-size:17px; font-weight:800; color:#1a1a2e; letter-spacing:-0.3px; }
+    .header-text .report { font-size:12px; color:#555; }
+    .header-text .meta { font-size:10px; color:#888; margin-top:2px; }
     table { width: 100%; border-collapse: collapse; }
     th { background: #1a1a2e; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
     td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
     tr:nth-child(even) td { background: #f8f8f8; }
-    .reserva { color: #1d4ed8; font-style: italic; font-size: 10px; }
+    .reserva { color: #1d4ed8; font-size: 10px; }
     .chip { display:inline-block; padding:1px 6px; border-radius:99px; font-size:9px; margin-right:3px; }
     .verde { background:#dcfce7; color:#166534; }
     .azul  { background:#dbeafe; color:#1d4ed8; }
     .trans { color:#f97316; font-size:10px; }
     .sumario { margin-top:16px; padding:10px; background:#f1f5f9; border-radius:8px; }
   </style></head><body>
-  <h1>🛋️ Relatório de Lounges</h1>
-  <div class="sub">Data: ${today.split('-').reverse().join('/')} · Gerado em: ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' })}</div>
+  <div class="header">
+    ${logoSrc ? `<img src="${logoSrc}" alt="Hibiscus" />` : ''}
+    <div class="header-text">
+      <span class="club">Hibiscus Beach Club</span>
+      <span class="report">🛋️ Relatório de Lounges</span>
+      <span class="meta">Data: ${today.split('-').reverse().join('/')} · Gerado em: ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' })}</span>
+    </div>
+  </div>
   <table>
     <thead><tr>
       <th>Lounge</th><th>Pax</th><th>Nome</th><th>Tel</th><th>Canal</th><th>Veículo</th><th>Parceiro</th><th>Cód</th><th>Obs</th><th>Flags</th>
