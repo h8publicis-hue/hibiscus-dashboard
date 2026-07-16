@@ -297,7 +297,7 @@ export function RefeicaoAdmin() {
           ${logoSrc ? `<img src="${logoSrc}" style="width:48px;height:48px;object-fit:contain;" />` : ''}
           <img src="${dataUrl}" style="width:120px;height:120px;" />
           <div style="text-align:center;max-width:130px;overflow:hidden;">
-            <div style="font-weight:700;font-size:11px;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pessoa.nome}</div>
+            <div style="font-weight:700;font-size:11px;color:#111;word-break:break-word;">${pessoa.nome}</div>
             <div style="font-size:10px;color:#374151;">${pessoa.empresa || 'Hibiscus Beach Club'}</div>
             <div style="font-size:10px;color:#6b7280;text-transform:capitalize;">${pessoa.categoria}${pessoa.cargo ? ` · ${pessoa.cargo}` : ''}</div>
           </div>
