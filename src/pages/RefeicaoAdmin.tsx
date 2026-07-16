@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X, Upload, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X, Upload, Trash2, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import { Pessoa } from '../types';
@@ -162,6 +162,7 @@ export function RefeicaoAdmin() {
   const [contagem,   setContagem]   = useState<any>(null);
   const [search,     setSearch]     = useState('');
   const [importMsg,  setImportMsg]  = useState('');
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -255,6 +256,60 @@ export function RefeicaoAdmin() {
     p.empresa.toLowerCase().includes(search.toLowerCase())
   );
 
+  const toggleSelecionado = (id: string) => {
+    setSelecionados(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTodos = () => {
+    if (selecionados.size === pessoasFiltradas.length) {
+      setSelecionados(new Set());
+    } else {
+      setSelecionados(new Set(pessoasFiltradas.map(p => p.id)));
+    }
+  };
+
+  const imprimirQrCodes = async () => {
+    const lista = pessoas.filter(p => selecionados.has(p.id));
+    if (lista.length === 0) return;
+
+    const qrDataUrls: { pessoa: Pessoa; dataUrl: string }[] = await Promise.all(
+      lista.map(p => new Promise<{ pessoa: Pessoa; dataUrl: string }>(resolve => {
+        const canvas = document.createElement('canvas');
+        QRCode.toCanvas(canvas, p.qrCode, { width: 200, margin: 2 }, () => {
+          resolve({ pessoa: p, dataUrl: canvas.toDataURL('image/png') });
+        });
+      }))
+    );
+
+    const cards = qrDataUrls.map(({ pessoa, dataUrl }) => `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;break-inside:avoid;">
+        <img src="${dataUrl}" style="width:160px;height:160px;" />
+        <div style="text-align:center;">
+          <div style="font-weight:700;font-size:13px;color:#111;">${pessoa.nome}</div>
+          ${pessoa.cargo ? `<div style="font-size:11px;color:#6b7280;">${pessoa.cargo}</div>` : ''}
+        </div>
+      </div>`).join('');
+
+    const html = `<!DOCTYPE html><html><head><title>QR Codes — Hibiscus Beach Club</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { text-align:center; font-size:16px; color:#111; margin-bottom:16px; }
+        .grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+        @media print { @page { size: A4; margin: 15mm; } }
+      </style></head><body>
+      <h2>QR Codes — Hibiscus Beach Club (${lista.length} colaborador${lista.length !== 1 ? 'es' : ''})</h2>
+      <div class="grid">${cards}</div>
+      <script>window.onload = () => { window.print(); }<\/script>
+    </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+  };
+
   return (
     <div className="p-4 max-w-5xl mx-auto flex flex-col gap-5">
       <div className="flex items-center justify-between">
@@ -272,6 +327,11 @@ export function RefeicaoAdmin() {
           <button onClick={zerarTudo} disabled={saving} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 dark:border-red-800 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             <Trash2 size={14} /> Zerar Tudo
           </button>
+          {selecionados.size > 0 && (
+            <button onClick={imprimirQrCodes} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
+              <Printer size={14} /> Imprimir QR ({selecionados.size})
+            </button>
+          )}
           <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors">
             <Plus size={14} /> Nova Pessoa
           </button>
@@ -326,6 +386,13 @@ export function RefeicaoAdmin() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
               <tr>
+                <th className="px-4 py-3 w-8">
+                  <input type="checkbox"
+                    checked={pessoasFiltradas.length > 0 && selecionados.size === pessoasFiltradas.length}
+                    ref={el => { if (el) el.indeterminate = selecionados.size > 0 && selecionados.size < pessoasFiltradas.length; }}
+                    onChange={toggleTodos}
+                    className="rounded cursor-pointer" />
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Nome</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden sm:table-cell">Categoria</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Empresa</th>
@@ -337,6 +404,9 @@ export function RefeicaoAdmin() {
               {pessoasFiltradas.map(p => (
                 <>
                   <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <td className="px-4 py-3 w-8">
+                      <input type="checkbox" checked={selecionados.has(p.id)} onChange={() => toggleSelecionado(p.id)} className="rounded cursor-pointer" />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {p.foto
@@ -366,7 +436,7 @@ export function RefeicaoAdmin() {
                   </tr>
                   {editando?.id === p.id && (
                     <tr key={`edit-${p.id}`}>
-                      <td colSpan={5} className="px-4 py-3">
+                      <td colSpan={6} className="px-4 py-3">
                         <PessoaForm initial={p} onSave={editarPessoa} onCancel={() => setEditando(null)} />
                       </td>
                     </tr>
