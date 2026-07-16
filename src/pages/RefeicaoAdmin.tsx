@@ -276,6 +276,12 @@ export function RefeicaoAdmin() {
     const lista = pessoas.filter(p => selecionados.has(p.id));
     if (lista.length === 0) return;
 
+    // Abre a janela imediatamente no clique — antes de qualquer await,
+    // pois navegadores bloqueiam window.open chamado após operações assíncronas.
+    const win = window.open('', '_blank');
+    if (!win) { alert('Permita popups para este site e tente novamente.'); return; }
+    win.document.write('<html><body style="font-family:Arial;text-align:center;padding:40px">Gerando QR codes, aguarde...</body></html>');
+
     const [qrDataUrls, logoSrc] = await Promise.all([
       Promise.all(lista.map(p => new Promise<{ pessoa: Pessoa; dataUrl: string }>(resolve => {
         const canvas = document.createElement('canvas');
@@ -342,8 +348,8 @@ export function RefeicaoAdmin() {
       <script>window.onload = () => { window.print(); }<\/script>
     </body></html>`;
 
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    win.document.write(html);
+    win.document.close();
   };
 
   return (
