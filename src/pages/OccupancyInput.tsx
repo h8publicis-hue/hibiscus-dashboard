@@ -405,6 +405,91 @@ function ReservasModal({ reservas, onClose, onUpdate }: {
   );
 }
 
+// ── Modal de reservas futuras ─────────────────────────────────────────────────
+function ProximasModal({ onClose, onCancel }: {
+  onClose: () => void;
+  onCancel: (id: string, data: string) => void;
+}) {
+  const [items, setItems]     = useState<LoungeReserva[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const hoje = todayBRT();
+      const datas: string[] = [];
+      for (let i = 1; i <= 14; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        datas.push(d.toLocaleDateString('en-CA', { timeZone: 'America/Recife' }));
+      }
+      const results = await Promise.all(datas.map(d => fetchReservas(d)));
+      const todas = results.flat().filter(r =>
+        r.data > hoje && (r.status === 'reserva' || r.status === 'confirmada')
+      );
+      todas.sort((a, b) => a.data.localeCompare(b.data));
+      setItems(todas);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function cancelar(r: LoungeReserva) {
+    if (!window.confirm(`Cancelar reserva do Lounge ${501 + r.loungeIdx} (${r.info.nome || '—'})?`)) return;
+    await upsertReserva({ ...r, status: 'cancelada' });
+    onCancel(r.id, r.data);
+    setItems(prev => prev.filter(x => x.id !== r.id));
+  }
+
+  function fmtData(iso: string) {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  const porData = items.reduce<Record<string, LoungeReserva[]>>((acc, r) => {
+    (acc[r.data] = acc[r.data] ?? []).push(r); return acc;
+  }, {});
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4 shadow-xl max-h-[85vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-gray-800">📅 Próximas Reservas</h3>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none">✕</button>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-gray-400 text-center py-4 animate-pulse">Carregando...</p>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">Nenhuma reserva futura nos próximos 14 dias</p>
+        ) : Object.entries(porData).map(([data, rs]) => (
+          <div key={data}>
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">{fmtData(data)}</p>
+            {rs.map(r => (
+              <div key={r.id} className="border border-purple-200 rounded-2xl p-3 flex flex-col gap-1.5 mb-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-800">Lounge {501 + r.loungeIdx}</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${r.status === 'confirmada' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                    {r.status === 'confirmada' ? '✓ Confirmada' : 'Aguardando'}
+                  </span>
+                </div>
+                {r.info.nome     && <p className="text-xs text-gray-600">{r.info.nome}{r.info.telefone ? ` · ${r.info.telefone}` : ''}</p>}
+                {r.info.canal    && <p className="text-xs text-gray-400">Canal: {r.info.canal}{r.info.veiculo ? ` · ${r.info.veiculo}` : ''}</p>}
+                {r.info.parceiro && <p className="text-xs text-gray-400">Parceiro: {r.info.parceiro}</p>}
+                {r.info.obs      && <p className="text-xs text-gray-400 italic">"{r.info.obs}"</p>}
+                <button onClick={() => cancelar(r)}
+                  className="mt-1 py-1.5 rounded-xl border border-red-200 text-red-500 text-xs font-semibold active:bg-red-50">
+                  Cancelar reserva
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Grade dos lounges ─────────────────────────────────────────────────────────
 function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
   occ: OccupancyState;
@@ -415,6 +500,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
   const [editing, setEditing] = useState<number | null>(null);
   const [moveOrigem, setMoveOrigem] = useState<number | null>(null);
 
+  // reservas já chegam filtradas para hoje — sem necessidade de filtrar por data aqui
   function hasActiveReserva(idx: number) {
     return reservas.some(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
   }
@@ -771,8 +857,9 @@ export function OccupancyInput() {
   const [reservas, setReservas] = useState<LoungeReserva[]>([]);
   const [saved,    setSaved]    = useState(false);
   const [loading,  setLoading]  = useState(true);
-  const [showReservaModal,  setShowReservaModal]  = useState(false);
-  const [showReservasModal, setShowReservasModal] = useState(false);
+  const [showReservaModal,   setShowReservaModal]   = useState(false);
+  const [showReservasModal,  setShowReservasModal]  = useState(false);
+  const [showProximasModal,  setShowProximasModal]  = useState(false);
   const [alertaReservas, setAlertaReservas] = useState(false);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -907,6 +994,10 @@ export function OccupancyInput() {
                   📋 {reservasAtivas.length}
                 </button>
               )}
+              <button onClick={() => setShowProximasModal(true)}
+                className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200">
+                📅 Próximas
+              </button>
               <button onClick={() => setShowReservaModal(true)}
                 className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
                 + Reserva
@@ -928,7 +1019,7 @@ export function OccupancyInput() {
           </div>
 
           <LoungeGrid
-            occ={occ} reservas={reservas}
+            occ={occ} reservas={reservasAtivas}
             update={update}
             onReservaUpdate={r => setReservas(prev => prev.map(x => x.id === r.id ? r : x))}
           />
@@ -970,9 +1061,11 @@ export function OccupancyInput() {
         <p className="text-[11px] font-bold text-gray-400 leading-tight">H8 Sistemas</p>
       </div>
 
-      {showReservaModal  && <ReservaModal  onClose={() => setShowReservaModal(false)}  onSave={r => setReservas(prev => [...prev, r])} />}
-      {showReservasModal && <ReservasModal reservas={reservasAtivas} onClose={() => setShowReservasModal(false)}
+      {showReservaModal   && <ReservaModal  onClose={() => setShowReservaModal(false)}  onSave={r => setReservas(prev => [...prev, r])} />}
+      {showReservasModal  && <ReservasModal reservas={reservasAtivas} onClose={() => setShowReservasModal(false)}
         onUpdate={r => setReservas(prev => prev.map(x => x.id === r.id ? r : x))} />}
+      {showProximasModal  && <ProximasModal onClose={() => setShowProximasModal(false)}
+        onCancel={(id, _data) => setReservas(prev => prev.map(x => x.id === id ? { ...x, status: 'cancelada' } : x))} />}
     </div>
   );
 }
