@@ -465,7 +465,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
     const p   = v / SPACE_CONFIGS.lounge.max;
     const num = SPACE_CONFIGS.lounge.start + idx;
     const info = occ.loungeData?.[idx];
-    const hasData = info && (info.nome || info.obs);
+    const hasData = info && (info.nome || info.obs || info.canal || info.veiculo || info.parceiro || info.telefone);
     const transferred = info?.transferido;
     const reserva = reservas.find(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
     const isOrigem = moveOrigem !== null && moveOrigem >= 0 && moveOrigem === idx;
@@ -659,22 +659,10 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
       const activeRes = res.filter(r => r.status === 'reserva' || r.status === 'confirmada');
       const rows: string[] = [];
 
-      if (v > 0) {
-        // Lounge ocupado: mostra dados de ocupação, ignora reservas pendentes
-        rows.push(`<tr>
-          <td><b>${num}</b></td>
-          <td><span class="chip verde">${v} pax</span></td>
-          <td>${info?.nome || ''}</td>
-          <td>${info?.telefone || ''}</td>
-          <td>${info?.canal || ''}</td>
-          <td>${info?.veiculo || ''}</td>
-          <td>${info?.parceiro || ''}</td>
-          <td>${info?.codParceiro || ''}</td>
-          <td>${info?.obs || ''}</td>
-          <td>${info?.transferido ? '<span class="trans">🔄 Transfer</span>' : ''}</td>
-        </tr>`);
-      } else if (activeRes.length > 0) {
-        // Lounge livre mas com reserva ativa: mostra reservas
+      const hasInfoData = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs);
+
+      if (activeRes.length > 0 && v === 0) {
+        // Lounge livre com reserva ativa: mostra reservas (sem linha de ocupação)
         activeRes.forEach(r => {
           rows.push(`<tr>
             <td><b>${num}</b></td>
@@ -689,6 +677,20 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
             <td></td>
           </tr>`);
         });
+      } else if (v > 0 || hasInfoData) {
+        // Lounge ocupado OU com dados preenchidos: mostra dados de ocupação
+        rows.push(`<tr>
+          <td><b>${num}</b></td>
+          <td>${v > 0 ? `<span class="chip verde">${v} pax</span>` : '<span style="color:#bbb">0 pax</span>'}</td>
+          <td>${info?.nome || ''}</td>
+          <td>${info?.telefone || ''}</td>
+          <td>${info?.canal || ''}</td>
+          <td>${info?.veiculo || ''}</td>
+          <td>${info?.parceiro || ''}</td>
+          <td>${info?.codParceiro || ''}</td>
+          <td>${info?.obs || ''}</td>
+          <td>${info?.transferido ? '<span class="trans">🔄 Transfer</span>' : ''}</td>
+        </tr>`);
       } else {
         rows.push(`<tr><td><b>${num}</b></td><td colspan="9" style="color:#bbb">—</td></tr>`);
       }
