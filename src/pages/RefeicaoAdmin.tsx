@@ -285,24 +285,55 @@ export function RefeicaoAdmin() {
       }))
     );
 
-    const cards = qrDataUrls.map(({ pessoa, dataUrl }) => `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;break-inside:avoid;">
-        <img src="${dataUrl}" style="width:160px;height:160px;" />
-        <div style="text-align:center;">
-          <div style="font-weight:700;font-size:13px;color:#111;">${pessoa.nome}</div>
-          ${pessoa.cargo ? `<div style="font-size:11px;color:#6b7280;">${pessoa.cargo}</div>` : ''}
-        </div>
-      </div>`).join('');
+    const POR_PAGINA = 16; // 4 colunas × 4 linhas
+    const paginas: string[] = [];
+    for (let i = 0; i < qrDataUrls.length; i += POR_PAGINA) {
+      const grupo = qrDataUrls.slice(i, i + POR_PAGINA);
+      const cards = grupo.map(({ pessoa, dataUrl }) => `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+          <img src="${dataUrl}" style="width:130px;height:130px;" />
+          <div style="text-align:center;max-width:130px;overflow:hidden;">
+            <div style="font-weight:700;font-size:11px;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pessoa.nome}</div>
+            ${pessoa.cargo ? `<div style="font-size:10px;color:#6b7280;">${pessoa.cargo}</div>` : ''}
+          </div>
+        </div>`).join('');
+      paginas.push(`
+        <div class="page">
+          <div class="grid">${cards}</div>
+        </div>`);
+    }
 
     const html = `<!DOCTYPE html><html><head><title>QR Codes — Hibiscus Beach Club</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h2 { text-align:center; font-size:16px; color:#111; margin-bottom:16px; }
-        .grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
-        @media print { @page { size: A4; margin: 15mm; } }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: white; }
+        .page {
+          width: 210mm;
+          min-height: 297mm;
+          padding: 12mm;
+          page-break-after: always;
+          display: flex;
+          flex-direction: column;
+        }
+        .page-header {
+          text-align: center;
+          font-size: 13px;
+          font-weight: 700;
+          color: #111;
+          margin-bottom: 8mm;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          flex: 1;
+        }
+        @media print {
+          @page { size: A4 portrait; margin: 0; }
+          .page { page-break-after: always; }
+        }
       </style></head><body>
-      <h2>QR Codes — Hibiscus Beach Club (${lista.length} colaborador${lista.length !== 1 ? 'es' : ''})</h2>
-      <div class="grid">${cards}</div>
+      ${paginas.map((p, idx) => p.replace('<div class="page">', `<div class="page"><div class="page-header">QR Codes — Hibiscus Beach Club &nbsp;|&nbsp; Página ${idx + 1} de ${paginas.length} &nbsp;(${lista.length} colaboradores)</div>`)).join('')}
       <script>window.onload = () => { window.print(); }<\/script>
     </body></html>`;
 
