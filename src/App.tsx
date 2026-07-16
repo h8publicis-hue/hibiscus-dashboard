@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Login } from './pages/Login';
 
 // ── Seed de colaboradores — roda uma vez por browser em qualquer página ────────
 const LS_STAFF_KEY      = 'hibiscus-staff';
@@ -188,6 +189,15 @@ function Dashboard() {
   );
 }
 
+function ProtectedDashboard() {
+  const [authed, setAuthed] = useState(() => localStorage.getItem('hibiscus-admin-auth') === 'ok');
+  // useRef para não criar nova referência a cada render
+  const handleLogin = useRef(() => setAuthed(true)).current;
+
+  if (!authed) return <Login onLogin={handleLogin} />;
+  return <Dashboard />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -195,9 +205,9 @@ export default function App() {
         <Route path="/entrada"  element={<OccupancyInput />} />
         <Route path="/rh"       element={<Rh />} />
         <Route path="/cozinha"  element={<Cozinha />} />
-        <Route path="/portaria"  element={<Portaria />} />
-        <Route path="/refeicao"  element={<Refeicao />} />
-        <Route path="/*"         element={<Dashboard />} />
+        <Route path="/portaria" element={<Portaria />} />
+        <Route path="/refeicao" element={<Refeicao />} />
+        <Route path="/*"        element={<ProtectedDashboard />} />
       </Routes>
     </BrowserRouter>
   );

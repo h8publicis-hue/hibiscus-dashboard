@@ -1,5 +1,7 @@
 import { useState, FormEvent } from 'react';
 
+const DEFAULT_PASSWORD = 'Admin@!$';
+
 interface LoginProps {
   onLogin: () => void;
 }
@@ -14,14 +16,12 @@ export function Login({ onLogin }: LoginProps) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ password }),
-      });
-      if (res.ok) {
+      const res = await fetch('/api/goals?type=config');
+      const { config } = await res.json();
+      const stored = config?.adminPassword ?? DEFAULT_PASSWORD;
+      if (password === stored) {
+        localStorage.setItem('hibiscus-admin-auth', 'ok');
         onLogin();
-        window.location.href = '/';
       } else {
         setError('Senha incorreta. Tente novamente.');
       }

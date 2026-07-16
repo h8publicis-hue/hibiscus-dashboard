@@ -34,6 +34,22 @@ export default async function handler(req: any, res: any) {
 
   const type = (req.query?.type ?? req.body?.type ?? '') as string;
 
+  // ── Config (senha admin) ────────────────────────────────────────────────────
+  if (type === 'config') {
+    if (req.method === 'GET') {
+      const stored = await kvGet('dashboard:config');
+      return res.json({ config: stored ?? null });
+    }
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const current = (await kvGet('dashboard:config')) ?? {};
+      const updated = { ...current };
+      if (body.adminPassword) updated.adminPassword = String(body.adminPassword).slice(0, 100);
+      await kvSet('dashboard:config', updated);
+      return res.json({ ok: true });
+    }
+  }
+
   // ── Comunicados rápidos ──────────────────────────────────────────────────────
   if (type === 'aviso') {
     if (req.method === 'GET') {
