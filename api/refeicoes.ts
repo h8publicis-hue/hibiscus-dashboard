@@ -98,10 +98,13 @@ export default async function handler(req: any, res: any) {
       try {
         const importadas = (req.body.pessoas as any[]).map((p: any) => ({
           id: uuid(), qrCode: uuid(),
-          nome:      String(p.nome      ?? '').trim().slice(0, 100),
-          categoria: String(p.categoria ?? 'colaborador').trim(),
-          empresa:   String(p.empresa   ?? '').trim().slice(0, 100),
-          setor:     String(p.setor     ?? '').trim().slice(0, 100),
+          nome:           String(p.nome      ?? '').trim().slice(0, 100),
+          categoria:      String(p.categoria ?? 'colaborador').trim(),
+          empresa:        String(p.empresa   ?? '').trim().slice(0, 100),
+          setor:          String(p.setor     ?? '').trim().slice(0, 100),
+          cargo:          String(p.cargo          ?? '').trim().slice(0, 100),
+          dataNascimento: String(p.dataNascimento ?? '').trim().slice(0, 20),
+          dataAdmissao:   String(p.dataAdmissao   ?? '').trim().slice(0, 20),
           foto:      '',
           ativo:     true,
         })).filter((p: any) => p.nome);
@@ -115,12 +118,15 @@ export default async function handler(req: any, res: any) {
       const id = uuid(); const qrCode = uuid();
       const nova = {
         id, qrCode,
-        nome:      String(req.body?.nome      ?? '').slice(0, 100),
-        categoria: String(req.body?.categoria ?? 'colaborador'),
-        empresa:   String(req.body?.empresa   ?? '').slice(0, 100),
-        setor:     String(req.body?.setor     ?? '').slice(0, 100),
-        foto:      String(req.body?.foto      ?? '').slice(0, 500),
-        ativo:     req.body?.ativo !== false,
+        nome:           String(req.body?.nome           ?? '').slice(0, 100),
+        categoria:      String(req.body?.categoria      ?? 'colaborador'),
+        empresa:        String(req.body?.empresa        ?? '').slice(0, 100),
+        setor:          String(req.body?.setor          ?? '').slice(0, 100),
+        cargo:          String(req.body?.cargo          ?? '').slice(0, 100),
+        dataNascimento: String(req.body?.dataNascimento ?? '').slice(0, 20),
+        dataAdmissao:   String(req.body?.dataAdmissao   ?? '').slice(0, 20),
+        foto:           String(req.body?.foto           ?? '').slice(0, 500),
+        ativo:          req.body?.ativo !== false,
       };
       try {
         const pessoas = await getPessoas();
@@ -137,7 +143,7 @@ export default async function handler(req: any, res: any) {
         const pessoas = await getPessoas();
         const idx = pessoas.findIndex((p: any) => p.id === id);
         if (idx === -1) return res.status(404).json({ error: 'Pessoa não encontrada' });
-        const allowed = ['nome', 'categoria', 'empresa', 'setor', 'foto', 'ativo'];
+        const allowed = ['nome', 'categoria', 'empresa', 'setor', 'cargo', 'dataNascimento', 'dataAdmissao', 'foto', 'ativo'];
         for (const k of allowed) { if (req.body?.[k] !== undefined) pessoas[idx][k] = req.body[k]; }
         await savePessoas(pessoas);
         return res.json({ ok: true, pessoa: pessoas[idx] });
