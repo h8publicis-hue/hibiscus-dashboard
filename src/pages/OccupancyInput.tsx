@@ -632,8 +632,12 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
     </tr></thead>
     <tbody>
     ${linhas.map(({ num, v, info, res }) => {
+      // Só reservas pendentes/confirmadas (não chegou/cancelada)
+      const activeRes = res.filter(r => r.status === 'reserva' || r.status === 'confirmada');
       const rows: string[] = [];
-      if (v > 0 || (info && (info.nome || info.obs))) {
+
+      if (v > 0) {
+        // Lounge ocupado: mostra dados de ocupação, ignora reservas pendentes
         rows.push(`<tr>
           <td><b>${num}</b></td>
           <td><span class="chip verde">${v} pax</span></td>
@@ -646,22 +650,23 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
           <td>${info?.obs || ''}</td>
           <td>${info?.transferido ? '<span class="trans">🔄 Transfer</span>' : ''}</td>
         </tr>`);
-      }
-      res.forEach(r => {
-        rows.push(`<tr>
-          <td><b>${num}</b></td>
-          <td><span class="chip azul">Reserva</span></td>
-          <td>${r.info.nome || ''}</td>
-          <td>${r.info.telefone || ''}</td>
-          <td>${r.info.canal || ''}</td>
-          <td>${r.info.veiculo || ''}</td>
-          <td>${r.info.parceiro || ''}</td>
-          <td>${r.info.codParceiro || ''}</td>
-          <td class="reserva">${r.info.obs || ''} [${r.status}]</td>
-          <td></td>
-        </tr>`);
-      });
-      if (rows.length === 0) {
+      } else if (activeRes.length > 0) {
+        // Lounge livre mas com reserva ativa: mostra reservas
+        activeRes.forEach(r => {
+          rows.push(`<tr>
+            <td><b>${num}</b></td>
+            <td><span class="chip azul">Reserva</span></td>
+            <td>${r.info.nome || ''}</td>
+            <td>${r.info.telefone || ''}</td>
+            <td>${r.info.canal || ''}</td>
+            <td>${r.info.veiculo || ''}</td>
+            <td>${r.info.parceiro || ''}</td>
+            <td>${r.info.codParceiro || ''}</td>
+            <td class="reserva">${r.info.obs || ''}</td>
+            <td></td>
+          </tr>`);
+        });
+      } else {
         rows.push(`<tr><td><b>${num}</b></td><td colspan="9" style="color:#bbb">—</td></tr>`);
       }
       return rows.join('');
