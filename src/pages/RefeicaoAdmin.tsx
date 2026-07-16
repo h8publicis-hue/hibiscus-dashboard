@@ -71,11 +71,14 @@ function PessoaForm({ initial, onSave, onCancel }: {
   onCancel: () => void;
 }) {
   const [form, setForm] = useState({
-    nome:      initial?.nome      ?? '',
-    categoria: initial?.categoria ?? 'colaborador',
-    empresa:   initial?.empresa   ?? '',
-    setor:     initial?.setor     ?? '',
-    ativo:     initial?.ativo     ?? true,
+    nome:           initial?.nome           ?? '',
+    categoria:      initial?.categoria      ?? 'colaborador',
+    empresa:        initial?.empresa        ?? '',
+    setor:          initial?.setor          ?? '',
+    cargo:          initial?.cargo          ?? '',
+    dataNascimento: initial?.dataNascimento ?? '',
+    dataAdmissao:   initial?.dataAdmissao   ?? '',
+    ativo:          initial?.ativo          ?? true,
   });
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -99,6 +102,12 @@ function PessoaForm({ initial, onSave, onCancel }: {
           </select>
         </div>
         <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 font-medium">Cargo</label>
+          <input value={form.cargo} onChange={e => set('cargo', e.target.value)}
+            className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            placeholder="Ex: Garçom" />
+        </div>
+        <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 font-medium">Empresa</label>
           <input value={form.empresa} onChange={e => set('empresa', e.target.value)}
             className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -109,6 +118,18 @@ function PessoaForm({ initial, onSave, onCancel }: {
           <input value={form.setor} onChange={e => set('setor', e.target.value)}
             className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             placeholder="Setor" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 font-medium">Data de Nascimento</label>
+          <input value={form.dataNascimento} onChange={e => set('dataNascimento', e.target.value)}
+            className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            placeholder="DD/MM/AAAA" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 font-medium">Data de Admissão</label>
+          <input value={form.dataAdmissao} onChange={e => set('dataAdmissao', e.target.value)}
+            className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            placeholder="DD/MM/AAAA" />
         </div>
         <div className="flex items-center gap-2 mt-1">
           <input type="checkbox" id="ativo" checked={form.ativo} onChange={e => set('ativo', e.target.checked)} className="rounded" />
@@ -187,13 +208,16 @@ export function RefeicaoAdmin() {
       const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
 
       const pessoas = rows.map((r: any) => ({
-        nome:      String(r['nome'] ?? r['Nome'] ?? r['NOME'] ?? '').trim(),
-        categoria: String(r['categoria'] ?? r['Categoria'] ?? r['CATEGORIA'] ?? 'colaborador').trim().toLowerCase(),
-        empresa:   String(r['empresa']   ?? r['Empresa']   ?? r['EMPRESA']   ?? '').trim(),
-        setor:     String(r['setor']     ?? r['Setor']     ?? r['SETOR']     ?? '').trim(),
+        nome:           String(r['Nome *'] ?? r['nome'] ?? r['Nome'] ?? r['NOME'] ?? '').trim(),
+        categoria:      String(r['categoria'] ?? r['Categoria'] ?? r['CATEGORIA'] ?? 'colaborador').trim().toLowerCase(),
+        empresa:        String(r['empresa']   ?? r['Empresa']   ?? r['EMPRESA']   ?? '').trim(),
+        setor:          String(r['setor']     ?? r['Setor']     ?? r['SETOR']     ?? '').trim(),
+        cargo:          String(r['Cargo'] ?? r['cargo'] ?? r['CARGO'] ?? '').trim(),
+        dataNascimento: String(r['Data Nascimento (DD/MM/AAAA)'] ?? r['dataNascimento'] ?? r['Data Nascimento'] ?? '').trim(),
+        dataAdmissao:   String(r['Data Admissão (DD/MM/AAAA)'] ?? r['Data Admissao (DD/MM/AAAA)'] ?? r['dataAdmissao'] ?? r['Data Admissão'] ?? '').trim(),
       })).filter((p: any) => p.nome);
 
-      if (pessoas.length === 0) { setImportMsg('Nenhuma linha válida encontrada. Verifique as colunas: nome, categoria, empresa, setor'); setSaving(false); return; }
+      if (pessoas.length === 0) { setImportMsg('Nenhuma linha válida encontrada. Verifique as colunas: Nome *, Cargo, Data Nascimento (DD/MM/AAAA), Data Admissão (DD/MM/AAAA)'); setSaving(false); return; }
 
       const substituir = confirm(`Importar ${pessoas.length} pessoa(s)?\n\nOK = substituir cadastro atual\nCancelar = adicionar ao existente`);
       const res = await fetch('/api/refeicoes?action=pessoas', {

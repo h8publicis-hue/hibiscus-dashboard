@@ -179,6 +179,9 @@ export interface Pessoa {
   foto: string;
   qrCode: string;
   ativo: boolean;
+  cargo?: string;
+  dataNascimento?: string;
+  dataAdmissao?: string;
 }
 
 export interface Refeicao {
