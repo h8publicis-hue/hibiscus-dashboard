@@ -28,6 +28,7 @@ async function fetchOcc(): Promise<OccupancyState> {
       colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
       loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
       loungeData:    Array(SPACE_CONFIGS.lounge.count).fill(null).map((_, i) => d.loungeData?.[i] ?? { ...LOUNGE_INFO_EMPTY }),
+      reservasHoje:  Array.isArray((d as any).reservasHoje) ? (d as any).reservasHoje : [],
     };
   } catch {
     return { ...DEFAULT_STATE };

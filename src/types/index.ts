@@ -227,6 +227,7 @@ export interface OccupancyState {
   colaboradores: number;
   loungeObs: string[];
   loungeData?: LoungeInfo[];
+  reservasHoje?: LoungeReserva[];
 }
 
 export const SPACE_CONFIGS = {

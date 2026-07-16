@@ -151,12 +151,17 @@ function loungeBg(v: number, pct: number) {
 }
 
 // ── Mapa de lounges — desktop ────────────────────────────────────────────────
-function LoungeMap({ lounges, loungeObs, loungeData }: { lounges: number[]; loungeObs?: string[]; loungeData?: import('../types').LoungeInfo[] }) {
+function LoungeMap({ lounges, loungeObs, loungeData, reservas }: { lounges: number[]; loungeObs?: string[]; loungeData?: import('../types').LoungeInfo[]; reservas?: import('../types').LoungeReserva[] }) {
   const obs = loungeObs ?? [];
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
+  function hasActiveReserva(idx: number) {
+    return (reservas ?? []).some(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
+  }
+
   function hasInfo(idx: number) {
     if ((lounges[idx] ?? 0) > 0) return true;
+    if (hasActiveReserva(idx)) return true;
     const d = loungeData?.[idx];
     return !!(d && (d.nome || d.canal || d.veiculo || d.parceiro || d.obs));
   }
@@ -166,15 +171,22 @@ function LoungeMap({ lounges, loungeObs, loungeData }: { lounges: number[]; loun
     const pct = v / SPACE_CONFIGS.lounge.max;
     const num = SPACE_CONFIGS.lounge.start + idx;
     const active = hasInfo(idx);
+    const reserva = hasActiveReserva(idx) && v === 0;
+    const baseBg = reserva
+      ? 'bg-blue-50 dark:bg-blue-900/30 border border-dashed border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400'
+      : loungeBg(v, pct);
     return (
       <div
         key={idx}
         onClick={() => active && setActiveIdx(idx)}
-        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', loungeBg(v, pct), active ? 'cursor-pointer' : '', extraClass)}
+        className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', baseBg, active ? 'cursor-pointer' : '', extraClass)}
       >
         <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
-        <span className="text-2xl font-black leading-tight">{v}</span>
-        {active && (
+        {reserva
+          ? <span className="text-base font-bold leading-tight">📋</span>
+          : <span className="text-2xl font-black leading-tight">{v}</span>
+        }
+        {active && !reserva && (
           <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white dark:border-gray-800" />
         )}
       </div>
@@ -233,6 +245,7 @@ function LoungeMap({ lounges, loungeObs, loungeData }: { lounges: number[]; loun
         <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-600 inline-block"/>Livre</span>
         <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-green-200 dark:bg-green-800 inline-block"/>Ocupado</span>
         <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-red-200 dark:bg-red-800 inline-block"/>Cheio</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-blue-200 dark:bg-blue-800 inline-block"/>Reservado</span>
       </div>
 
       {/* Painel de resumo ao clicar no lounge */}
@@ -970,7 +983,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} />
         </div>
 
-        <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} />
+        <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} reservas={occupancy.reservasHoje} />
         {loungesFull > 0 && (
           <p className="text-xs text-red-600 font-semibold text-right">
             {loungesFull} lounge{loungesFull > 1 ? 's' : ''} em Ocupação Máxima
