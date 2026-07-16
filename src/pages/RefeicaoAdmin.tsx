@@ -211,11 +211,9 @@ export function RefeicaoAdmin() {
       const pessoas = rows.map((r: any) => ({
         nome:           String(r['Nome *'] ?? r['nome'] ?? r['Nome'] ?? r['NOME'] ?? '').trim(),
         categoria:      String(r['categoria'] ?? r['Categoria'] ?? r['CATEGORIA'] ?? 'colaborador').trim().toLowerCase(),
-        empresa:        String(r['empresa']   ?? r['Empresa']   ?? r['EMPRESA']   ?? '').trim(),
-        setor:          String(r['setor']     ?? r['Setor']     ?? r['SETOR']     ?? '').trim(),
-        cargo:          String(r['Cargo'] ?? r['cargo'] ?? r['CARGO'] ?? '').trim(),
-        setor:          String(r['Departamento'] ?? r['departamento'] ?? r['DEPARTAMENTO'] ?? r['setor'] ?? r['Setor'] ?? r['SETOR'] ?? '').trim(),
         empresa:        'Hibiscus Beach Club',
+        setor:          String(r['Departamento'] ?? r['departamento'] ?? r['DEPARTAMENTO'] ?? r['setor'] ?? r['Setor'] ?? r['SETOR'] ?? '').trim(),
+        cargo:          String(r['Cargo'] ?? r['cargo'] ?? r['CARGO'] ?? '').trim(),
         dataNascimento: String(r['Data Nascimento (DD/MM/AAAA)'] ?? r['dataNascimento'] ?? r['Data Nascimento'] ?? '').trim(),
         dataAdmissao:   String(r['Data Admissão (DD/MM/AAAA)'] ?? r['Data Admissao (DD/MM/AAAA)'] ?? r['dataAdmissao'] ?? r['Data Admissão'] ?? '').trim(),
       })).filter((p: any) => p.nome);
