@@ -192,7 +192,7 @@ function Dashboard() {
 }
 
 function ProtectedDashboard() {
-  const [authed, setAuthed] = useState(() => localStorage.getItem('hibiscus-admin-auth') === 'ok');
+  const [authed, setAuthed] = useState(() => localStorage.getItem('hibiscus-admin-auth-v2') === 'ok');
   // useRef para não criar nova referência a cada render
   const handleLogin = useRef(() => setAuthed(true)).current;
 

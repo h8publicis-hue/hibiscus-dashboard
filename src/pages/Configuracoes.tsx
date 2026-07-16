@@ -127,7 +127,7 @@ function LinksAcesso() {
 
 export function Configuracoes() {
   const handleLogout = () => {
-    localStorage.removeItem('hibiscus-admin-auth');
+    localStorage.removeItem('hibiscus-admin-auth-v2');
     window.location.href = '/';
   };
 

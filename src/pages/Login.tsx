@@ -20,7 +20,7 @@ export function Login({ onLogin }: LoginProps) {
       const { config } = await res.json();
       const stored = config?.adminPassword ?? DEFAULT_PASSWORD;
       if (password === stored) {
-        localStorage.setItem('hibiscus-admin-auth', 'ok');
+        localStorage.setItem('hibiscus-admin-auth-v2', 'ok');
         onLogin();
       } else {
         setError('Senha incorreta. Tente novamente.');
