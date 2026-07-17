@@ -411,12 +411,17 @@ function ProximasModal({ onClose, onCancel }: {
   onClose: () => void;
   onCancel: (id: string, data: string) => void;
 }) {
-  const [items, setItems]     = useState<LoungeReserva[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items,     setItems]     = useState<LoungeReserva[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editInfo,  setEditInfo]  = useState<LoungeInfo | null>(null);
+  const [editData,  setEditData]  = useState('');
+  const [editLounge, setEditLounge] = useState(501);
+  const [saving,    setSaving]    = useState(false);
+  const hoje = todayBRT();
 
   useEffect(() => {
     async function load() {
-      const hoje = todayBRT();
       const datas: string[] = [];
       for (let i = 1; i <= 14; i++) {
         const d = new Date();
@@ -439,6 +444,36 @@ function ProximasModal({ onClose, onCancel }: {
     await upsertReserva({ ...r, status: 'cancelada' });
     onCancel(r.id, r.data);
     setItems(prev => prev.filter(x => x.id !== r.id));
+  }
+
+  function startEdit(r: LoungeReserva) {
+    setEditingId(r.id);
+    setEditInfo({ ...r.info });
+    setEditData(r.data);
+    setEditLounge(501 + r.loungeIdx);
+  }
+
+  async function salvarEdicao(r: LoungeReserva) {
+    if (!editInfo) return;
+    if (!editInfo.nome.trim()) return alert('Informe o nome do cliente.');
+    setSaving(true);
+    const updated: LoungeReserva = {
+      ...r,
+      loungeIdx: editLounge - 501,
+      data: editData,
+      info: editInfo,
+    };
+    await upsertReserva(updated);
+    // se o lounge ou data mudou, cancela a antiga entrada no dia original
+    if (r.data !== editData || r.loungeIdx !== updated.loungeIdx) {
+      await upsertReserva({ ...r, status: 'cancelada' });
+    }
+    setItems(prev => prev.map(x => x.id === r.id ? updated : x).filter(
+      x => x.data > hoje && (x.status === 'reserva' || x.status === 'confirmada')
+    ).sort((a, b) => a.data.localeCompare(b.data)));
+    setEditingId(null);
+    setEditInfo(null);
+    setSaving(false);
   }
 
   function fmtData(iso: string) {
@@ -468,20 +503,64 @@ function ProximasModal({ onClose, onCancel }: {
             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">{fmtData(data)}</p>
             {rs.map(r => (
               <div key={r.id} className="border border-purple-200 rounded-2xl p-3 flex flex-col gap-1.5 mb-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-gray-800">Lounge {501 + r.loungeIdx}</span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${r.status === 'confirmada' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                    {r.status === 'confirmada' ? '✓ Confirmada' : 'Aguardando'}
-                  </span>
-                </div>
-                {r.info.nome     && <p className="text-xs text-gray-600">{r.info.nome}{r.info.telefone ? ` · ${r.info.telefone}` : ''}</p>}
-                {r.info.canal    && <p className="text-xs text-gray-400">Canal: {r.info.canal}{r.info.veiculo ? ` · ${r.info.veiculo}` : ''}</p>}
-                {r.info.parceiro && <p className="text-xs text-gray-400">Parceiro: {r.info.parceiro}</p>}
-                {r.info.obs      && <p className="text-xs text-gray-400 italic">"{r.info.obs}"</p>}
-                <button onClick={() => cancelar(r)}
-                  className="mt-1 py-1.5 rounded-xl border border-red-200 text-red-500 text-xs font-semibold active:bg-red-50">
-                  Cancelar reserva
-                </button>
+                {editingId === r.id && editInfo ? (
+                  /* ── Modo edição ── */
+                  <>
+                    <p className="text-xs font-bold text-gray-500 mb-1">Editando reserva</p>
+                    <div className="flex gap-2 mb-1">
+                      <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Lounge</label>
+                        <select value={editLounge} onChange={e => setEditLounge(Number(e.target.value))}
+                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300">
+                          {Array.from({ length: SPACE_CONFIGS.lounge.count }, (_, i) => (
+                            <option key={i} value={501 + i}>Lounge {501 + i}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Data</label>
+                        <input type="date" value={editData} min={hoje}
+                          onChange={e => setEditData(e.target.value)}
+                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                      </div>
+                    </div>
+                    <LoungeInfoForm info={editInfo} onChange={setEditInfo} />
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => salvarEdicao(r)} disabled={saving}
+                        className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold active:bg-blue-700 disabled:opacity-50">
+                        {saving ? 'Salvando…' : '✓ Salvar'}
+                      </button>
+                      <button onClick={() => setEditingId(null)}
+                        className="px-4 py-2 rounded-xl border border-gray-200 text-gray-500 text-xs font-semibold active:bg-gray-50">
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* ── Modo visualização ── */
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-gray-800">Lounge {501 + r.loungeIdx}</span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${r.status === 'confirmada' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                        {r.status === 'confirmada' ? '✓ Confirmada' : 'Aguardando'}
+                      </span>
+                    </div>
+                    {r.info.nome     && <p className="text-xs text-gray-600">{r.info.nome}{r.info.telefone ? ` · ${r.info.telefone}` : ''}</p>}
+                    {r.info.canal    && <p className="text-xs text-gray-400">Canal: {r.info.canal}{r.info.veiculo ? ` · ${r.info.veiculo}` : ''}</p>}
+                    {r.info.parceiro && <p className="text-xs text-gray-400">Parceiro: {r.info.parceiro}</p>}
+                    {r.info.obs      && <p className="text-xs text-gray-400 italic">"{r.info.obs}"</p>}
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={() => startEdit(r)}
+                        className="flex-1 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold active:bg-gray-200">
+                        ✏️ Editar
+                      </button>
+                      <button onClick={() => cancelar(r)}
+                        className="flex-1 py-1.5 rounded-xl border border-red-200 text-red-500 text-xs font-semibold active:bg-red-50">
+                        Cancelar reserva
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
