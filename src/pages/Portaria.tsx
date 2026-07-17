@@ -1,7 +1,136 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAviso } from '../hooks/useAviso';
+import { SPACE_CONFIGS, OccupancyState, LoungeReserva } from '../types';
+import clsx from 'clsx';
 
 const MAX = 1000; // capacidade máxima do clube
+
+// ── Ocupação read-only ────────────────────────────────────────────────────────
+
+const LOUNGE_GROUPS = [
+  { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
+  { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
+  { label: 'Anexo',      ids: [14] },
+  { label: 'Prime ★',    ids: [15] },
+  { label: 'Gramado',    ids: [16, 17] },
+] as const;
+
+const OCC_DEFAULT: OccupancyState = {
+  beach: 0, lounges: Array(18).fill(0), prime: 0,
+  parceiros: 0, colaboradores: 0, loungeObs: [],
+};
+
+async function fetchOcc(): Promise<OccupancyState> {
+  try {
+    const r = await fetch('/api/ocupacao');
+    if (!r.ok) return OCC_DEFAULT;
+    const j = await r.json() as any;
+    return {
+      beach: Number(j.beach ?? 0),
+      lounges: Array.isArray(j.lounges) ? j.lounges.map(Number) : Array(18).fill(0),
+      prime: Number(j.prime ?? 0),
+      parceiros: Number(j.parceiros ?? 0),
+      colaboradores: Number(j.colaboradores ?? 0),
+      loungeObs: Array.isArray(j.loungeObs) ? j.loungeObs : [],
+      loungeData: j.loungeData,
+      reservasHoje: j.reservasHoje,
+    };
+  } catch { return OCC_DEFAULT; }
+}
+
+function loungeBg(v: number, pct: number) {
+  if (v === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
+  if (pct >= 0.9) return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-600';
+  if (pct >= 0.6) return 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-600';
+  return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-600';
+}
+
+function LoungeLabel({ label, className }: { label: string; className?: string }) {
+  if (!label.includes('★')) return <span className={className}>{label}</span>;
+  const [before] = label.split('★');
+  return <span className={className}>{before}<span className="text-yellow-400">★</span></span>;
+}
+
+function OccupancyRow({ label, current, max }: { label: string; current: number; max: number }) {
+  const pct  = current / max;
+  const bar  = pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
+  const text = pct >= 0.9 ? 'text-red-600' : pct >= 0.6 ? 'text-yellow-600' : 'text-green-600';
+  return (
+    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
+      <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-16 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+        <div className={clsx('h-full rounded-full transition-all duration-300', bar)} style={{ width: `${Math.round(pct * 100)}%` }} />
+      </div>
+      <span className={clsx('text-xs font-bold w-12 text-right shrink-0', text)}>{current}/{max}</span>
+    </div>
+  );
+}
+
+function LoungeMap({ lounges, reservas }: { lounges: number[]; reservas?: LoungeReserva[] }) {
+  function hasActiveReserva(idx: number) {
+    return (reservas ?? []).some(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
+  }
+
+  function LoungeCell({ idx, extraClass }: { idx: number; extraClass?: string }) {
+    const v    = lounges[idx] ?? 0;
+    const pct  = v / SPACE_CONFIGS.lounge.max;
+    const num  = SPACE_CONFIGS.lounge.start + idx;
+    const reserva = hasActiveReserva(idx) && v === 0;
+    const baseBg = reserva
+      ? 'bg-blue-50 dark:bg-blue-900/30 border border-dashed border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400'
+      : loungeBg(v, pct);
+    return (
+      <div className={clsx('relative rounded flex flex-col items-center justify-center py-2 text-center', baseBg, extraClass)}>
+        <span className="text-[9px] leading-none opacity-60 font-medium">{num}</span>
+        {reserva
+          ? <span className="text-base font-bold leading-tight">📋</span>
+          : <span className="text-2xl font-black leading-tight">{v}</span>
+        }
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🛋️ Lounges</p>
+      <div className="flex flex-col gap-1">
+        {[LOUNGE_GROUPS[0], LOUNGE_GROUPS[1]].map((group) => (
+          <div key={group.label} className="flex gap-1 items-center">
+            <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 w-16 shrink-0 leading-tight" />
+            <div className="flex flex-1 gap-1">
+              {group.ids.map((idx) => <LoungeCell key={idx} idx={idx} extraClass="flex-1" />)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-gray-100 dark:border-gray-700" />
+      <div className="flex items-start justify-between">
+        <div className="flex gap-3 items-start">
+          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[4]].map((group) => (
+            <div key={group.label} className="flex flex-col gap-1">
+              <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
+              <div className="flex gap-1">
+                {group.ids.map((idx) => <LoungeCell key={idx} idx={idx} extraClass="w-11" />)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-1 items-end">
+          <LoungeLabel label="Prime ★" className="text-[10px] font-semibold text-yellow-600" />
+          <div className="flex gap-1">
+            {LOUNGE_GROUPS[3].ids.map((idx) => <LoungeCell key={idx} idx={idx} extraClass="w-11 ring-1 ring-yellow-400" />)}
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-600 inline-block"/>Livre</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-green-200 dark:bg-green-800 inline-block"/>Ocupado</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-red-200 dark:bg-red-800 inline-block"/>Cheio</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500"><span className="w-2 h-2 rounded-sm bg-blue-200 dark:bg-blue-800 inline-block"/>Reservado</span>
+      </div>
+    </div>
+  );
+}
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -64,12 +193,15 @@ export function Portaria() {
   const [count,   setCount]   = useState(0);
   const [saved,   setSaved]   = useState(false);
   const [loading, setLoading] = useState(true);
+  const [occ,     setOcc]     = useState<OccupancyState>(OCC_DEFAULT);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchCount().then(c => { setCount(c); setLoading(false); });
-    const id = setInterval(() => fetchCount().then(setCount), 30_000);
-    return () => clearInterval(id);
+    fetchOcc().then(setOcc);
+    const id1 = setInterval(() => fetchCount().then(setCount), 30_000);
+    const id2 = setInterval(() => fetchOcc().then(setOcc), 30_000);
+    return () => { clearInterval(id1); clearInterval(id2); };
   }, []);
 
   const update = useCallback((next: number) => {
@@ -183,6 +315,17 @@ export function Portaria() {
         >
           Zerar
         </button>
+
+        {/* Ocupação geral — somente leitura */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-3">
+          <p className="text-sm font-bold text-gray-800">🏖️ Ocupação Geral</p>
+          <OccupancyRow label="Beach" current={occ.beach} max={SPACE_CONFIGS.beach.max} />
+          <OccupancyRow label="Lounges" current={occ.lounges.reduce((a, b) => a + b, 0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
+          <OccupancyRow label="Prime" current={occ.prime} max={SPACE_CONFIGS.prime.max} />
+          <div className="border-t border-gray-100 pt-2">
+            <LoungeMap lounges={occ.lounges} reservas={occ.reservasHoje} />
+          </div>
+        </div>
 
       </div>
 
