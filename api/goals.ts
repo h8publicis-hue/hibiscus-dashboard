@@ -51,6 +51,21 @@ export default async function handler(req: any, res: any) {
   }
 
   // ── Comunicados rápidos ──────────────────────────────────────────────────────
+  // ── Tags de setor das avaliações ─────────────────────────────────────────────
+  if (type === 'tags') {
+    if (req.method === 'GET') {
+      const stored = await kvGet('dashboard:sector-tags');
+      return res.json({ tags: stored ?? {} });
+    }
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      if (body.tags && typeof body.tags === 'object') {
+        await kvSet('dashboard:sector-tags', body.tags);
+      }
+      return res.json({ ok: true });
+    }
+  }
+
   if (type === 'aviso') {
     if (req.method === 'GET') {
       const stored = await kvGet(KV_KEY_AVISO);

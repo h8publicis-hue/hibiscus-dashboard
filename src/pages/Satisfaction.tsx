@@ -59,6 +59,36 @@ function useSectorTags() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}'); }
     catch { return {}; }
   });
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Busca tags do Redis na montagem e sincroniza
+  useEffect(() => {
+    fetch('/api/goals?type=tags')
+      .then(r => r.json())
+      .then((j: any) => {
+        if (j?.tags && typeof j.tags === 'object') {
+          // Merge: Redis tem prioridade, mas preserva seed local se Redis vazio
+          const remote = j.tags as Record<string, string[]>;
+          if (Object.keys(remote).length > 0) {
+            setTags(remote);
+            try { localStorage.setItem(LS_KEY, JSON.stringify(remote)); } catch { /* */ }
+          } else {
+            // Redis vazio — envia as tags locais (seed) para o Redis
+            const local: Record<string, string[]> = (() => {
+              try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}'); } catch { return {}; }
+            })();
+            if (Object.keys(local).length > 0) {
+              fetch('/api/goals?type=tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tags: local }),
+              }).catch(() => { /* */ });
+            }
+          }
+        }
+      })
+      .catch(() => { /* usa localStorage como fallback */ });
+  }, []);
 
   function toggleSector(id: string, sector: string) {
     setTags((prev) => {
@@ -67,7 +97,16 @@ function useSectorTags() {
       const updated = { ...prev };
       if (next.length === 0) delete updated[id];
       else updated[id] = next;
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      try { localStorage.setItem(LS_KEY, JSON.stringify(updated)); } catch { /* */ }
+      // Debounce: salva no Redis 1s após última alteração
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        fetch('/api/goals?type=tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: updated }),
+        }).catch(() => { /* */ });
+      }, 1000);
       return updated;
     });
   }
@@ -320,7 +359,7 @@ function periodLabel(period: string): string {
   return period;
 }
 
-function exportToPDF(
+async function exportToPDF(
   selected: RecentResponse[],
   period: string,
   npsScore: number,
@@ -353,16 +392,39 @@ function exportToPDF(
 
   let y = 14;
 
+  // Tenta carregar o logo
+  await new Promise<void>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d')!.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        doc.addImage(dataUrl, 'PNG', ML, y + 2, 18, 10, undefined, 'FAST');
+      } catch { /* sem logo */ }
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = '/logo.png';
+  });
+
   doc.setFillColor(...hex('#7c3aed'));
   doc.rect(0, 0, W, 2, 'F');
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hex('#7c3aed'));
-  doc.text('Hibiscus Beach Club', ML, y + 10);
+  doc.text('Hibiscus Beach Club', ML + 22, y + 10);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...hex('#6b7280'));
-  doc.text('Relatório de Avaliações de Clientes', ML, y + 16);
+  doc.text('Relatório de Avaliações de Clientes', ML + 22, y + 16);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...hex('#9ca3af'));
+  doc.text('Avaliação interna — Survey Monkey (uso exclusivo da gestão)', ML + 22, y + 22);
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...hex('#9ca3af'));
   doc.text(`Gerado em ${now}`, W - MR, y + 10, { align: 'right' });
@@ -370,7 +432,7 @@ function exportToPDF(
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hex('#374151'));
   doc.text(`Período: ${periodLabel(period)}`, W - MR, y + 16, { align: 'right' });
-  y += 24;
+  y += 28;
 
   doc.setDrawColor(...hex('#e5e7eb'));
   doc.setLineWidth(0.4);
@@ -453,7 +515,7 @@ function exportToPDF(
     if (r.pulseira) {
       doc.setTextColor(...hex('#7c3aed'));
       doc.setFont('helvetica', 'bold');
-      doc.text(`#${r.pulseira}`, ML + 60, badgeY);
+      doc.text(`Pulseira #${r.pulseira}`, ML + 60, badgeY);
     }
 
     if (tagsLine) {
@@ -472,13 +534,21 @@ function exportToPDF(
   const pageCount = doc.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...hex('#9ca3af'));
-    doc.text(`Hibiscus Beach Club · Dashboard Integrado · ${now}  |  Pág. ${p}/${pageCount}`, W / 2, 293, { align: 'center' });
     doc.setDrawColor(...hex('#e5e7eb'));
     doc.setLineWidth(0.3);
-    doc.line(ML, 290, W - MR, 290);
+    doc.line(ML, 288, W - MR, 288);
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...hex('#9ca3af'));
+    doc.text(`Hibiscus Beach Club · Avaliação interna — Survey Monkey · ${now}  |  Pág. ${p}/${pageCount}`, W / 2, 292, { align: 'center' });
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...hex('#c4b5fd'));
+    doc.text('Desenvolvido por H8 Sistemas', W / 2, 296, { align: 'center' });
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...hex('#d1d5db'));
+    doc.text('Pulseira # = número da pulseira física do cliente no dia da visita', W / 2, 300, { align: 'center' });
   }
 
   doc.save(`avaliacoes-hibiscus-${new Date().toISOString().slice(0,10)}.pdf`);
@@ -679,7 +749,7 @@ export function Satisfaction({ period }: SatisfactionProps) {
 
   function handleExportPDF() {
     const selected = allResponses.filter((r) => selectedIds.has(r.id));
-    exportToPDF(selected, period, data?.npsScore ?? 0, data?.promoters ?? 0, data?.neutrals ?? 0, data?.detractors ?? 0, periodTotal, tags);
+    exportToPDF(selected, period, data?.npsScore ?? 0, data?.promoters ?? 0, data?.neutrals ?? 0, data?.detractors ?? 0, periodTotal, tags).catch(() => { /* */ });
   }
 
   const selectedCount = selectedIds.size;
