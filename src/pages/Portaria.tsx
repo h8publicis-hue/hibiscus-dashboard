@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAviso } from '../hooks/useAviso';
 
 const MAX = 1000; // capacidade máxima do clube
 
@@ -57,6 +58,9 @@ function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => v
 }
 
 export function Portaria() {
+  const { avisos } = useAviso();
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim());
+
   const [count,   setCount]   = useState(0);
   const [saved,   setSaved]   = useState(false);
   const [loading, setLoading] = useState(true);
@@ -109,6 +113,16 @@ export function Portaria() {
             {saved ? '✓ Salvo' : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
+        {/* Avisos */}
+        {activeAvisos.length > 0 && (
+          <div className="bg-amber-50 border-t border-amber-200 px-4 py-2 flex flex-col gap-1">
+            {activeAvisos.map((a, i) => (
+              <p key={i} className="text-xs font-medium text-amber-800 flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0">📢</span> {a.text}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="max-w-lg mx-auto px-4 pt-5 flex flex-col gap-4">

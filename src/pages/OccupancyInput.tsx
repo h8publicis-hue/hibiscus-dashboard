@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { OccupancyState, SPACE_CONFIGS, LoungeInfo, LoungeReserva, LOUNGE_INFO_EMPTY } from '../types';
+import { useAviso } from '../hooks/useAviso';
 
 const LOUNGE_GROUPS = [
   { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
@@ -853,6 +854,9 @@ function HistoricoBtn() {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export function OccupancyInput() {
+  const { avisos } = useAviso();
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim());
+
   const [occ,      setOcc]      = useState<OccupancyState>({ ...DEFAULT });
   const [reservas, setReservas] = useState<LoungeReserva[]>([]);
   const [saved,    setSaved]    = useState(false);
@@ -938,6 +942,16 @@ export function OccupancyInput() {
             {saved ? '✓ Salvo' : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
+        {/* Avisos */}
+        {activeAvisos.length > 0 && (
+          <div className="bg-amber-50 border-t border-amber-200 px-4 py-2 flex flex-col gap-1">
+            {activeAvisos.map((a, i) => (
+              <p key={i} className="text-xs font-medium text-amber-800 flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0">📢</span> {a.text}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Banner alerta 10h30 */}
