@@ -1190,15 +1190,21 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     chamadasHoje.filter(c => c.status === 'pendente' && c.setor).map(c => c.setor)
   )];
 
-  // Garçons com chamadas pendentes (qualquer tempo)
+  // Chamadas pendentes — label: garçom se disponível, senão pulseira + setor
   const garconsPendentes = chamadasHoje
-    .filter(c => c.status === 'pendente' && c.garcom)
-    .map(c => c.tempoEspera ? `${c.garcom} (${c.tempoEspera})` : c.garcom);
+    .filter(c => c.status === 'pendente')
+    .map(c => {
+      const id = c.garcom || [c.pulseira && `#${c.pulseira}`, c.setor].filter(Boolean).join(' · ') || '—';
+      return c.tempoEspera ? `${id} (${c.tempoEspera})` : id;
+    });
 
   // Garçons com chamadas demoradas (≥60s) ainda pendentes
   const garconsDemorados = chamadasHoje
-    .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60 && c.garcom)
-    .map(c => `${c.garcom} (${c.tempoEspera})`);
+    .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60)
+    .map(c => {
+      const id = c.garcom || [c.pulseira && `#${c.pulseira}`, c.setor].filter(Boolean).join(' · ') || '—';
+      return `${id} (${c.tempoEspera})`;
+    });
 
   const blocoChamadas = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
