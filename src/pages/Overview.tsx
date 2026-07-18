@@ -1194,7 +1194,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const garconsPendentes = chamadasHoje
     .filter(c => c.status === 'pendente')
     .map(c => {
-      const id = c.garcom || (c.pulseira ? `#${c.pulseira}` : c.setor) || '—';
+      const id = c.garcom || (c.mesa != null ? `Mesa ${c.mesa}` : c.setor) || '—';
       return c.tempoEspera ? `${id} (${c.tempoEspera})` : id;
     });
 
@@ -1202,7 +1202,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const garconsDemorados = chamadasHoje
     .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60)
     .map(c => {
-      const id = c.garcom || (c.pulseira ? `#${c.pulseira}` : c.setor) || '—';
+      const id = c.garcom || (c.mesa != null ? `Mesa ${c.mesa}` : c.setor) || '—';
       return `${id} (${c.tempoEspera})`;
     });
 
