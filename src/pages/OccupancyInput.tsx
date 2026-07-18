@@ -641,17 +641,23 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
     const inMoveMode = moveOrigem !== null;
 
     function handleClick() {
-      if (!inMoveMode) { setEditing(idx); return; }
-      // Waiting for origin selection
-      if (moveOrigem === -1) {
-        if (v === 0) { window.alert('Selecione um lounge ocupado como origem.'); return; }
-        setMoveOrigem(idx);
+      if (inMoveMode) {
+        if (moveOrigem === -1) {
+          if (v === 0) { window.alert('Selecione um lounge ocupado como origem.'); return; }
+          setMoveOrigem(idx);
+          return;
+        }
+        if (isOrigem) { setMoveOrigem(-1); return; }
+        if (idx === moveOrigem) return;
+        executarMove(moveOrigem, idx);
         return;
       }
-      // Origin already selected
-      if (isOrigem) { setMoveOrigem(-1); return; } // deselect origin, pick again
-      if (idx === moveOrigem) return;
-      executarMove(moveOrigem, idx);
+      // Se há reserva ativa e lounge vazio, converter em ocupação e abrir preenchido
+      if (reserva && v === 0) {
+        handleChegou(reserva);
+        return;
+      }
+      setEditing(idx);
     }
 
     let extraBorder = '';
@@ -679,12 +685,6 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
         </button>
         {hasData  && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white" />}
         {transferred && <span className="absolute top-0.5 left-0.5 text-[9px] leading-none">🔄</span>}
-        {reserva && v === 0 && (
-          <button onClick={() => handleChegou(reserva)}
-            className="absolute -bottom-1 left-0 right-0 mx-auto w-fit text-[8px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap">
-            chegou
-          </button>
-        )}
       </div>
     );
   }
@@ -752,8 +752,8 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
             const loungeData = [...(occ.loungeData ?? Array(SPACE_CONFIGS.lounge.count).fill(null).map(emptyInfo))];
             const loungeObs  = [...occ.loungeObs];
             lounges[editing]    = novoLounge;
-            loungeData[editing] = novaInfo;
-            loungeObs[editing]  = novaInfo.obs;
+            loungeData[editing] = novoLounge === 0 ? emptyInfo() : novaInfo;
+            loungeObs[editing]  = novoLounge === 0 ? '' : novaInfo.obs;
             update({ ...occ, lounges, loungeData, loungeObs, beach: novoBeach });
             setEditing(null);
           }}
