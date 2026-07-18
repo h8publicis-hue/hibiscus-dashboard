@@ -1190,11 +1190,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     chamadasHoje.filter(c => c.status === 'pendente' && c.setor).map(c => c.setor)
   )];
 
-  // Chamadas pendentes — label: garçom se disponível, senão pulseira + setor
+  // Chamadas pendentes — label: garçom > pulseira > setor
   const garconsPendentes = chamadasHoje
     .filter(c => c.status === 'pendente')
     .map(c => {
-      const id = c.garcom || [c.pulseira && `#${c.pulseira}`, c.setor].filter(Boolean).join(' · ') || '—';
+      const id = c.garcom || (c.pulseira ? `#${c.pulseira}` : c.setor) || '—';
       return c.tempoEspera ? `${id} (${c.tempoEspera})` : id;
     });
 
@@ -1202,7 +1202,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const garconsDemorados = chamadasHoje
     .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60)
     .map(c => {
-      const id = c.garcom || [c.pulseira && `#${c.pulseira}`, c.setor].filter(Boolean).join(' · ') || '—';
+      const id = c.garcom || (c.pulseira ? `#${c.pulseira}` : c.setor) || '—';
       return `${id} (${c.tempoEspera})`;
     });
 
