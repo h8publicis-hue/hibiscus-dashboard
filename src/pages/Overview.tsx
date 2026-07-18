@@ -1190,18 +1190,25 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     chamadasHoje.filter(c => c.status === 'pendente' && c.setor).map(c => c.setor)
   )];
 
+  // Garçons com chamadas demoradas (≥60s) ainda pendentes
+  const garconsDemorados = chamadasHoje
+    .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60 && c.garcom)
+    .map(c => `${c.garcom} (${c.tempoEspera})`);
+
   const blocoChamadas = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Chamadas — Hoje</h2>
         {chamadasL && <span className="text-[10px] text-gray-400 animate-pulse">Carregando...</span>}
       </div>
+
+      {/* Stats na nova ordem: Pendentes · Demoradas · Finalizadas · Total */}
       <div className="grid grid-cols-4 gap-2 mb-3">
         {[
-          { label: 'Total',      val: chamadasHoje.length, color: 'text-gray-800 dark:text-gray-200' },
-          { label: 'Pendentes',  val: pendentes,           color: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Finalizadas',val: finalizadas,         color: 'text-green-600 dark:text-green-400' },
-          { label: 'Demoradas',  val: demoradas,           color: demoradas > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' },
+          { label: 'Pendentes',   val: pendentes,           color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Demoradas',   val: demoradas,           color: demoradas > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200' },
+          { label: 'Finalizadas', val: finalizadas,         color: 'text-green-600 dark:text-green-400' },
+          { label: 'Total',       val: chamadasHoje.length, color: 'text-gray-800 dark:text-gray-200' },
         ].map(({ label, val, color }) => (
           <div key={label} className="text-center">
             <p className={`text-xl font-black ${color}`}>{val}</p>
@@ -1209,8 +1216,26 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
         ))}
       </div>
+
+      {/* Ticker — garçons com atendimento demorado */}
+      {garconsDemorados.length > 0 && (
+        <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg px-2 py-1 mb-2 overflow-hidden">
+          <span className="text-[9px] font-bold text-red-600 dark:text-red-400 shrink-0 uppercase tracking-wide">⏱ Demora</span>
+          <div className="flex-1 overflow-hidden relative">
+            <div
+              className="flex gap-4 whitespace-nowrap"
+              style={{ animation: `ticker ${Math.max(8, garconsDemorados.length * 4)}s linear infinite` }}
+            >
+              {[...garconsDemorados, ...garconsDemorados].map((g, i) => (
+                <span key={i} className="text-[10px] font-semibold text-red-700 dark:text-red-300">{g}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {setoresPendentes.length > 0 && (
-        <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-1.5 mb-3">
+        <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-1.5 mb-2">
           <span className="text-amber-500 text-xs shrink-0">⚠️</span>
           <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium leading-snug">
             <span className="font-semibold">Aguardando:</span>{' '}
@@ -1221,11 +1246,20 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </p>
         </div>
       )}
+
       {avgEspera > 0 && (
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3 text-center">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2 text-center">
           Tempo médio de espera: <span className="font-semibold text-gray-700 dark:text-gray-300">{avgMin}m {avgSec}s</span>
         </p>
       )}
+
+      {/* Legenda compacta */}
+      <div className="flex gap-3 mb-2">
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-green-500 inline-block"/>Até 30s Rápido</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>31–59s Médio</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"/>≥60s Demorado</span>
+      </div>
+
       {setoresTop.length > 0 && (
         <div className="space-y-2 pt-1 border-t border-gray-100 dark:border-gray-700">
           {setoresTop.map(([setor, count]) => {
