@@ -19,7 +19,7 @@ interface ReviewsTickerProps {
   intervalMs?: number;
 }
 
-const INTERVAL = 6000;
+const INTERVAL = 12000;
 const MAX_TEXT = 160;
 const MIN_ITEMS = 3;
 
