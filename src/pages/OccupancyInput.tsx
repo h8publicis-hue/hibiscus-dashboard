@@ -615,15 +615,18 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
   }
 
   function handleChegou(reserva: LoungeReserva) {
-    // Converte reserva em ocupação real
+    // Converte reserva em ocupação real e abre painel de edição para ajustar pax
     const idx = reserva.loungeIdx;
-    const lounges   = [...occ.lounges];
+    const lounges    = [...occ.lounges];
     const loungeData = [...(occ.loungeData ?? Array(SPACE_CONFIGS.lounge.count).fill(null).map(emptyInfo))];
-    lounges[idx]    = clamp(lounges[idx] + 1, 0, SPACE_CONFIGS.lounge.max);
+    // Mantém o valor atual se já houver pessoas; caso contrário inicia com 1
+    lounges[idx]    = clamp(Math.max(lounges[idx], 1), 0, SPACE_CONFIGS.lounge.max);
     loungeData[idx] = { ...reserva.info, transferido: false };
     update({ ...occ, lounges, loungeData });
     onReservaUpdate({ ...reserva, status: 'chegou' });
     upsertReserva({ ...reserva, status: 'chegou' });
+    // Abre o painel de edição para o usuário ajustar a quantidade real de pessoas
+    setEditing(idx);
   }
 
   function LoungeCell({ idx }: { idx: number }) {
