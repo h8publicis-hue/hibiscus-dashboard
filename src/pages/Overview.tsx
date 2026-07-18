@@ -1190,6 +1190,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     chamadasHoje.filter(c => c.status === 'pendente' && c.setor).map(c => c.setor)
   )];
 
+  // Garçons com chamadas pendentes (qualquer tempo)
+  const garconsPendentes = chamadasHoje
+    .filter(c => c.status === 'pendente' && c.garcom)
+    .map(c => c.tempoEspera ? `${c.garcom} (${c.tempoEspera})` : c.garcom);
+
   // Garçons com chamadas demoradas (≥60s) ainda pendentes
   const garconsDemorados = chamadasHoje
     .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60 && c.garcom)
@@ -1216,6 +1221,23 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           </div>
         ))}
       </div>
+
+      {/* Ticker — garçons com chamadas pendentes */}
+      {garconsPendentes.length > 0 && (
+        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-2 py-1 mb-1 overflow-hidden">
+          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0 uppercase tracking-wide">⚠ Pendente</span>
+          <div className="flex-1 overflow-hidden relative">
+            <div
+              className="flex gap-4 whitespace-nowrap"
+              style={{ animation: `ticker ${Math.max(8, garconsPendentes.length * 4)}s linear infinite` }}
+            >
+              {[...garconsPendentes, ...garconsPendentes].map((g, i) => (
+                <span key={i} className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">{g}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ticker — garçons com atendimento demorado */}
       {garconsDemorados.length > 0 && (
