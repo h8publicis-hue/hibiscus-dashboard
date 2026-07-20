@@ -102,6 +102,7 @@ async function gerarPDF(data: {
   let y = 14;
 
   // Logo
+  let resolvedLogoW = 0;
   await new Promise<void>((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -110,9 +111,12 @@ async function gerarPDF(data: {
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
         canvas.getContext('2d')!.drawImage(img, 0, 0);
-        const logoH = 12;
-        const logoW = Math.round((img.naturalWidth / img.naturalHeight) * logoH);
-        doc.addImage(canvas.toDataURL('image/png'), 'PNG', ML, y + 2, logoW, logoH, undefined, 'FAST');
+        const ratio = img.naturalWidth / img.naturalHeight;
+        const maxW = 36;
+        const logoW = Math.min(Math.round(ratio * 14), maxW);
+        const logoH = Math.round(logoW / ratio);
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', ML, y + (14 - logoH) / 2 + 1, logoW, logoH, undefined, 'FAST');
+        resolvedLogoW = logoW;
       } catch { /* sem logo */ }
       resolve();
     };
@@ -121,13 +125,14 @@ async function gerarPDF(data: {
   });
 
   // Cabeçalho
+  const tx = ML + resolvedLogoW + 4;
   doc.setFillColor(...hex('#7c3aed')); doc.rect(0, 0, W, 2, 'F');
-  doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#7c3aed'));
-  doc.text('Hibiscus Beach Club', ML + 22, y + 10);
-  doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#374151'));
-  doc.text(`Fechamento do Dia — ${data.dateLabel}`, ML + 22, y + 17);
+  doc.setFontSize(15); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#7c3aed'));
+  doc.text('Hibiscus Beach Club', tx, y + 8);
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#374151'));
+  doc.text(`Fechamento do Dia — ${data.dateLabel}`, tx, y + 15);
   doc.setFontSize(8); doc.setTextColor(...hex('#9ca3af'));
-  doc.text(`Gerado às ${now}`, W - MR, y + 10, { align: 'right' });
+  doc.text(`Gerado às ${now}`, W - MR, y + 8, { align: 'right' });
   y += 28;
 
   const sectionHeader = (title: string) => {
