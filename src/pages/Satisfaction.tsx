@@ -391,6 +391,7 @@ async function exportToPDF(
   };
 
   let y = 14;
+  let resolvedLogoW = 0;
 
   // Tenta carregar o logo
   await new Promise<void>((resolve) => {
@@ -402,9 +403,10 @@ async function exportToPDF(
         canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
         canvas.getContext('2d')!.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL('image/png');
-        const logoH = 12;
-        const logoW = Math.round((img.naturalWidth / img.naturalHeight) * logoH);
-        doc.addImage(dataUrl, 'PNG', ML, y + 2, logoW, logoH, undefined, 'FAST');
+        const logoH = 14;
+        const logoW = Math.min(Math.round((img.naturalWidth / img.naturalHeight) * logoH), 36);
+        doc.addImage(dataUrl, 'PNG', ML, y + 1, logoW, logoH, undefined, 'FAST');
+        resolvedLogoW = logoW;
       } catch { /* sem logo */ }
       resolve();
     };
@@ -415,8 +417,8 @@ async function exportToPDF(
   doc.setFillColor(...hex('#7c3aed'));
   doc.rect(0, 0, W, 2, 'F');
 
-  // Textos à direita do logo — alinhados verticalmente com espaçamento adequado
-  const tx = ML + 26;
+  // Textos à direita do logo — offset dinâmico baseado na largura real do logo
+  const tx = ML + resolvedLogoW + 4;
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hex('#7c3aed'));
