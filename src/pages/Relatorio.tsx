@@ -89,7 +89,7 @@ async function gerarPDF(data: {
   receita: { hoje: number | null; mes: number | null; abs: number | null; meta: number; items: number | null; orders: number | null; ticket: number | null };
   ocupacao: { portaria: number; beach: number; loungesTotal: number; parceiros: number; checkins: number; reservados: number; pendentes: number };
   lounges: { num: number; pax: number; nome: string; canal: string; veiculo: string; parceiro: string }[];
-  chamadas: { total: number; finalizadas: number; demoradas: number; mediaEspera: string; topSetores: [string, number][] };
+  chamadas: { total: number; finalizadas: number; demoradas: number; mediaEspera: string; topSetores: [string, number][]; topGarcons: [string, number][] };
   satisfacao: { nps: number | null; arretados: number; oxente: number; putz: number; notaSurvey: number | null; totalSurvey: number; notaGoogle: number | null; semResposta: number };
 }) {
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -198,13 +198,27 @@ async function gerarPDF(data: {
     { label: 'Demoradas (≥60s)', value: fmt(data.chamadas.demoradas) },
     { label: 'Tempo médio',       value: data.chamadas.mediaEspera },
   ]);
-  if (data.chamadas.topSetores.length > 0) {
+  const halfW = (CW - 6) / 2;
+  if (data.chamadas.topSetores.length > 0 || data.chamadas.topGarcons.length > 0) {
+    const colL = ML;
+    const colR = ML + halfW + 6;
     doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#374151'));
-    doc.text('Top setores:', ML, y); y += 5;
-    data.chamadas.topSetores.forEach(([setor, qtd]) => {
+    if (data.chamadas.topSetores.length > 0) doc.text('Top setores:', colL, y);
+    if (data.chamadas.topGarcons.length > 0) doc.text('Ranking garçons:', colR, y);
+    y += 5;
+    const maxRows = Math.max(data.chamadas.topSetores.length, data.chamadas.topGarcons.length);
+    for (let i = 0; i < maxRows; i++) {
       doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#6b7280'));
-      doc.text(`• ${setor}: ${qtd} chamada${qtd !== 1 ? 's' : ''}`, ML + 3, y); y += 4.5;
-    });
+      if (data.chamadas.topSetores[i]) {
+        const [setor, qtd] = data.chamadas.topSetores[i];
+        doc.text(`#${i + 1}  ${setor}: ${qtd}`, colL + 3, y);
+      }
+      if (data.chamadas.topGarcons[i]) {
+        const [garcom, qtd] = data.chamadas.topGarcons[i];
+        doc.text(`#${i + 1}  ${garcom}: ${qtd}`, colR + 3, y);
+      }
+      y += 4.5;
+    }
     y += 3;
   }
 
@@ -351,7 +365,7 @@ export function Relatorio() {
         receita: { hoje: todayRev, mes: mesRev, abs: absData?.receita_abs ?? null, meta: goals.receitaTotal, items: todayItems, orders: todayOrders, ticket },
         ocupacao: { portaria: 0, beach: occ.beach, loungesTotal, parceiros: occ.parceiros, checkins: checkin?.checkins ?? 0, reservados: checkin?.reservados ?? 0, pendentes: checkin?.pendentes ?? 0 },
         lounges: loungesOcupados,
-        chamadas: { total: chamadasStats.total, finalizadas: chamadasStats.finalizadas, demoradas: chamadasStats.demoradas, mediaEspera: chamadasStats.mediaEspera, topSetores: chamadasStats.topSetores },
+        chamadas: { total: chamadasStats.total, finalizadas: chamadasStats.finalizadas, demoradas: chamadasStats.demoradas, mediaEspera: chamadasStats.mediaEspera, topSetores: chamadasStats.topSetores, topGarcons: chamadasStats.topGarcons },
         satisfacao: { nps: sd?.npsScore ?? null, arretados: sd?.promoters ?? 0, oxente: sd?.neutrals ?? 0, putz: sd?.detractors ?? 0, notaSurvey: sd?.avgScore ?? null, totalSurvey: sd?.totalResponses ?? 0, notaGoogle: gd?.averageRating ?? null, semResposta: gd?.unansweredCount ?? 0 },
       });
     } finally {
