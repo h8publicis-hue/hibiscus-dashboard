@@ -1194,7 +1194,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const garconsPendentes = chamadasHoje
     .filter(c => c.status === 'pendente')
     .map(c => {
-      const id = c.garcom || (c.mesa != null ? `Mesa ${c.mesa}` : c.setor) || '—';
+      const id = c.garcom || (c.mesa != null ? `${c.mesa}` : c.setor) || '—';
       return c.tempoEspera ? `${id} (${c.tempoEspera})` : id;
     });
 
@@ -1202,7 +1202,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const garconsDemorados = chamadasHoje
     .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60)
     .map(c => {
-      const id = c.garcom || (c.mesa != null ? `Mesa ${c.mesa}` : c.setor) || '—';
+      const id = c.garcom || (c.mesa != null ? `${c.mesa}` : c.setor) || '—';
       return `${id} (${c.tempoEspera})`;
     });
 
@@ -1231,7 +1231,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       {/* Ticker — garçons com chamadas pendentes */}
       {garconsPendentes.length > 0 && (
         <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-2 py-1 mb-1 overflow-hidden">
-          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0 uppercase tracking-wide">⚠ Pendente</span>
+          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0 uppercase tracking-wide">⚠ Mesas</span>
           <div className="flex-1 overflow-hidden relative">
             <div
               className="flex gap-4 whitespace-nowrap"
