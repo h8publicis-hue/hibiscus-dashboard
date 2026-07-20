@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Key, Link2, LogOut, Check, X, Copy, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode } from 'lucide-react';
+import QRCode from 'qrcode';
 
 const DEFAULT_PASSWORD = 'Admin@!$';
 
@@ -20,11 +21,12 @@ async function salvarSenha(nova: string): Promise<void> {
 }
 
 const LINKS_OPERACIONAIS = [
-  { label: 'App / Entrada',  path: '/entrada',  desc: 'Controle de ocupação dos lounges' },
-  { label: 'App / Portaria', path: '/portaria', desc: 'Registro de entrada de pessoas' },
-  { label: 'App / Cozinha',  path: '/cozinha',  desc: 'Painel da cozinha' },
-  { label: 'App / Refeitório', path: '/refeicao', desc: 'Scanner de QR code' },
-  { label: 'App / RH',       path: '/rh',       desc: 'Painel de RH' },
+  { label: 'App / Entrada',    path: '/entrada',   desc: 'Controle de ocupação dos lounges' },
+  { label: 'App / Portaria',   path: '/portaria',  desc: 'Registro de entrada de pessoas' },
+  { label: 'App / RH',         path: '/rh',        desc: 'Contador de colaboradores' },
+  { label: 'App / Cozinha',    path: '/cozinha',   desc: 'Painel da cozinha' },
+  { label: 'App / Refeitório', path: '/refeicao',  desc: 'Scanner de QR code' },
+  { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
 ];
 
 function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
@@ -91,8 +93,34 @@ function TrocaSenha() {
   );
 }
 
+function QrModal({ path, label, onClose }: { path: string; label: string; onClose: () => void }) {
+  const [dataUrl, setDataUrl] = useState('');
+  const url = window.location.origin + path;
+
+  useEffect(() => {
+    QRCode.toDataURL(url, { width: 240, margin: 2 }).then(setDataUrl).catch(() => {});
+  }, [url]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl flex flex-col items-center gap-4 max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between w-full">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white">{label}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X size={16} /></button>
+        </div>
+        {dataUrl
+          ? <img src={dataUrl} alt="QR Code" className="rounded-lg w-[240px] h-[240px]" />
+          : <div className="w-[240px] h-[240px] bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse" />
+        }
+        <p className="text-xs text-gray-400 text-center break-all">{url}</p>
+      </div>
+    </div>
+  );
+}
+
 function LinksAcesso() {
   const [copiado, setCopiado] = useState('');
+  const [qrPath,  setQrPath]  = useState<string | null>(null);
   const base = window.location.origin;
 
   const copiar = (path: string) => {
@@ -102,26 +130,39 @@ function LinksAcesso() {
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      {LINKS_OPERACIONAIS.map(({ label, path, desc }) => (
-        <div key={path} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
-            <p className="text-xs text-gray-400">{desc}</p>
+    <>
+      {qrPath && (
+        <QrModal
+          path={qrPath}
+          label={LINKS_OPERACIONAIS.find(l => l.path === qrPath)?.label ?? ''}
+          onClose={() => setQrPath(null)}
+        />
+      )}
+      <div className="flex flex-col gap-2">
+        {LINKS_OPERACIONAIS.map(({ label, path, desc }) => (
+          <div key={path} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
+              <p className="text-xs text-gray-400">{desc}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => setQrPath(path)} title="Ver QR Code"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-brand-600 transition-colors">
+                <QrCode size={14} />
+              </button>
+              <button onClick={() => copiar(path)} title="Copiar link"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-brand-600 transition-colors">
+                {copiado === path ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+              </button>
+              <a href={path} target="_blank" rel="noreferrer" title="Abrir em nova aba"
+                className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-brand-600 transition-colors">
+                <ExternalLink size={14} />
+              </a>
+            </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => copiar(path)} title="Copiar link"
-              className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-brand-600 transition-colors">
-              {copiado === path ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-            </button>
-            <a href={path} target="_blank" rel="noreferrer" title="Abrir em nova aba"
-              className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-brand-600 transition-colors">
-              <ExternalLink size={14} />
-            </a>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }
 

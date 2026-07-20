@@ -1,7 +1,6 @@
 import clsx from 'clsx';
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { RotateCcw, QrCode, X, Tv2, Pencil } from 'lucide-react';
-import QRCode from 'qrcode';
+import { RotateCcw, X, Pencil } from 'lucide-react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { OccupancyActions } from '../hooks/useOccupancy';
 
@@ -87,43 +86,6 @@ function useLongPress(callback: () => void) {
   };
 }
 
-function QrModal({ path, title, onClose }: { path: string; title: string; onClose: () => void }) {
-  const [dataUrl, setDataUrl] = useState<string>('');
-  const url = window.location.origin + path;
-
-  useEffect(() => {
-    QRCode.toDataURL(url, { width: 220, margin: 2 }).then(setDataUrl).catch(() => {});
-  }, [url]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl flex flex-col items-center gap-4 max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between w-full">
-          <h3 className="text-sm font-bold text-gray-800 dark:text-white">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-            <X size={16} />
-          </button>
-        </div>
-        {dataUrl ? (
-          <img src={dataUrl} alt="QR Code" className="rounded-lg w-[220px] h-[220px]" />
-        ) : (
-          <div className="w-[220px] h-[220px] bg-gray-100 rounded-lg animate-pulse" />
-        )}
-        <p className="text-xs text-gray-400 text-center">
-          Escaneie com o celular para abrir o controle
-        </p>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-brand-600 hover:underline break-all text-center"
-        >
-          {url}
-        </a>
-      </div>
-    </div>
-  );
-}
 
 interface OccupancyProps {
   occupancy: OccupancyState;
@@ -314,7 +276,6 @@ function ObsModal({ idx, obs, loungeInfo, onClose, onSave }: {
 }
 
 export function Occupancy({ occupancy, actions }: OccupancyProps) {
-  const [showQr, setShowQr]               = useState<'entrada' | 'portaria' | 'rh' | null>(null);
   const [selectedLounge, setSelectedLounge] = useState<number | null>(null);
   const [editingObs, setEditingObs]       = useState<number | null>(null);
   const [toast, setToast]                 = useState<string | null>(null);
@@ -342,53 +303,16 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
 
   return (
     <div className="p-6 space-y-6">
-      {showQr === 'entrada'  && <QrModal path="/entrada"  title="Controle de Ocupação" onClose={() => setShowQr(null)} />}
-      {showQr === 'portaria' && <QrModal path="/portaria" title="Controle de Portaria"  onClose={() => setShowQr(null)} />}
-      {showQr === 'rh'       && <QrModal path="/rh"       title="Contador RH"           onClose={() => setShowQr(null)} />}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ocupação em Tempo Real</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowQr('entrada')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-sm"
-            title="Abrir QR code para celular/tablet"
-          >
-            <QrCode size={13} />
-            Abrir controle
-          </button>
-          <button
-            onClick={() => setShowQr('portaria')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-white hover:bg-slate-700 transition-colors shadow-sm"
-            title="Abrir QR code da portaria"
-          >
-            <QrCode size={13} />
-            Abrir portaria
-          </button>
-          <button
-            onClick={() => setShowQr('rh')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
-            title="Abrir QR code do contador RH"
-          >
-            <QrCode size={13} />
-            Abrir RH
-          </button>
-          <button
-            onClick={() => window.open(`${window.location.origin}/?kiosk`, '_blank')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
-            title="Abrir Visão Geral em modo quiosque (sem menu)"
-          >
-            <Tv2 size={13} />
-            Quiosque
-          </button>
-          <button
-            onClick={handleResetAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            title="Zerar todos os contadores"
-          >
-            <RotateCcw size={13} />
-            Zerar tudo
-          </button>
-        </div>
+        <button
+          onClick={handleResetAll}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          title="Zerar todos os contadores"
+        >
+          <RotateCcw size={13} />
+          Zerar tudo
+        </button>
       </div>
 
       {/* Planilha ao vivo */}
