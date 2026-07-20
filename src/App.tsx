@@ -3,7 +3,7 @@ import { Login } from './pages/Login';
 
 // ── Seed de colaboradores — roda uma vez por browser em qualquer página ────────
 const LS_STAFF_KEY      = 'hibiscus-staff';
-const LS_STAFF_SEED_KEY = 'hibiscus-staff-seeded-v3';
+const LS_STAFF_SEED_KEY = 'hibiscus-staff-seeded-v4';
 const SEED_STAFF: { name: string; sector: string; aliases?: string[] }[] = [
   { name: 'Alex Ferreira da Silva',              sector: 'ATENDIMENTO' },
   { name: 'Aloisio José dos Santos Junior',      sector: 'ATENDIMENTO' },
@@ -45,6 +45,11 @@ const SEED_STAFF: { name: string; sector: string; aliases?: string[] }[] = [
   { name: 'Valdja de Moura Ferreira',            sector: 'ATENDIMENTO' },
   { name: 'Wadysson Ferreira da Silva',          sector: 'ATENDIMENTO' },
   { name: 'Williams Faustino Ribeiro',           sector: 'ATENDIMENTO' },
+  { name: 'Alessandra da Silva Gonçalves',       sector: 'RECEPÇÃO' },
+  { name: 'Cleonice Carolayne Casado dos Santos',sector: 'RECEPÇÃO', aliases: ['carolayne'] },
+  { name: 'Josicleide Maria da Silva',           sector: 'RECEPÇÃO' },
+  { name: 'Kauany Conceição da Silva Santos',    sector: 'RECEPÇÃO' },
+  { name: 'Rairon Alexandre Silva do Nascimento',sector: 'RECEPÇÃO' },
 ];
 function ensureStaffSeed() {
   if (localStorage.getItem(LS_STAFF_SEED_KEY)) return;

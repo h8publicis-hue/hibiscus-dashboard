@@ -277,6 +277,44 @@ function LoungeMap({ lounges, loungeObs, loungeData, reservas }: { lounges: numb
 }
 
 // ── Mini KPI compacto ─────────────────────────────────────────────────────────
+function StaffRanking({ ranked, medal, sc, preview }: {
+  ranked: { id: string; name: string; sector: string; count: number }[];
+  medal: string[];
+  sc: Record<string, string>;
+  preview: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? ranked : ranked.slice(0, preview);
+  const hasMore = ranked.length > preview;
+  return (
+    <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between mb-1.5 group"
+      >
+        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+          <Users size={9} /> Mais citados na pesquisa interna / 2026
+        </p>
+        {hasMore && (
+          <span className="text-[9px] text-brand-500 group-hover:text-brand-700 font-semibold">
+            {expanded ? '▲ menos' : `▼ +${ranked.length - preview} mais`}
+          </span>
+        )}
+      </button>
+      <div className="space-y-1">
+        {visible.map((m, i) => (
+          <div key={m.id} className="flex items-center gap-1.5">
+            <span className="text-xs w-4 text-center shrink-0">{medal[i] ?? `${i + 1}`}</span>
+            <span className="flex-1 text-[11px] font-semibold text-gray-700 dark:text-gray-200 truncate" title={m.name}>{m.name.split(' ')[0]}</span>
+            <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${sc[m.sector] ?? 'bg-gray-100 text-gray-500'}`}>{m.sector}</span>
+            <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400 w-5 text-right shrink-0">{m.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MiniKPI({
   icon, label, value, sub, color = 'brand', loading, info,
 }: {
@@ -815,8 +853,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     return { ...m, count: allResponses.filter(r => regex.test(r.text)).length };
                   })
                   .filter(m => m.count > 0)
-                  .sort((a, b) => b.count - a.count)
-                  .slice(0, 5);
+                  .sort((a, b) => b.count - a.count);
 
                 if (!ranked.length) return null;
                 const medal = ['🥇', '🥈', '🥉'];
@@ -825,23 +862,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   'A&B':         'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
                   'RECEPÇÃO':    'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400',
                 };
-                return (
-                  <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
-                    <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                      <Users size={9} /> Mais citados na pesquisa interna / 2026
-                    </p>
-                    <div className="space-y-1">
-                      {ranked.map((m, i) => (
-                        <div key={m.id} className="flex items-center gap-1.5">
-                          <span className="text-xs w-4 text-center shrink-0">{medal[i] ?? `${i + 1}`}</span>
-                          <span className="flex-1 text-[11px] font-semibold text-gray-700 dark:text-gray-200 truncate" title={m.name}>{m.name.split(' ')[0]}</span>
-                          <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${sc[m.sector] ?? 'bg-gray-100 text-gray-500'}`}>{m.sector}</span>
-                          <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400 w-5 text-right shrink-0">{m.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
+                const PREVIEW = 3;
+                return <StaffRanking ranked={ranked} medal={medal} sc={sc} preview={PREVIEW} />;
               })()}
             </>
           )
