@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import { FileDown, TrendingUp, Users, Bell, Smile, LayoutList } from 'lucide-react';
 import clsx from 'clsx';
@@ -11,10 +11,36 @@ import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import { useSurveyMonkey }  from '../hooks/useSurveyMonkey';
 import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { useGoals }         from '../hooks/useGoals';
-import { SPACE_CONFIGS }    from '../types';
+import { SPACE_CONFIGS, OccupancyState, LOUNGE_INFO_EMPTY } from '../types';
 
 function todayISO() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+function hourBRT() {
+  return parseInt(new Date().toLocaleTimeString('en-CA', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false }), 10);
+}
+
+const EMPTY_OCC: OccupancyState = {
+  beach: 0,
+  lounges: Array(SPACE_CONFIGS.lounge.count).fill(0),
+  prime: 0,
+  parceiros: 0,
+  colaboradores: 0,
+  loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
+  loungeData: Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY })),
+};
+
+function useHistoricoOcupacao(date: string, enabled: boolean): OccupancyState | null {
+  const [hist, setHist] = useState<OccupancyState | null>(null);
+  useEffect(() => {
+    if (!enabled) { setHist(null); return; }
+    fetch(`/api/ocupacao?action=historico&data=${date}`)
+      .then(r => r.json())
+      .then((j: any) => { if (j?.historico) setHist(j.historico as OccupancyState); })
+      .catch(() => {});
+  }, [date, enabled]);
+  return hist;
 }
 
 function fmt(n: number | null | undefined, prefix = '') {
@@ -232,11 +258,16 @@ export function Relatorio() {
 
   const isToday   = date === todayISO();
   const period    = isToday ? 'today' : 'custom';
+  // Usa histórico para dias passados OU quando já passou das 18h BRT (depois da zeragem)
+  const useHist   = !isToday || hourBRT() >= 18;
 
   const paytour   = usePaytour('today');
   const { revenue: mesRev } = useMonthRevenue();
   const { data: absData }   = useReceitaABS();
-  const [occ]     = useOccupancy();
+  const [liveOcc] = useOccupancy();
+  const histOcc   = useHistoricoOcupacao(date, useHist);
+  // Prioridade: histórico (se disponível) > live
+  const occ       = (useHist && histOcc) ? histOcc : liveOcc;
   const { data: checkin }   = useCheckin();
   const { chamadas }        = useChamadas(date, date);
   const survey    = useSurveyMonkey(period);
