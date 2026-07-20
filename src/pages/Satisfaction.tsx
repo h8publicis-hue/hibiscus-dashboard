@@ -403,9 +403,11 @@ async function exportToPDF(
         canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
         canvas.getContext('2d')!.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL('image/png');
-        const logoH = 14;
-        const logoW = Math.min(Math.round((img.naturalWidth / img.naturalHeight) * logoH), 36);
-        doc.addImage(dataUrl, 'PNG', ML, y + 1, logoW, logoH, undefined, 'FAST');
+        const ratio = img.naturalWidth / img.naturalHeight;
+        const maxW = 36;
+        const logoW = Math.min(Math.round(ratio * 14), maxW);
+        const logoH = Math.round(logoW / ratio);
+        doc.addImage(dataUrl, 'PNG', ML, y + (14 - logoH) / 2 + 1, logoW, logoH, undefined, 'FAST');
         resolvedLogoW = logoW;
       } catch { /* sem logo */ }
       resolve();
