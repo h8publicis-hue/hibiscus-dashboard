@@ -414,27 +414,32 @@ async function exportToPDF(
 
   doc.setFillColor(...hex('#7c3aed'));
   doc.rect(0, 0, W, 2, 'F');
-  doc.setFontSize(18);
+
+  // Textos à direita do logo — alinhados verticalmente com espaçamento adequado
+  const tx = ML + 26;
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hex('#7c3aed'));
-  doc.text('Hibiscus Beach Club', ML + 22, y + 10);
+  doc.text('Hibiscus Beach Club', tx, y + 8);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...hex('#6b7280'));
-  doc.text('Relatório de Avaliações de Clientes', ML + 22, y + 16);
-  doc.setFontSize(7.5);
+  doc.text('Relatório de Avaliações de Clientes', tx, y + 15);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...hex('#9ca3af'));
-  doc.text('Avaliação interna — Survey Monkey (uso exclusivo da gestão)', ML + 22, y + 22);
+  doc.text('Avaliação interna — Survey Monkey (uso exclusivo da gestão)', tx, y + 21);
+
+  // Canto direito
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...hex('#9ca3af'));
-  doc.text(`Gerado em ${now}`, W - MR, y + 10, { align: 'right' });
+  doc.text(`Gerado em ${now}`, W - MR, y + 8, { align: 'right' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hex('#374151'));
-  doc.text(`Período: ${periodLabel(period)}`, W - MR, y + 16, { align: 'right' });
-  y += 28;
+  doc.text(`Período: ${periodLabel(period)}`, W - MR, y + 15, { align: 'right' });
+  y += 30;
 
   doc.setDrawColor(...hex('#e5e7eb'));
   doc.setLineWidth(0.4);
