@@ -3,13 +3,48 @@ import { Login } from './pages/Login';
 
 // ── Seed de colaboradores — roda uma vez por browser em qualquer página ────────
 const LS_STAFF_KEY      = 'hibiscus-staff';
-const LS_STAFF_SEED_KEY = 'hibiscus-staff-seeded-v1';
-const SEED_STAFF = [
-  { name: 'Katherine', sector: 'ATENDIMENTO', aliases: ['catarine', 'catarina', 'katherine'] },
-  { name: 'Dudu',      sector: 'ATENDIMENTO' },
-  { name: 'Bruno',     sector: 'A&B' },
-  { name: 'Carlos',    sector: 'A&B' },
-  { name: 'Luciano',   sector: 'A&B' },
+const LS_STAFF_SEED_KEY = 'hibiscus-staff-seeded-v3';
+const SEED_STAFF: { name: string; sector: string; aliases?: string[] }[] = [
+  { name: 'Alex Ferreira da Silva',              sector: 'ATENDIMENTO' },
+  { name: 'Aloisio José dos Santos Junior',      sector: 'ATENDIMENTO' },
+  { name: 'Alvaro Silva dos Santos',             sector: 'ATENDIMENTO' },
+  { name: 'Arthur Lopes de Lima Silva',          sector: 'ATENDIMENTO' },
+  { name: 'Bruno José dos Santos',               sector: 'ATENDIMENTO' },
+  { name: 'Bruno Rafael Moreira dos Santos',     sector: 'ATENDIMENTO', aliases: ['bruno rafael'] },
+  { name: 'Carlos Eduardo da Silva',             sector: 'ATENDIMENTO', aliases: ['carlos 361', 'carlos eduardo'] },
+  { name: 'Catharine Matias da Silva',           sector: 'ATENDIMENTO', aliases: ['catarine', 'catarina', 'katherine'] },
+  { name: 'Cicero Eduardo dos Santos Silva',     sector: 'ATENDIMENTO', aliases: ['cícero'] },
+  { name: 'Cristiane dos Santos Vitor',          sector: 'ATENDIMENTO' },
+  { name: 'Daniel Germano Borges Junior',        sector: 'ATENDIMENTO' },
+  { name: 'Daniele Maria Santos da Silva',       sector: 'ATENDIMENTO' },
+  { name: 'David Robert Pimentel da Silva',      sector: 'ATENDIMENTO' },
+  { name: 'Diogo Luis Rosendo Tavares',          sector: 'ATENDIMENTO' },
+  { name: 'Eduardo Santos da Silva',             sector: 'ATENDIMENTO', aliases: ['dudu'] },
+  { name: 'Elane Cicera da Silva',               sector: 'ATENDIMENTO' },
+  { name: 'Elderson Hiago Silva de Almeida',     sector: 'ATENDIMENTO' },
+  { name: 'Eliberg Jose Ferreira dos Santos',    sector: 'ATENDIMENTO' },
+  { name: 'Emerson de Sena Feitosa',             sector: 'ATENDIMENTO' },
+  { name: 'Everton da Silva Santos',             sector: 'ATENDIMENTO' },
+  { name: 'Geidiane Maria Henrique dos Santos',  sector: 'ATENDIMENTO' },
+  { name: 'Giullyson Lima da Silva',             sector: 'ATENDIMENTO' },
+  { name: 'Jane Cleide Ferreira da Silva',       sector: 'ATENDIMENTO' },
+  { name: 'Jefferson Silva dos Santos',          sector: 'ATENDIMENTO' },
+  { name: 'Jesser Emanoel de Oliveira',          sector: 'ATENDIMENTO' },
+  { name: 'Jose Ulisses Pituba Lins',            sector: 'ATENDIMENTO', aliases: ['ulisses'] },
+  { name: 'Lucas dos Santos Romão',              sector: 'ATENDIMENTO', aliases: ['lucas romão'] },
+  { name: 'Lucas Mateus Mendes Apolinario',      sector: 'ATENDIMENTO', aliases: ['lucas mateus'] },
+  { name: 'Luciano Marcos dos Santos Junior',    sector: 'ATENDIMENTO' },
+  { name: 'Lucineia Barros Nascimento dos Santos', sector: 'ATENDIMENTO' },
+  { name: 'Marcolino Felix de Lima Neto',        sector: 'ATENDIMENTO' },
+  { name: 'Marcos Paulo Santos da Silva',        sector: 'ATENDIMENTO' },
+  { name: 'Maria Vanessa de Moura Ferreira',     sector: 'ATENDIMENTO', aliases: ['vanessa'] },
+  { name: 'Mazio Pedro dos Santos',              sector: 'ATENDIMENTO' },
+  { name: 'Raudney Lins de Santana',             sector: 'ATENDIMENTO' },
+  { name: 'Rodrigo Braz de Franca',              sector: 'ATENDIMENTO' },
+  { name: 'Taciano Silva dos Santos',            sector: 'ATENDIMENTO' },
+  { name: 'Valdja de Moura Ferreira',            sector: 'ATENDIMENTO' },
+  { name: 'Wadysson Ferreira da Silva',          sector: 'ATENDIMENTO' },
+  { name: 'Williams Faustino Ribeiro',           sector: 'ATENDIMENTO' },
 ];
 function ensureStaffSeed() {
   if (localStorage.getItem(LS_STAFF_SEED_KEY)) return;

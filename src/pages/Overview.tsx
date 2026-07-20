@@ -834,7 +834,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                       {ranked.map((m, i) => (
                         <div key={m.id} className="flex items-center gap-1.5">
                           <span className="text-xs w-4 text-center shrink-0">{medal[i] ?? `${i + 1}`}</span>
-                          <span className="flex-1 text-[11px] font-semibold text-gray-700 dark:text-gray-200 truncate">{m.name}</span>
+                          <span className="flex-1 text-[11px] font-semibold text-gray-700 dark:text-gray-200 truncate" title={m.name}>{m.name.split(' ')[0]}</span>
                           <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${sc[m.sector] ?? 'bg-gray-100 text-gray-500'}`}>{m.sector}</span>
                           <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400 w-5 text-right shrink-0">{m.count}</span>
                         </div>
