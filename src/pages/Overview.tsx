@@ -1259,9 +1259,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               className="flex gap-4 whitespace-nowrap"
               style={{ animation: `ticker ${Math.max(8, garconsPendentes.length * 4)}s linear infinite` }}
             >
-              {[...garconsPendentes, ...garconsPendentes].map((g, i) => (
-                <span key={i} className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">{g}</span>
-              ))}
+              {[...garconsPendentes, null, ...garconsPendentes, null].map((g, i) =>
+                g === null
+                  ? <span key={i} className="text-[9px] text-amber-400 dark:text-amber-600 mx-1 select-none">❯❯❯</span>
+                  : <span key={i} className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">{g}</span>
+              )}
             </div>
           </div>
         </div>
@@ -1276,9 +1278,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               className="flex gap-4 whitespace-nowrap"
               style={{ animation: `ticker ${Math.max(8, garconsDemorados.length * 4)}s linear infinite` }}
             >
-              {[...garconsDemorados, ...garconsDemorados].map((g, i) => (
-                <span key={i} className="text-[10px] font-semibold text-red-700 dark:text-red-300">{g}</span>
-              ))}
+              {[...garconsDemorados, null, ...garconsDemorados, null].map((g, i) =>
+                g === null
+                  ? <span key={i} className="text-[9px] text-red-400 dark:text-red-600 mx-1 select-none">❯❯❯</span>
+                  : <span key={i} className="text-[10px] font-semibold text-red-700 dark:text-red-300">{g}</span>
+              )}
             </div>
           </div>
         </div>
