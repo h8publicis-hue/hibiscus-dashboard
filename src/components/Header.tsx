@@ -255,24 +255,27 @@ export function Header({
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between gap-3 sticky top-0 z-30">
       {/* Brand */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 min-w-0">
         {/* Logo modo light */}
         <img
           src="/logo.png"
           alt="Hibiscus Beach Club"
-          className="dark:hidden h-9 w-auto object-contain"
+          className="dark:hidden h-8 w-auto max-w-[40px] object-contain shrink-0"
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
         {/* Logo modo dark */}
         <img
           src="https://static.wixstatic.com/media/d9d863_f674498abfa44751886e72f0229c5f17~mv2.png/v1/crop/x_22,y_1,w_340,h_84/fill/w_476,h_117,fp_0.50_0.50,lg_1,q_85,enc_avif,quality_auto/Prancheta%201%20c%C3%B3pia.png"
           alt="Hibiscus Beach Club"
-          className="hidden dark:block h-9 w-auto object-contain"
+          className="hidden dark:block h-8 w-auto max-w-[40px] object-contain shrink-0"
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
-        <div className="hidden sm:block">
-          <h1 className="text-sm font-bold text-brand-600 dark:text-white leading-tight">Hibiscus Beach Club</h1>
-          <p className="text-xs text-gray-400">Dashboard Integrado</p>
+        <div className="min-w-0">
+          <h1 className="text-sm font-bold text-brand-600 dark:text-white leading-tight truncate">
+            <span className="hidden sm:inline">Hibiscus Beach Club</span>
+            <span className="sm:hidden">Hibiscus</span>
+          </h1>
+          <p className="hidden sm:block text-xs text-gray-400">Dashboard Integrado</p>
         </div>
       </div>
 

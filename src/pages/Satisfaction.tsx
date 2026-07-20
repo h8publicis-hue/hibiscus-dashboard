@@ -402,7 +402,9 @@ async function exportToPDF(
         canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
         canvas.getContext('2d')!.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL('image/png');
-        doc.addImage(dataUrl, 'PNG', ML, y + 2, 18, 10, undefined, 'FAST');
+        const logoH = 12;
+        const logoW = Math.round((img.naturalWidth / img.naturalHeight) * logoH);
+        doc.addImage(dataUrl, 'PNG', ML, y + 2, logoW, logoH, undefined, 'FAST');
       } catch { /* sem logo */ }
       resolve();
     };
