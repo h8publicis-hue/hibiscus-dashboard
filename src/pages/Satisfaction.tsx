@@ -6,17 +6,12 @@ import { clearSheetsCache } from '../services/googleSheets';
 import { Period, RecentResponse } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertCircle, RefreshCw, Tag, FileDown, CheckSquare, Square, Layers, Users, Plus, X, Pencil } from 'lucide-react';
+import { useSectors } from '../hooks/useSectors';
 import clsx from 'clsx';
 
 interface SatisfactionProps { period: Period }
 
-// ── Setores ───────────────────────────────────────────────────────────────────
-const SECTORS = [
-  'ESTRUTURA', 'ACESSIBILIDADE', 'MANUTENÇÃO', 'A&B', 'ATENDIMENTO',
-  'PREÇO', 'RECEPÇÃO', 'RECREAÇÃO', 'BRINDES', 'SERVIÇOS GERAIS',
-  'ATRAÇÕES', 'SOM', 'PISCINA', 'SINALIZAÇÃO', 'PRAIA', 'PASSEIO',
-  'FILA', 'ANIMAIS',
-] as const;
+// Setores gerenciados via Configurações → useSectors hook
 
 const LS_KEY      = 'hibiscus-sector-tags';
 const LS_SEED_KEY = 'hibiscus-sector-tags-seeded-v1';
@@ -567,8 +562,8 @@ async function exportToPDF(
 
 // ── Sector Dropdown (portal para escapar do overflow-hidden) ──────────────────
 function SectorDropdown({
-  responseId, selected, onToggle,
-}: { responseId: string; selected: string[]; onToggle: (s: string) => void }) {
+  responseId, selected, onToggle, sectors,
+}: { responseId: string; selected: string[]; onToggle: (s: string) => void; sectors: string[] }) {
   const [open, setOpen]       = useState(false);
   const [coords, setCoords]   = useState({ top: 0, left: 0 });
   const btnRef                = useRef<HTMLButtonElement>(null);
@@ -604,7 +599,7 @@ function SectorDropdown({
       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-1.5 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800">
         Direcionar para setor
       </p>
-      {SECTORS.map((s) => {
+      {sectors.map((s) => {
         const active = selected.includes(s);
         return (
           <button
@@ -657,6 +652,7 @@ function SectorDropdown({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function Satisfaction({ period }: SatisfactionProps) {
+  const [SECTORS] = useSectors();
   const { data, loading, error } = useSurveyMonkey(period);
   const { tags, toggleSector }               = useSectorTags();
   const { staff, add: addStaff, remove: removeStaff, update: updateStaff } = useStaff();
@@ -1184,6 +1180,7 @@ export function Satisfaction({ period }: SatisfactionProps) {
                             responseId={String(r.rowIndex)}
                             selected={responseTags}
                             onToggle={(sector) => toggleSector(String(r.rowIndex), sector)}
+                            sectors={SECTORS}
                           />
                         </div>
                       </div>

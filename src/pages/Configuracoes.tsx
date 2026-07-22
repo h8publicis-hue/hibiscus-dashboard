@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode, Tags, Plus, RotateCcw } from 'lucide-react';
 import QRCode from 'qrcode';
+import { useSectors } from '../hooks/useSectors';
 
 const DEFAULT_PASSWORD = 'Admin@!$';
 
@@ -166,6 +167,72 @@ function LinksAcesso() {
   );
 }
 
+const DEFAULT_SECTORS = [
+  'ESTRUTURA', 'ACESSIBILIDADE', 'MANUTENÇÃO', 'A&B', 'ATENDIMENTO',
+  'PREÇO', 'RECEPÇÃO', 'RECREAÇÃO', 'BRINDES', 'SERVIÇOS GERAIS',
+  'ATRAÇÕES', 'SOM', 'PISCINA', 'SINALIZAÇÃO', 'PRAIA', 'PASSEIO',
+  'FILA', 'ANIMAIS',
+];
+
+function SetoresEditor() {
+  const [sectors, setSectors] = useSectors();
+  const [input, setInput]     = useState('');
+  const inputRef              = useRef<HTMLInputElement>(null);
+
+  const add = () => {
+    const val = input.trim().toUpperCase();
+    if (!val || sectors.includes(val)) { setInput(''); return; }
+    setSectors([...sectors, val]);
+    setInput('');
+    inputRef.current?.focus();
+  };
+
+  const remove = (s: string) => setSectors(sectors.filter(x => x !== s));
+
+  const reset = () => {
+    if (window.confirm('Restaurar a lista padrão de setores? Os setores personalizados serão removidos.'))
+      setSectors(DEFAULT_SECTORS);
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Setores usados para classificar avaliações do Survey. Clique no <span className="font-semibold">×</span> para remover.
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {sectors.map(s => (
+          <span key={s} className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-700">
+            {s}
+            <button onClick={() => remove(s)} className="ml-0.5 text-brand-400 hover:text-red-500 transition-colors leading-none">
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && add()}
+          placeholder="Novo setor (ex: ESTACIONAMENTO)"
+          className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        <button onClick={add} disabled={!input.trim()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors disabled:opacity-40">
+          <Plus size={14} /> Adicionar
+        </button>
+      </div>
+
+      <button onClick={reset} className="flex items-center gap-1.5 w-fit text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+        <RotateCcw size={11} /> Restaurar padrão
+      </button>
+    </div>
+  );
+}
+
 export function Configuracoes() {
   const handleLogout = () => {
     localStorage.removeItem('hibiscus-admin-auth-v2');
@@ -181,6 +248,10 @@ export function Configuracoes() {
 
       <SectionCard title="Alterar Senha" icon={<Key size={16} />}>
         <TrocaSenha />
+      </SectionCard>
+
+      <SectionCard title="Setores de Avaliação" icon={<Tags size={16} />}>
+        <SetoresEditor />
       </SectionCard>
 
       <SectionCard title="Links de Acesso Operacional" icon={<Link2 size={16} />}>
