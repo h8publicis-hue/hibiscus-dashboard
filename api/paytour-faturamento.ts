@@ -18,8 +18,11 @@ const ACC_TTL   = 60 * 60 * 24 * 45; // 45 dias em segundos — TTL do acumulado
 const XLS_JUNE_TOTAL  = 46298.00;
 const XLS_JUNE_MAX_ID = 4085703;
 
-// Piso de julho — valor verificado no Resumo Financeiro Paytour em 08/07/2026
-const JULY_2026_SEED = 20127.00;
+// Snapshot julho/2026 verificado no Resumo Financeiro Paytour em 22/07/2026.
+// Representa pedidos de 01/07 até JULY_SEED_CUTOFF (inclusive).
+// O acumulador v2 só captura pedidos a partir de JULY_SEED_CUTOFF+1 para evitar dupla contagem.
+const JULY_2026_SEED        = 91186.00;
+const JULY_2026_SEED_CUTOFF = '2026-07-21'; // seed cobre até esta data
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -101,35 +104,52 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     return total;
   }
 
-  // Acumulador Redis — cresce conforme novos pedidos aparecem na página 1
-  const accKey = `ptf-acc:${month}`;
+  // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
+  // Seed + acc = total do mês sem dupla contagem.
+  const accKey = `ptf-acc-v2:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
-  const seeds: Record<string, number> = { '2026-07': JULY_2026_SEED };
-  const seed = seeds[month] ?? 0;
+  const seeds: Record<string, { amount: number; cutoff: string }> = {
+    '2026-07': { amount: JULY_2026_SEED, cutoff: JULY_2026_SEED_CUTOFF },
+  };
+  const seedCfg  = seeds[month];
+  const seedAmt  = seedCfg?.amount  ?? 0;
+  const seedCut  = seedCfg?.cutoff  ?? since; // sem config: acumula todo o mês
+
+  const CANCELLED = new Set(['cancelado', 'estornado', 'reembolsado', 'cancelado_pelo_cliente', 'cancelado_pelo_lojista']);
 
   try {
     const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
-    let added = 0;
+    let added = 0; let removed = 0; let updated = 0;
     for (const o of page?.itens ?? []) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
-      if (d >= since && d <= until && (o.status === 'aprovado' || o.status === 'confirmado')) {
-        const id = String(o.id);
+      // Só processa pedidos dentro do mês E após o cutoff do seed
+      if (d < since || d > until || d <= seedCut) continue;
+      const id = String(o.id);
+      if (o.status === 'aprovado' || o.status === 'confirmado') {
+        const newVal = parseFloat(o.valor || '0');
+        const newDsc = parseFloat(o.desconto || '0');
         if (!acc[id]) {
-          acc[id] = { valor: parseFloat(o.valor || '0'), desconto: parseFloat(o.desconto || '0') };
+          acc[id] = { valor: newVal, desconto: newDsc };
           added++;
+        } else if (acc[id].valor !== newVal || acc[id].desconto !== newDsc) {
+          acc[id] = { valor: newVal, desconto: newDsc };
+          updated++;
         }
+      } else if (CANCELLED.has(o.status) && acc[id]) {
+        delete acc[id];
+        removed++;
       }
     }
-    if (added > 0) await kvSet(accKey, acc, ACC_TTL);
+    if (added > 0 || removed > 0 || updated > 0) await kvSet(accKey, acc, ACC_TTL);
     const n = Object.keys(acc).length;
-    const apiRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
-    const revenue = Math.max(apiRevenue, seed);
-    console.log(`[fat] acumulador ${month}: ${n} pedidos (+${added} novos), api=R$${apiRevenue.toFixed(2)}, seed=R$${seed}, total=R$${revenue.toFixed(2)}`);
+    const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const revenue = seedAmt + accRevenue;
+    console.log(`[fat] ${month}: seed=R$${seedAmt} + acc(${n} pedidos, +${added} -${removed} ~${updated})=R$${accRevenue.toFixed(2)} → total=R$${revenue.toFixed(2)}`);
     return revenue;
   } catch (e: any) {
-    const apiRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
-    const revenue = Math.max(apiRevenue, seed);
+    const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const revenue = seedAmt + accRevenue;
     console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando R$${revenue.toFixed(2)}`);
     return revenue;
   }
