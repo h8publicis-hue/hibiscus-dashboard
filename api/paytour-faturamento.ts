@@ -21,8 +21,8 @@ const XLS_JUNE_MAX_ID = 4085703;
 // Snapshot julho/2026 verificado no Resumo Financeiro Paytour em 22/07/2026.
 // Representa pedidos de 01/07 até JULY_SEED_CUTOFF (inclusive).
 // O acumulador v2 só captura pedidos a partir de JULY_SEED_CUTOFF+1 para evitar dupla contagem.
-const JULY_2026_SEED        = 91186.00;
-const JULY_2026_SEED_CUTOFF = '2026-07-21'; // seed cobre até esta data
+const JULY_2026_SEED        = 91474.00;
+const JULY_2026_SEED_CUTOFF = '2026-07-22'; // seed cobre até esta data (inclusive)
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -106,7 +106,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v2:${month}`;
+  const accKey = `ptf-acc-v3:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; cutoff: string }> = {
@@ -163,7 +163,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v19:${since}_${until}`;
+  const key   = `ptf-v20:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
