@@ -1012,7 +1012,6 @@ export function Lider() {
         {aba === 'hoje' && (
           <>
             <BoxEscala />
-            <BoxNotificacoes />
             <BoxOcupacao />
             <BoxChamadas />
           </>
