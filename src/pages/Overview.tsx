@@ -738,33 +738,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   );
 
   // ── Bloco: Receita A&BS ───────────────────────────────────────────────────
-  const blocoReceitaABS = (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Target size={14} className="text-brand-500" />
-        <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Receita Vendas</h2>
-      </div>
-      {absL ? (
-        <div className="h-8 w-32 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-      ) : absData?.receita_abs != null ? (
-        <>
-          <p className="text-2xl font-black text-gray-900 dark:text-white">
-            {absData.receita_abs.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-          {absData.atualizado_em && (
-            <p className="text-[10px] text-gray-400 mt-1">
-              Atualizado às {new Date(absData.atualizado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          )}
-        </>
-      ) : (
-        <>
-          <p className="text-2xl font-black text-gray-300 dark:text-gray-600">R$ —</p>
-          <p className="text-[10px] text-gray-400 mt-1">Aguardando envio do Power BI</p>
-        </>
-      )}
-    </div>
-  );
+  // blocoReceitaABS removido temporariamente (Power BI sem uso)
 
   // ── Bloco: Arretado / Em cima do muro / Putz ──────────────────────────────
   const blocoNPS = (() => {
@@ -1423,7 +1397,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
         {blocoJaVendido}
 
-        {blocoReceitaABS}
 
         {blocoTotalDia}
 
@@ -1463,8 +1436,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoAoVivo}
             {blocoJaVendido}
-            {blocoReceitaABS}
-            {blocoTotalDia}
+                {blocoTotalDia}
             {blocoChamadas}
           </div>
 
