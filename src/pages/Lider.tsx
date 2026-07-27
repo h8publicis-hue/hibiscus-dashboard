@@ -394,11 +394,20 @@ function BoxEscala() {
         y += 7;
       };
 
+      const COR_HEX: Record<string, string> = {
+        amarelo: '#eab308', vermelho: '#ef4444', preto: '#111827', azul: '#3b82f6',
+      };
+
       const drawRow = (g: ValidacaoGarcom, idx: number) => {
         if (y > 268) { doc.addPage(); y = 20; }
         if (idx % 2 === 1) { doc.setFillColor(...hex('#f9fafb')); doc.rect(ML, y, W - ML - MR, 7, 'F'); }
+        // bolinha colorida
+        if (g.cor && COR_HEX[g.cor]) {
+          doc.setFillColor(...hex(COR_HEX[g.cor]));
+          doc.circle(ML + 3.5, y + 3.5, 2, 'F');
+        }
         doc.setTextColor(...hex('#111827')); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-        doc.text(g.nome.substring(0, 38), ML + 2, y + 5);
+        doc.text(g.nome.substring(0, 38), ML + 7, y + 5);
         const setorLabel = g.area === 'lounge'
           ? 'Lounge'
           : 'Beach — ' + (BEACH_SETORES.find(s => s.value === g.setor)?.label ?? '—');
