@@ -59,24 +59,24 @@ const LOUNGE_COUNT = SPACE_CONFIGS.lounge.count;
 // ── Seção UI ─────────────────────────────────────────────────────────────────
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
-        <Icon size={16} className="text-brand-500" />
-        <h2 className="text-sm font-semibold text-gray-800 dark:text-white uppercase tracking-wide">{title}</h2>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+        <Icon size={16} className="text-gray-400" />
+        <h2 className="text-xs font-bold text-gray-700 uppercase tracking-widest">{title}</h2>
       </div>
-      {children}
+      <div className="p-4">{children}</div>
     </div>
   );
 }
 
-function KpiGrid({ items }: { items: { label: string; value: string; sub?: string; color?: string }[] }) {
+function KpiGrid({ items, cols = 4 }: { items: { label: string; value: string; sub?: string; color?: string }[]; cols?: 2 | 4 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className={clsx('grid gap-3', cols === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}>
       {items.map(({ label, value, sub, color }) => (
-        <div key={label} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{label}</p>
-          <p className={clsx('text-lg font-bold', color ?? 'text-gray-800 dark:text-white')}>{value}</p>
-          {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+        <div key={label} className="bg-gray-50 rounded-xl p-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 leading-tight">{label}</p>
+          <p className={clsx('text-3xl font-bold leading-none', color ?? 'text-gray-900')}>{value}</p>
+          {sub && <p className="text-[10px] text-gray-400 mt-1.5">{sub}</p>}
         </div>
       ))}
     </div>
@@ -374,7 +374,7 @@ export function Relatorio() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -409,19 +409,19 @@ export function Relatorio() {
           { label: 'Ticket médio',       value: fmtR(ticket) },
         ]} />
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Acumulado do Mês</p>
-            <p className="text-lg font-bold text-gray-800 dark:text-white">{fmtR(mesRev)}</p>
-            {pctMeta != null && <p className="text-[10px] text-gray-400">{pctMeta}% da meta</p>}
+          <div className="bg-gray-50 rounded-xl p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Acumulado do Mês</p>
+            <p className="text-2xl font-bold text-gray-900 leading-none">{fmtR(mesRev)}</p>
+            {pctMeta != null && <p className="text-[10px] text-gray-400 mt-1.5">{pctMeta}% da meta</p>}
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Meta Mensal</p>
-            <p className="text-lg font-bold text-gray-800 dark:text-white">{fmtR(goals.receitaTotal)}</p>
+          <div className="bg-gray-50 rounded-xl p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Meta Mensal</p>
+            <p className="text-2xl font-bold text-gray-900 leading-none">{fmtR(goals.receitaTotal)}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Receita A&BS</p>
-            <p className="text-lg font-bold text-gray-800 dark:text-white">{fmtR(absData?.receita_abs ?? null)}</p>
-            {absData?.atualizado_em && <p className="text-[10px] text-gray-400">atualizado {new Date(absData.atualizado_em).toLocaleDateString('pt-BR')}</p>}
+          <div className="bg-gray-50 rounded-xl p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Receita A&BS</p>
+            <p className="text-2xl font-bold text-gray-900 leading-none">{fmtR(absData?.receita_abs ?? null)}</p>
+            {absData?.atualizado_em && <p className="text-[10px] text-gray-400 mt-1.5">atualizado {new Date(absData.atualizado_em).toLocaleDateString('pt-BR')}</p>}
           </div>
         </div>
       </Section>
@@ -438,13 +438,13 @@ export function Relatorio() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
             {[
               { label: 'Reservados',       value: fmt(checkin.reservados) },
-              { label: 'Check-ins feitos', value: fmt(checkin.checkins),  color: 'text-green-600 dark:text-green-400' },
-              { label: 'Pendentes',        value: fmt(checkin.pendentes), color: (checkin.pendentes ?? 0) > 0 ? 'text-amber-600' : undefined },
+              { label: 'Check-ins feitos', value: fmt(checkin.checkins),  color: 'text-green-600' },
+              { label: 'Pendentes',        value: fmt(checkin.pendentes), color: (checkin.pendentes ?? 0) > 0 ? 'text-amber-500' : undefined },
               { label: 'Taxa check-in',    value: taxaCI ? `${taxaCI}%` : '—' },
             ].map(({ label, value, color }) => (
-              <div key={label} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-                <p className={clsx('text-lg font-bold', color ?? 'text-gray-800 dark:text-white')}>{value}</p>
+              <div key={label} className="bg-gray-50 rounded-xl p-4">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+                <p className={clsx('text-3xl font-bold leading-none', color ?? 'text-gray-900')}>{value}</p>
               </div>
             ))}
           </div>
@@ -463,14 +463,14 @@ export function Relatorio() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             {chamadasStats.topSetores.length > 0 && (
               <div>
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Top Setores</p>
-                <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Top Setores</p>
+                <div className="space-y-2">
                   {chamadasStats.topSetores.map(([setor, qtd], i) => (
                     <div key={setor} className="flex items-center justify-between">
-                      <span className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-brand-500">#{i+1}</span> {setor}
+                      <span className="text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-400">#{i+1}</span> {setor}
                       </span>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{qtd}</span>
+                      <span className="text-sm font-bold text-gray-900">{qtd}</span>
                     </div>
                   ))}
                 </div>
@@ -478,14 +478,14 @@ export function Relatorio() {
             )}
             {chamadasStats.topGarcons.length > 0 && (
               <div>
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Ranking Garçons</p>
-                <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Ranking Garçons</p>
+                <div className="space-y-2">
                   {chamadasStats.topGarcons.map(([garcom, qtd], i) => (
                     <div key={garcom} className="flex items-center justify-between">
-                      <span className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-brand-500">#{i+1}</span> {garcom}
+                      <span className="text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-400">#{i+1}</span> {garcom}
                       </span>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{qtd}</span>
+                      <span className="text-sm font-bold text-gray-900">{qtd}</span>
                     </div>
                   ))}
                 </div>
@@ -512,13 +512,13 @@ export function Relatorio() {
               {[
                 { label: 'Nota Survey',    value: sd?.avgScore != null ? sd.avgScore.toFixed(1) : '—', sub: `${sd?.totalResponses ?? 0} respostas` },
                 { label: 'Nota Google',    value: gd?.averageRating != null ? gd.averageRating.toFixed(1) : '—', sub: `${gd?.totalReviews ?? 0} avaliações` },
-                { label: 'Sem resposta',   value: fmt(gd?.unansweredCount), color: (gd?.unansweredCount ?? 0) > 0 ? 'text-amber-600' : undefined },
+                { label: 'Sem resposta',   value: fmt(gd?.unansweredCount), color: (gd?.unansweredCount ?? 0) > 0 ? 'text-amber-500' : undefined },
                 { label: 'Respostas hoje', value: fmt(sd?.totalResponses) },
               ].map(({ label, value, sub, color }) => (
-                <div key={label} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-                  <p className={clsx('text-lg font-bold', color ?? 'text-gray-800 dark:text-white')}>{value}</p>
-                  {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
+                <div key={label} className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+                  <p className={clsx('text-3xl font-bold leading-none', color ?? 'text-gray-900')}>{value}</p>
+                  {sub && <p className="text-[10px] text-gray-400 mt-1.5">{sub}</p>}
                 </div>
               ))}
             </div>
