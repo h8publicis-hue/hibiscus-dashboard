@@ -81,51 +81,58 @@ export function BottomNav({ occupancyAlerts, overviewAlerts, surveyAlerts, revie
       )}
 
       {/* Barra inferior */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex">
-        {primaryItems.map(({ to, icon: Icon, label }) => {
-          const badge = alerts[to] ?? 0;
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                clsx(
-                  'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors relative',
-                  isActive
-                    ? 'text-brand-600 dark:text-brand-400'
-                    : 'text-gray-400 dark:text-gray-500',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <div className="relative">
-                    <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
-                    {badge > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none font-bold">
-                        {badge > 9 ? '9+' : badge}
-                      </span>
-                    )}
-                  </div>
-                  <span>{label}</span>
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="flex">
+          {primaryItems.map(({ to, icon: Icon, label }) => {
+            const badge = alerts[to] ?? 0;
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                className={({ isActive }) =>
+                  clsx(
+                    'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors relative',
+                    isActive
+                      ? 'text-brand-600 dark:text-brand-400'
+                      : 'text-gray-400 dark:text-gray-500',
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className="relative">
+                      <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                      {badge > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none font-bold">
+                          {badge > 9 ? '9+' : badge}
+                        </span>
+                      )}
+                    </div>
+                    <span>{label}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
 
-        {/* Botão Mais */}
-        <button
-          onClick={() => setOpen(v => !v)}
-          className={clsx(
-            'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
-            moreActive ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 dark:text-gray-500',
-          )}
-        >
-          <MoreHorizontal size={20} strokeWidth={1.8} />
-          <span>Mais</span>
-        </button>
+          {/* Botão Mais */}
+          <button
+            onClick={() => setOpen(v => !v)}
+            className={clsx(
+              'flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+              moreActive ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 dark:text-gray-500',
+            )}
+          >
+            <MoreHorizontal size={20} strokeWidth={1.8} />
+            <span>Mais</span>
+          </button>
+        </div>
+
+        {/* Rodapé discreto abaixo dos botões */}
+        <div className="text-center text-[9px] text-gray-300 dark:text-gray-600 pb-1 select-none leading-tight">
+          Desenvolvido por <span className="font-semibold">H8 Publicis</span>
+        </div>
       </nav>
     </>
   );
