@@ -106,6 +106,36 @@ export default async function handler(req: any, res: any) {
     return res.status(405).end();
   }
 
+  // ── ESCALA ────────────────────────────────────────────────────────────────────
+  if (action === 'escala-get') {
+    const mes = ((req.query?.mes as string) || todayBRT().slice(0, 7)).trim();
+    const escala = await kvGet(`escala:${mes}`);
+    return res.json({ escala: escala ?? [] });
+  }
+
+  if (action === 'escala-save' && req.method === 'POST') {
+    const mes    = ((req.query?.mes as string) || todayBRT().slice(0, 7)).trim();
+    const garcons = req.body?.garcons;
+    if (!Array.isArray(garcons)) return res.status(400).json({ error: 'garcons obrigatório' });
+    await kvSet(`escala:${mes}`, garcons);
+    return res.json({ ok: true });
+  }
+
+  if (action === 'escala-valida') {
+    const data = ((req.query?.data as string) || todayBRT()).trim();
+    const key  = `escala-validacao:${data}`;
+    if (req.method === 'GET') {
+      const val = await kvGet(key);
+      return res.json(val ?? { validado: false, garcons: [] });
+    }
+    if (req.method === 'POST') {
+      const payload = { validado: true, garcons: req.body?.garcons ?? [], validadoEm: Date.now() };
+      await kvSet(key, payload);
+      return res.json({ ok: true, ...payload });
+    }
+    return res.status(405).end();
+  }
+
   // ── OCUPAÇÃO GET ──────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
     try {

@@ -233,6 +233,37 @@ export interface OccupancyState {
   reservasHoje?: LoungeReserva[];
 }
 
+export type EscalaStatus = 'T' | 'X' | 'C' | 'F' | 'A';
+export type BeachSetor  = 'salao' | 'piscina' | 'pe-na-areia' | 'deck';
+export type GarcomArea  = 'beach' | 'lounge';
+
+export const BEACH_SETORES: { value: BeachSetor; label: string; emoji: string }[] = [
+  { value: 'salao',       label: 'Salão',       emoji: '🏠' },
+  { value: 'piscina',     label: 'Piscina',     emoji: '🏊' },
+  { value: 'pe-na-areia', label: 'Pé na Areia', emoji: '🦶' },
+  { value: 'deck',        label: 'Deck',        emoji: '🪵' },
+];
+
+export interface EscalaGarcom {
+  id:   string;
+  nome: string;
+  area: GarcomArea;
+  dias: Record<string, EscalaStatus>; // key = 'DD' e.g. '01'
+}
+
+export interface ValidacaoDia {
+  validado:    boolean;
+  validadoEm?: number;
+  garcons:     ValidacaoGarcom[];
+}
+
+export interface ValidacaoGarcom {
+  id:    string;
+  nome:  string;
+  area:  GarcomArea;
+  setor?: BeachSetor; // obrigatório para beach
+}
+
 export const SPACE_CONFIGS = {
   beach:  { name: 'Beach',  max: 500, attention: 0.6, alert: 0.9 },
   lounge: { name: 'Lounge', max: 999, attention: 0.6, alert: 0.9, count: 19, start: 501 },

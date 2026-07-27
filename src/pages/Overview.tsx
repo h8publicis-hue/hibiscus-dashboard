@@ -12,6 +12,8 @@ import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso, AvisoList } from '../hooks/useAviso';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
+import { useEscalaHoje } from '../hooks/useEscalaHoje';
+import { BEACH_SETORES } from '../types';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -458,6 +460,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
   const { chamadas, loading: chamadasL } = useChamadas();
+  const { validacao: escalaValidacao, garconsDia, totalHoje: totalGarcons, totalLounge: totalGarconsLounge, totalBeach: totalGarconsBeach } = useEscalaHoje();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
   const { data: checkinData, loading: checkinL, refresh: checkinRefresh, setData: setCheckinData } = useCheckin();
@@ -1262,12 +1265,50 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       return `${id} (${c.tempoEspera})`;
     });
 
+  // ── Escala: alerta + contadores para o blocoChamadas ─────────────────────────
+  const agora = new Date();
+  const hAgora = agora.getHours(), mAgora = agora.getMinutes();
+  const depois09h = hAgora > 9 || (hAgora === 9 && mAgora >= 0);
+  const escalaNaoValidada = depois09h && !escalaValidacao.validado;
+
+  const beachPorSetorOv = BEACH_SETORES.map(s => ({
+    ...s,
+    count: garconsDia.filter(g => g.area === 'beach' && g.setor === s.value).length,
+  }));
+
   const blocoChamadas = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Chamadas — Hoje</h2>
         {chamadasL && <span className="text-[10px] text-gray-400 animate-pulse">Carregando...</span>}
       </div>
+
+      {/* Alerta escala não validada */}
+      {escalaNaoValidada && (
+        <div className="mb-3 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+          ⚠️ Líder não validou a escala de hoje
+        </div>
+      )}
+
+      {/* Garçons em serviço quando validada */}
+      {escalaValidacao.validado && totalGarcons > 0 && (
+        <div className="mb-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800 rounded-lg px-3 py-2">
+          <p className="text-[10px] font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5">
+            🛎️ Garçons em serviço — {totalGarcons} total
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold px-2 py-0.5 rounded-full">
+              🛋️ Lounge: {totalGarconsLounge}
+            </span>
+            {beachPorSetorOv.map(s => (
+              <span key={s.value} className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
+                {s.emoji} {s.label}: {s.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* Stats na nova ordem: Pendentes · Demoradas · Finalizadas · Total */}
       <div className="grid grid-cols-4 gap-2 mb-3">

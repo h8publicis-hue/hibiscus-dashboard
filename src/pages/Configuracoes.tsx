@@ -1,7 +1,134 @@
 import { useState, useEffect, useRef } from 'react';
-import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode, Tags, Plus, RotateCcw } from 'lucide-react';
+import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode, Tags, Plus, RotateCcw, Users } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useSectors } from '../hooks/useSectors';
+import { useEscalaHoje } from '../hooks/useEscalaHoje';
+import type { EscalaGarcom, EscalaStatus } from '../types';
+
+const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string }[] = [
+  { value: 'T', label: 'T', cls: 'bg-teal-700 text-white' },
+  { value: 'X', label: 'X', cls: 'bg-gray-700 text-white' },
+  { value: 'C', label: 'C', cls: 'bg-yellow-500 text-white' },
+  { value: 'F', label: 'F', cls: 'bg-blue-500 text-white' },
+  { value: 'A', label: 'A', cls: 'bg-red-500 text-white' },
+];
+
+function EscalaMensalEditor() {
+  const { escala, loading, salvarEscala } = useEscalaHoje();
+  const [rows, setRows] = useState<EscalaGarcom[]>([]);
+  const [mes, setMes]   = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  // Pré-popula do staff se escala vazia
+  useEffect(() => {
+    if (!loading) {
+      if (escala.length > 0) {
+        setRows(escala);
+      } else {
+        const raw = localStorage.getItem('hibiscus-staff');
+        if (raw) {
+          const staff: { id: string; name: string; sector: string }[] = JSON.parse(raw);
+          const garcons = staff.filter(s => s.sector === 'ATENDIMENTO').map(s => ({
+            id:   s.id,
+            nome: s.name.split(' ').slice(0, 2).join(' '),
+            area: 'beach' as const,
+            dias: {},
+          }));
+          setRows(garcons);
+        }
+      }
+    }
+  }, [loading, escala]);
+
+  const daysInMes = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).getDate();
+  const days = Array.from({ length: daysInMes }, (_, i) => String(i + 1).padStart(2, '0'));
+
+  function setStatus(rowIdx: number, dia: string, val: EscalaStatus) {
+    setRows(prev => prev.map((r, i) => i === rowIdx ? { ...r, dias: { ...r.dias, [dia]: val } } : r));
+  }
+  function setArea(rowIdx: number, area: 'beach' | 'lounge') {
+    setRows(prev => prev.map((r, i) => i === rowIdx ? { ...r, area } : r));
+  }
+  function cycleStatus(rowIdx: number, dia: string) {
+    const order: EscalaStatus[] = ['T', 'X', 'C', 'F', 'A'];
+    const cur = rows[rowIdx]?.dias[dia] ?? 'T';
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    setStatus(rowIdx, dia, next);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await salvarEscala(rows);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  if (loading) return <p className="text-sm text-gray-400 py-4 text-center">Carregando...</p>;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+          className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white" />
+        <span className="text-xs text-gray-400">{rows.length} garçons</span>
+        <div className="ml-auto flex gap-2 text-[10px]">
+          {STATUS_OPTS.map(s => <span key={s.value} className={`px-1.5 py-0.5 rounded font-bold ${s.cls}`}>{s.value}</span>)}
+          <span className="text-gray-400 self-center">= T·X·C·F·A</span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <table className="text-[10px] border-collapse min-w-max">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-700/50">
+              <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 px-2 py-1.5 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[120px]">Nome</th>
+              <th className="px-2 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[70px]">Área</th>
+              {days.map(d => <th key={d} className="px-1 py-1.5 font-semibold text-gray-500 dark:text-gray-400 w-7 text-center">{d}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((g, ri) => (
+              <tr key={g.id} className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 px-2 py-1 font-medium text-gray-700 dark:text-gray-200">{g.nome}</td>
+                <td className="px-2 py-1">
+                  <select value={g.area} onChange={e => setArea(ri, e.target.value as 'beach' | 'lounge')}
+                    className="text-[10px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                    <option value="beach">Beach</option>
+                    <option value="lounge">Lounge</option>
+                  </select>
+                </td>
+                {days.map(d => {
+                  const st = g.dias[d] ?? 'T';
+                  const opt = STATUS_OPTS.find(o => o.value === st)!;
+                  return (
+                    <td key={d} className="px-0.5 py-1 text-center">
+                      <button onClick={() => cycleStatus(ri, d)}
+                        className={`w-6 h-5 rounded text-[9px] font-bold ${opt.cls} hover:opacity-80 transition-opacity`}>
+                        {st}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button onClick={handleSave} disabled={saving}
+          className="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center gap-2">
+          {saved ? <><Check size={14} /> Salvo!</> : saving ? 'Salvando...' : 'Salvar escala do mês'}
+        </button>
+        <p className="text-[10px] text-gray-400">Clique nas células para alternar T → X → C → F → A</p>
+      </div>
+    </div>
+  );
+}
+
+const LINKS_OPERACIONAIS_EXTRA = { label: 'App / Líder', path: '/lider', desc: 'App do líder de atendimento' };
 
 const DEFAULT_PASSWORD = 'Admin@!$';
 
@@ -27,6 +154,7 @@ const LINKS_OPERACIONAIS = [
   { label: 'App / RH',         path: '/rh',        desc: 'Contador de colaboradores' },
   { label: 'App / Cozinha',    path: '/cozinha',   desc: 'Painel da cozinha' },
   { label: 'App / Refeitório', path: '/refeicao',  desc: 'Scanner de QR code' },
+  { label: 'App / Líder',      path: '/lider',     desc: 'Escala e validação — líder de atendimento' },
   { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
 ];
 
@@ -252,6 +380,10 @@ export function Configuracoes() {
 
       <SectionCard title="Setores de Avaliação" icon={<Tags size={16} />}>
         <SetoresEditor />
+      </SectionCard>
+
+      <SectionCard title="Escala de Garçons" icon={<Users size={16} />}>
+        <EscalaMensalEditor />
       </SectionCard>
 
       <SectionCard title="Links de Acesso Operacional" icon={<Link2 size={16} />}>

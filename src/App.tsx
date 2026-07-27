@@ -75,6 +75,7 @@ import { Refeicao } from './pages/Refeicao';
 import { RefeicaoAdmin } from './pages/RefeicaoAdmin';
 import { Configuracoes } from './pages/Configuracoes';
 import { Relatorio }     from './pages/Relatorio';
+import { Lider }         from './pages/Lider';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -248,6 +249,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/entrada"  element={<OccupancyInput />} />
+        <Route path="/lider"    element={<Lider />} />
         <Route path="/rh"       element={<Rh />} />
         <Route path="/cozinha"  element={<Cozinha />} />
         <Route path="/portaria" element={<Portaria />} />
