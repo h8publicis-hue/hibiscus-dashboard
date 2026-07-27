@@ -400,8 +400,8 @@ function BoxEscala() {
         doc.setTextColor(...hex('#111827')); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
         doc.text(g.nome.substring(0, 38), ML + 2, y + 5);
         const setorLabel = g.area === 'lounge'
-          ? '🛋 Lounge'
-          : '🏖 Beach — ' + (BEACH_SETORES.find(s => s.value === g.setor)?.label ?? '—');
+          ? 'Lounge'
+          : 'Beach — ' + (BEACH_SETORES.find(s => s.value === g.setor)?.label ?? '—');
         doc.text(setorLabel, ML + 85, y + 5);
         if (g.almoco) {
           doc.setFillColor(...hex('#ede9fe'));
