@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut } from 'lucide-react';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
@@ -617,13 +617,21 @@ export function Lider() {
           <h1 className="text-sm font-black text-gray-900 dark:text-white leading-tight">App do Líder</h1>
           <p className="text-[10px] text-gray-400">Hibiscus Beach Club · Atendimento</p>
         </div>
-        <div className="ml-auto text-right">
-          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-            {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Recife' })}
-          </p>
-          <p className="text-[10px] text-gray-400">
-            {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' })}
-          </p>
+        <div className="ml-auto flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Recife' })}
+            </p>
+            <p className="text-[10px] text-gray-400">
+              {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' })}
+            </p>
+          </div>
+          <button
+            onClick={() => { localStorage.removeItem(LIDER_AUTH_KEY); setAuthed(false); }}
+            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            title="Sair">
+            <LogOut size={16} />
+          </button>
         </div>
       </header>
 
