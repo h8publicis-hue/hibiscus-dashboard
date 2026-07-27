@@ -234,7 +234,7 @@ export interface OccupancyState {
 }
 
 export type EscalaStatus = 'T' | 'X' | 'C' | 'F' | 'A';
-export type BeachSetor  = 'salao' | 'piscina' | 'pe-na-areia' | 'deck';
+export type BeachSetor  = 'salao' | 'piscina' | 'pe-na-areia' | 'deck' | 'hidro' | 'tenda';
 export type GarcomArea  = 'beach' | 'lounge';
 
 export const BEACH_SETORES: { value: BeachSetor; label: string; emoji: string }[] = [
@@ -242,6 +242,8 @@ export const BEACH_SETORES: { value: BeachSetor; label: string; emoji: string }[
   { value: 'piscina',     label: 'Piscina',     emoji: '🏊' },
   { value: 'pe-na-areia', label: 'Pé na Areia', emoji: '🦶' },
   { value: 'deck',        label: 'Deck',        emoji: '🪵' },
+  { value: 'hidro',       label: 'Hidro',       emoji: '💧' },
+  { value: 'tenda',       label: 'Tenda',       emoji: '⛺' },
 ];
 
 export interface EscalaGarcom {
