@@ -237,13 +237,21 @@ export type EscalaStatus = 'T' | 'X' | 'C' | 'F' | 'A';
 export type BeachSetor  = 'salao' | 'piscina' | 'pe-na-areia' | 'deck' | 'hidro' | 'tenda';
 export type GarcomArea  = 'beach' | 'lounge';
 
-export const BEACH_SETORES: { value: BeachSetor; label: string; emoji: string }[] = [
+export const BEACH_SETORES: { value: BeachSetor; label: string; emoji: string; grupo?: string }[] = [
   { value: 'salao',       label: 'Salão',       emoji: '🏠' },
-  { value: 'piscina',     label: 'Piscina',     emoji: '🏊' },
+  { value: 'piscina',     label: 'Piscina',     emoji: '🏊', grupo: 'piscina' },
   { value: 'pe-na-areia', label: 'Pé na Areia', emoji: '🦶' },
   { value: 'deck',        label: 'Deck',        emoji: '🪵' },
-  { value: 'hidro',       label: 'Hidro',       emoji: '💧' },
-  { value: 'tenda',       label: 'Tenda',       emoji: '⛺' },
+  { value: 'hidro',       label: 'Hidro',       emoji: '💧', grupo: 'piscina' },
+  { value: 'tenda',       label: 'Tenda',       emoji: '⛺', grupo: 'piscina' },
+];
+
+// Grupos de setores para exibição consolidada no resumo
+export const BEACH_SETOR_GRUPOS = [
+  { key: 'salao',       label: 'Salão',       emoji: '🏠', setores: ['salao']                      },
+  { key: 'piscina',     label: 'Piscina',     emoji: '🏊', setores: ['piscina', 'hidro', 'tenda']  },
+  { key: 'pe-na-areia', label: 'Pé na Areia', emoji: '🦶', setores: ['pe-na-areia']               },
+  { key: 'deck',        label: 'Deck',        emoji: '🪵', setores: ['deck']                       },
 ];
 
 export interface EscalaGarcom {

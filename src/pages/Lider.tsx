@@ -5,7 +5,7 @@ import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus, CorGarcom } from '../types';
-import { BEACH_SETORES, SPACE_CONFIGS, COR_GARCOM } from '../types';
+import { BEACH_SETORES, BEACH_SETOR_GRUPOS, SPACE_CONFIGS, COR_GARCOM } from '../types';
 
 const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string; bg: string }[] = [
   { value: 'T', label: 'T', cls: 'bg-teal-700 text-white',    bg: 'bg-teal-700'    },
@@ -463,9 +463,15 @@ function BoxEscala() {
 
   const garconsDia = validacao.validado ? validacao.garcons.filter(g => !g.faltou) : [];
   const totalLounge = garconsDia.filter(g => g.area === 'lounge').length;
-  const beachPorSetor = BEACH_SETORES.map(s => ({
-    ...s,
-    count: garconsDia.filter(g => g.area === 'beach' && g.setor === s.value).length,
+  const beachPorSetor = BEACH_SETOR_GRUPOS.map(grupo => ({
+    ...grupo,
+    count: garconsDia.filter(g => g.area === 'beach' && grupo.setores.includes(g.setor ?? '')).length,
+    subs:  grupo.setores.length > 1
+      ? BEACH_SETORES.filter(s => grupo.setores.includes(s.value)).map(s => ({
+          label: s.label,
+          count: garconsDia.filter(g => g.area === 'beach' && g.setor === s.value).length,
+        })).filter(s => s.count > 0)
+      : [],
   }));
   const totalBeach = garconsDia.filter(g => g.area === 'beach').length;
   const total = garconsDia.length;
@@ -529,9 +535,20 @@ function BoxEscala() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               {beachPorSetor.map(s => (
-                <div key={s.value} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">{s.emoji} {s.label}</span>
-                  <span className="text-sm font-black text-gray-800 dark:text-white">{s.count}</span>
+                <div key={s.key} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">{s.emoji} {s.label}</span>
+                    <span className="text-sm font-black text-gray-800 dark:text-white">{s.count}</span>
+                  </div>
+                  {s.subs.length > 0 && (
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {s.subs.map(sub => (
+                        <span key={sub.label} className="text-[9px] text-gray-400 dark:text-gray-500">
+                          {sub.label}: {sub.count}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

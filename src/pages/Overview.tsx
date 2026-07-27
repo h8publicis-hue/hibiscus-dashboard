@@ -13,7 +13,7 @@ import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso, AvisoList } from '../hooks/useAviso';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
-import { BEACH_SETORES } from '../types';
+import { BEACH_SETORES, BEACH_SETOR_GRUPOS } from '../types';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -1256,9 +1256,15 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const depois09h = hAgora > 9 || (hAgora === 9 && mAgora >= 0);
   const escalaNaoValidada = depois09h && !escalaValidacao.validado;
 
-  const beachPorSetorOv = BEACH_SETORES.map(s => ({
-    ...s,
-    count: garconsDia.filter(g => g.area === 'beach' && g.setor === s.value).length,
+  const beachPorSetorOv = BEACH_SETOR_GRUPOS.map(grupo => ({
+    ...grupo,
+    count: garconsDia.filter(g => g.area === 'beach' && grupo.setores.includes(g.setor ?? '')).length,
+    subs: grupo.setores.length > 1
+      ? BEACH_SETORES.filter(s => grupo.setores.includes(s.value)).map(s => ({
+          label: s.label,
+          count: garconsDia.filter(g => g.area === 'beach' && g.setor === s.value).length,
+        })).filter(s => s.count > 0)
+      : [],
   }));
 
   const blocoChamadas = (
@@ -1286,8 +1292,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               🛋️ Lounge: {totalGarconsLounge}
             </span>
             {beachPorSetorOv.map(s => (
-              <span key={s.value} className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
+              <span key={s.key} className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
                 {s.emoji} {s.label}: {s.count}
+                {s.subs.length > 0 && (
+                  <span className="font-normal opacity-70 ml-1">({s.subs.map(sub => `${sub.label} ${sub.count}`).join(' · ')})</span>
+                )}
               </span>
             ))}
           </div>
