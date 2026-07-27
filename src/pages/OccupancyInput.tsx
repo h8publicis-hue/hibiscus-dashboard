@@ -595,13 +595,14 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
   }
 
   function executarMove(ori: number, dest: number) {
-    const oriNum = SPACE_CONFIGS.lounge.start + ori;
+    const oriNum  = SPACE_CONFIGS.lounge.start + ori;
     const destNum = SPACE_CONFIGS.lounge.start + dest;
-    const destOcup = occ.lounges[dest] > 0;
+    const destOcup = occ.lounges[dest] > 0 || reservas.some(r => r.loungeIdx === dest && (r.status === 'reserva' || r.status === 'confirmada'));
     const msg = destOcup
-      ? `Mover Lounge ${oriNum} → ${destNum}?\n\nATENÇÃO: o destino já tem ${occ.lounges[dest]} pessoa(s). Os dados serão substituídos.`
-      : `Mover Lounge ${oriNum} → ${destNum}?\n\nTodos os dados serão transferidos.`;
+      ? `Mover Lounge ${oriNum} → ${destNum}?\n\nATENÇÃO: o destino já tem dados. Serão substituídos.`
+      : `Mover Lounge ${oriNum} → ${destNum}?\n\nTodos os dados e observações serão transferidos.`;
     if (!window.confirm(msg)) return;
+
     const lounges    = [...occ.lounges];
     const loungeData = [...(occ.loungeData ?? Array(SPACE_CONFIGS.lounge.count).fill(null).map(emptyInfo))];
     const loungeObs  = [...occ.loungeObs];
@@ -612,6 +613,15 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
     loungeData[ori]  = emptyInfo();
     loungeObs[ori]   = '';
     update({ ...occ, lounges, loungeData, loungeObs });
+
+    // Se havia reserva na origem, move para o destino
+    const reservaOri = reservas.find(r => r.loungeIdx === ori && (r.status === 'reserva' || r.status === 'confirmada'));
+    if (reservaOri) {
+      const updated = { ...reservaOri, loungeIdx: dest };
+      onReservaUpdate(updated);
+      upsertReserva(updated);
+    }
+
     setMoveOrigem(null);
   }
 
@@ -644,7 +654,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
     function handleClick() {
       if (inMoveMode) {
         if (moveOrigem === -1) {
-          if (v === 0) { window.alert('Selecione um lounge ocupado como origem.'); return; }
+          if (v === 0 && !reserva) { window.alert('Selecione um lounge ocupado ou reservado como origem.'); return; }
           setMoveOrigem(idx);
           return;
         }

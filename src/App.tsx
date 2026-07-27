@@ -225,9 +225,10 @@ function Dashboard() {
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
 
-      <footer className="hidden lg:block fixed bottom-2 left-0 right-0 z-40 text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight bg-transparent">
+      {/* Desktop: bottom-2 normal · Mobile: colado abaixo do BottomNav (56px) */}
+      <footer className="fixed left-0 right-0 z-30 text-center text-[10px] text-gray-300 dark:text-gray-600 select-none leading-tight bg-white dark:bg-gray-800 py-1 bottom-14 lg:bottom-2 lg:bg-transparent lg:dark:bg-transparent lg:text-gray-400 lg:dark:text-gray-500 lg:z-40">
         <span className="opacity-70">Desenvolvido por</span>{' '}
-        <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Publicis</span>
+        <span className="font-semibold">H8 Publicis</span>
       </footer>
     </>
   );
