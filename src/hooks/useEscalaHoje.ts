@@ -66,5 +66,8 @@ export function useEscalaHoje(data?: string) {
     setValidacao(d);
   }
 
-  return { escala, validacao, ativosHoje, garconsDia, totalHoje, totalLounge, totalBeach, loading, load, salvarEscala, validarDia };
+  const totalEscala = escala.length;       // total na escala mensal
+  const totalAtivos = ativosHoje.length;   // escalados para trabalhar hoje
+
+  return { escala, validacao, ativosHoje, garconsDia, totalHoje, totalLounge, totalBeach, totalEscala, totalAtivos, loading, load, salvarEscala, validarDia };
 }

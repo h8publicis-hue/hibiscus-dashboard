@@ -462,7 +462,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
   const { chamadas, loading: chamadasL } = useChamadas();
-  const { validacao: escalaValidacao, garconsDia, totalHoje: totalGarcons, totalLounge: totalGarconsLounge, totalBeach: totalGarconsBeach } = useEscalaHoje();
+  const { validacao: escalaValidacao, garconsDia, totalHoje: totalGarcons, totalLounge: totalGarconsLounge, totalBeach: totalGarconsBeach, totalEscala, totalAtivos } = useEscalaHoje();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
   const { data: checkinData, loading: checkinL, refresh: checkinRefresh, setData: setCheckinData } = useCheckin();
@@ -1270,7 +1270,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       {escalaValidacao.validado && totalGarcons > 0 && (
         <div className="mb-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800 rounded-lg px-3 py-2">
           <p className="text-[10px] font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-1.5">
-            🛎️ Garçons em serviço — {totalGarcons} total
+            🛎️ Garçons em serviço — {totalGarcons}{totalEscala > 0 ? ` de ${totalEscala}` : ''}
           </p>
           <div className="flex flex-wrap gap-2">
             <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold px-2 py-0.5 rounded-full">

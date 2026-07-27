@@ -127,7 +127,12 @@ function BoxEscalaMensal() {
 
   async function handleSave() {
     setSaving(true);
-    await salvarEscala(rows);
+    const rowsNormalized = rows.map(r => ({
+      ...r,
+      setor_padrao: r.area === 'beach' ? (r.setor_padrao ?? 'salao' as BeachSetor) : undefined,
+    }));
+    await salvarEscala(rowsNormalized);
+    setRows(rowsNormalized);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -235,7 +240,7 @@ function BoxEscala() {
   const amanha   = amanhaDate.toLocaleDateString('en-CA');
 
   const [dataAlvo, setDataAlvo] = useState(hoje);
-  const { ativosHoje, validacao, loading, validarDia } = useEscalaHoje(dataAlvo);
+  const { ativosHoje, validacao, loading, validarDia, totalEscala } = useEscalaHoje(dataAlvo);
   const [editando, setEditando] = useState(false);
   const [draft, setDraft]       = useState<ValidacaoGarcom[]>([]);
   const [saving, setSaving]     = useState(false);
@@ -497,7 +502,10 @@ function BoxEscala() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <div className="flex-1 bg-teal-50 dark:bg-teal-900/20 rounded-xl p-3 text-center">
-                <p className="text-2xl font-black text-teal-700 dark:text-teal-400">{total}</p>
+                <p className="text-2xl font-black text-teal-700 dark:text-teal-400">
+                  {total}
+                  {totalEscala > 0 && <span className="text-sm font-medium text-teal-400">/{totalEscala}</span>}
+                </p>
                 <p className="text-xs text-teal-600 dark:text-teal-500 font-semibold">Total</p>
               </div>
               <div className="flex-1 bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 text-center">
