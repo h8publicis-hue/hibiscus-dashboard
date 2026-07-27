@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer } from 'lucide-react';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
@@ -229,21 +229,31 @@ function todayBRT() {
 
 // ── Box Validação ─────────────────────────────────────────────────────────────
 function BoxEscala() {
-  const { ativosHoje, validacao, loading, validarDia } = useEscalaHoje();
-  const [editando, setEditando]   = useState(false);
-  const [draft, setDraft]         = useState<ValidacaoGarcom[]>([]);
-  const [saving, setSaving]       = useState(false);
+  const hoje     = todayBRT();
+  const amanhaDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Recife' }));
+  amanhaDate.setDate(amanhaDate.getDate() + 1);
+  const amanha   = amanhaDate.toLocaleDateString('en-CA');
+
+  const [dataAlvo, setDataAlvo] = useState(hoje);
+  const { ativosHoje, validacao, loading, validarDia } = useEscalaHoje(dataAlvo);
+  const [editando, setEditando] = useState(false);
+  const [draft, setDraft]       = useState<ValidacaoGarcom[]>([]);
+  const [saving, setSaving]     = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const agora = new Date();
-  const h = agora.getHours(), m = agora.getMinutes();
-  const depois09 = h > 9 || (h === 9 && m >= 0);
+  const h = agora.getHours();
+  const depois09 = h >= 9;
 
   function abrirValidacao() {
-    const inicial: ValidacaoGarcom[] = ativosHoje.map(g => ({
-      id: g.id, nome: g.nome, area: g.area,
-      setor: g.area === 'lounge' ? undefined : (g.setor_padrao ?? 'salao' as BeachSetor),
-    }));
-    setDraft(inicial);
+    const base: ValidacaoGarcom[] = validacao.validado
+      ? validacao.garcons
+      : ativosHoje.map(g => ({
+          id: g.id, nome: g.nome, area: g.area,
+          setor: g.area === 'beach' ? (g.setor_padrao ?? 'salao' as BeachSetor) : undefined,
+          faltou: false,
+        }));
+    setDraft(base);
     setEditando(true);
   }
 
@@ -254,7 +264,103 @@ function BoxEscala() {
     setEditando(false);
   }
 
-  const garconsDia = validacao.validado ? validacao.garcons : [];
+  async function imprimirPDF() {
+    setPrinting(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const dataFmt = new Date(dataAlvo + 'T12:00:00').toLocaleDateString('pt-BR', {
+        weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
+      });
+
+      doc.setFillColor(0, 91, 73);
+      doc.rect(0, 0, 210, 22, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text('Hibiscus Beach Club', 14, 9);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.text(`Escala do dia — ${dataFmt}`, 14, 16);
+
+      let y = 30;
+      const allGarcons: ValidacaoGarcom[] = validacao.validado
+        ? validacao.garcons
+        : ativosHoje.map(g => ({ id: g.id, nome: g.nome, area: g.area, setor: g.setor_padrao }));
+
+      const ativos    = allGarcons.filter(g => !g.faltou);
+      const lounge    = ativos.filter(g => g.area === 'lounge');
+      const beach     = ativos.filter(g => g.area === 'beach');
+      const faltaram  = allGarcons.filter(g => g.faltou);
+
+      // Resumo
+      doc.setFillColor(240, 253, 250); doc.setDrawColor(16, 185, 129);
+      doc.roundedRect(14, y, 182, 12, 2, 2, 'FD');
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+      doc.setTextColor(5, 150, 105);
+      doc.text(`Total: ${ativos.length} em serviço`, 18, y + 8);
+      doc.setTextColor(107, 70, 193);
+      doc.text(`Lounge: ${lounge.length}`, 90, y + 8);
+      doc.setTextColor(37, 99, 235);
+      doc.text(`Beach: ${beach.length}`, 145, y + 8);
+      y += 18;
+
+      const drawHeader = () => {
+        doc.setFillColor(31, 41, 55); doc.rect(14, y, 182, 7, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text('Nome', 16, y + 5);
+        doc.text('Setor', 96, y + 5);
+        doc.text('Almoço', 150, y + 5);
+        y += 7;
+      };
+
+      const drawRow = (g: ValidacaoGarcom, idx: number) => {
+        if (y > 265) { doc.addPage(); y = 20; }
+        if (idx % 2 === 1) { doc.setFillColor(249, 250, 251); doc.rect(14, y, 182, 7, 'F'); }
+        doc.setTextColor(30, 30, 30); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text(g.nome.substring(0, 35), 16, y + 5);
+        const setorLabel = g.area === 'lounge'
+          ? 'Lounge'
+          : (BEACH_SETORES.find(s => s.value === g.setor)?.label ?? '—');
+        doc.text(setorLabel, 96, y + 5);
+        doc.text(g.almoco ?? '—', 150, y + 5);
+        y += 7;
+      };
+
+      if (lounge.length > 0) {
+        doc.setTextColor(107, 70, 193); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+        doc.text('Lounge', 14, y + 4); y += 10;
+        drawHeader();
+        lounge.forEach((g, i) => drawRow(g, i));
+        y += 4;
+      }
+      if (beach.length > 0) {
+        doc.setTextColor(37, 99, 235); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+        doc.text('Beach', 14, y + 4); y += 10;
+        drawHeader();
+        beach.forEach((g, i) => drawRow(g, i));
+        y += 4;
+      }
+      if (faltaram.length > 0) {
+        doc.setTextColor(220, 38, 38); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+        doc.text('Faltaram', 14, y + 4); y += 10;
+        drawHeader();
+        faltaram.forEach((g, i) => drawRow(g, i));
+      }
+
+      const total = doc.getNumberOfPages();
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p);
+        doc.setFontSize(8); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
+        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' })} · H8 Sistemas`, 14, 290);
+        doc.text(`${p}/${total}`, 200, 290, { align: 'right' });
+      }
+
+      doc.save(`escala-${dataAlvo}.pdf`);
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  const garconsDia = validacao.validado ? validacao.garcons.filter(g => !g.faltou) : [];
   const totalLounge = garconsDia.filter(g => g.area === 'lounge').length;
   const beachPorSetor = BEACH_SETORES.map(s => ({
     ...s,
@@ -262,6 +368,9 @@ function BoxEscala() {
   }));
   const totalBeach = garconsDia.filter(g => g.area === 'beach').length;
   const total = garconsDia.length;
+  const dataLabel = new Date(dataAlvo + 'T12:00:00').toLocaleDateString('pt-BR', {
+    weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'America/Recife',
+  });
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
@@ -269,26 +378,35 @@ function BoxEscala() {
         <div className="flex items-center gap-2">
           <Users size={18} className="text-brand-600 dark:text-brand-400" />
           <h2 className="font-bold text-gray-900 dark:text-white text-sm">Escala do dia</h2>
-          <span className="text-xs text-gray-400">
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'America/Recife' })}
-          </span>
         </div>
-        {validacao.validado && (
-          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-semibold">
-            <CheckCircle size={13} /> Validada
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 text-xs">
+            <button onClick={() => setDataAlvo(hoje)}
+              className={`px-3 py-1.5 font-semibold transition-colors ${dataAlvo === hoje ? 'bg-brand-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`}>
+              Hoje
+            </button>
+            <button onClick={() => setDataAlvo(amanha)}
+              className={`px-3 py-1.5 font-semibold transition-colors border-l border-gray-200 dark:border-gray-600 ${dataAlvo === amanha ? 'bg-brand-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}`}>
+              Amanhã
+            </button>
+          </div>
+          {validacao.validado && (
+            <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-semibold">
+              <CheckCircle size={13} /> Validada
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="p-5 flex flex-col gap-4">
-        {/* Alerta não validada */}
-        {!validacao.validado && depois09 && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{dataLabel}</p>
+
+        {!validacao.validado && depois09 && dataAlvo === hoje && (
           <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 text-amber-800 dark:text-amber-300 text-sm font-semibold animate-pulse">
             <AlertTriangle size={16} /> Escala do dia não validada
           </div>
         )}
 
-        {/* Resumo quando validada */}
         {validacao.validado && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
@@ -305,7 +423,6 @@ function BoxEscala() {
                 <p className="text-xs text-blue-600 dark:text-blue-500 font-semibold">🏖️ Beach</p>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-2">
               {beachPorSetor.map(s => (
                 <div key={s.value} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2 flex items-center justify-between">
@@ -317,57 +434,85 @@ function BoxEscala() {
           </div>
         )}
 
-        {/* Sem escala cadastrada */}
         {!loading && ativosHoje.length === 0 && !validacao.validado && (
-          <p className="text-xs text-gray-400 text-center py-2">Escala mensal não cadastrada. Acesse Configurações para inserir.</p>
+          <p className="text-xs text-gray-400 text-center py-2">Escala mensal não cadastrada. Acesse a aba Escala Mensal para inserir.</p>
         )}
 
-        {/* Botão validar */}
-        {!validacao.validado && ativosHoje.length > 0 && (
-          <button onClick={abrirValidacao}
-            className="w-full py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-colors flex items-center justify-center gap-2">
-            <CheckCircle size={16} /> Validar escala de hoje
-          </button>
-        )}
-
-        {validacao.validado && (
-          <button onClick={abrirValidacao}
-            className="text-xs text-brand-600 dark:text-brand-400 hover:underline text-center">
-            Editar validação
-          </button>
-        )}
+        <div className="flex gap-2">
+          {!validacao.validado && ativosHoje.length > 0 && (
+            <button onClick={abrirValidacao}
+              className="flex-1 py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-colors flex items-center justify-center gap-2">
+              <CheckCircle size={16} /> Validar escala
+            </button>
+          )}
+          {validacao.validado && (
+            <>
+              <button onClick={abrirValidacao}
+                className="flex-1 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 text-brand-600 dark:text-brand-400 font-semibold text-sm hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                Editar
+              </button>
+              <button onClick={imprimirPDF} disabled={printing}
+                className="flex-1 py-2.5 rounded-xl bg-gray-800 dark:bg-gray-700 text-white font-semibold text-sm hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                <Printer size={14} /> {printing ? 'Gerando...' : 'Imprimir PDF'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Drawer de validação */}
       {editando && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50" onClick={() => setEditando(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-t-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-t-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-5 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 dark:text-white">Validar escala — {todayBRT()}</h3>
+              <h3 className="font-bold text-gray-900 dark:text-white">
+                Validar escala — {new Date(dataAlvo + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+              </h3>
               <button onClick={() => setEditando(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
             </div>
 
-            <div className="p-5 flex flex-col gap-3">
+            <div className="p-4 flex flex-col gap-2">
               {draft.map((g, i) => (
-                <div key={g.id} className="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <span className="flex-1 text-sm font-medium text-gray-800 dark:text-white">{g.nome}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${g.area === 'lounge' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                    {g.area === 'lounge' ? '🛋️ Lounge' : '🏖️ Beach'}
-                  </span>
-                  {g.area === 'beach' && (
-                    <select
-                      value={g.setor ?? 'salao'}
-                      onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, setor: e.target.value as BeachSetor } : x))}
-                      className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                <div key={g.id} className={`rounded-xl p-3 border transition-colors ${g.faltou ? 'border-red-200 dark:border-red-800 bg-red-50/60 dark:bg-red-900/10 opacity-70' : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="flex-1 text-sm font-semibold text-gray-800 dark:text-white truncate">{g.nome}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${g.area === 'lounge' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {g.area === 'lounge' ? '🛋️' : '🏖️'} {g.area === 'lounge' ? 'Lounge' : 'Beach'}
+                    </span>
+                    <button
+                      onClick={() => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, faltou: !x.faltou } : x))}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors ${g.faltou ? 'bg-red-500 text-white border-red-500' : 'bg-white dark:bg-gray-700 text-red-500 border-red-300 dark:border-red-700 hover:bg-red-50'}`}
                     >
-                      {BEACH_SETORES.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
-                    </select>
+                      Faltou
+                    </button>
+                  </div>
+                  {!g.faltou && (
+                    <div className="flex gap-2">
+                      {g.area === 'beach' && (
+                        <select
+                          value={g.setor ?? 'salao'}
+                          onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, setor: e.target.value as BeachSetor } : x))}
+                          className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex-1"
+                        >
+                          {BEACH_SETORES.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
+                        </select>
+                      )}
+                      <select
+                        value={g.almoco ?? ''}
+                        onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, almoco: (e.target.value || undefined) as any } : x))}
+                        className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex-1"
+                      >
+                        <option value="">🍽️ Almoço</option>
+                        <option value="11h">11h</option>
+                        <option value="13h">13h</option>
+                        <option value="14h">14h</option>
+                      </select>
+                    </div>
                   )}
                 </div>
               ))}
 
               <button onClick={confirmar} disabled={saving}
-                className="mt-2 w-full py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                className="mt-3 w-full py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                 <CheckCircle size={16} /> {saving ? 'Salvando...' : 'Confirmar escala'}
               </button>
             </div>

@@ -258,11 +258,15 @@ export interface ValidacaoDia {
   garcons:     ValidacaoGarcom[];
 }
 
+export type HorarioAlmoco = '11h' | '13h' | '14h';
+
 export interface ValidacaoGarcom {
-  id:    string;
-  nome:  string;
-  area:  GarcomArea;
-  setor?: BeachSetor; // obrigatório para beach
+  id:     string;
+  nome:   string;
+  area:   GarcomArea;
+  setor?: BeachSetor;
+  almoco?: HorarioAlmoco;
+  faltou?: boolean;
 }
 
 export const SPACE_CONFIGS = {
