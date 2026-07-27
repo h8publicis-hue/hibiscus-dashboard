@@ -22,8 +22,8 @@ async function fetchOcc(): Promise<OccupancyState> {
     const d = await r.json() as Partial<OccupancyState>;
     return {
       beach:         clamp(d.beach ?? 0, 0, 500),
-      lounges:       Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 10)),
-      prime:         clamp(d.prime ?? 0, 0, 10),
+      lounges:       Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 999)),
+      prime:         clamp(d.prime ?? 0, 0, 999),
       parceiros:     clamp(d.parceiros ?? 0, 0, 999),
       colaboradores: clamp(d.colaboradores ?? 0, 0, 999),
       loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),

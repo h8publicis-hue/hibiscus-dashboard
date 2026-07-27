@@ -125,8 +125,8 @@ export default async function handler(req: any, res: any) {
     const ld  = Array.isArray(d.loungeData) ? d.loungeData : [];
     const data = {
       beach:         clamp(d.beach, 0, 500),
-      lounges:       Array(19).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 10)),
-      prime:         clamp(d.prime, 0, 10),
+      lounges:       Array(19).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 999)),
+      prime:         clamp(d.prime, 0, 999),
       parceiros:     clamp(d.parceiros, 0, 999),
       colaboradores: clamp(d.colaboradores, 0, 999),
       loungeObs:     Array(19).fill('').map((_: unknown, i: number) => String(obs[i] ?? '').slice(0, 200)),

@@ -10,9 +10,9 @@ function todayBRT() {
 function tempoColor(tempo: string): string {
   const s = parseTempoSec(tempo);
   if (!tempo || s === 0) return '';
-  if (s <= 30) return 'bg-green-500 text-white';
-  if (s <= 59) return 'bg-yellow-500 text-white';
-  return 'bg-red-500 text-white';
+  if (s <= 60)  return 'bg-green-500 text-white';   // Arretado
+  if (s <= 179) return 'bg-yellow-500 text-white';  // Oxente
+  return 'bg-red-500 text-white';                   // Putz
 }
 
 function capitalize(s: string) {
@@ -182,9 +182,9 @@ export function Chamadas() {
       {/* Legenda */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Legenda — Tempo de Espera:</span>
-        <span className="text-[11px] bg-green-500 text-white px-2 py-0.5 rounded-full">Até 30s (Rápido)</span>
-        <span className="text-[11px] bg-yellow-500 text-white px-2 py-0.5 rounded-full">31s a 59s (Médio)</span>
-        <span className="text-[11px] bg-red-500 text-white px-2 py-0.5 rounded-full">60s ou mais (Demorado)</span>
+        <span className="text-[11px] bg-green-500 text-white px-2 py-0.5 rounded-full">Até 1min (Arretado)</span>
+        <span className="text-[11px] bg-yellow-500 text-white px-2 py-0.5 rounded-full">1min 01s a 2min 59s (Oxente)</span>
+        <span className="text-[11px] bg-red-500 text-white px-2 py-0.5 rounded-full">A partir de 3min (Putz)</span>
       </div>
 
       {/* Tabela */}

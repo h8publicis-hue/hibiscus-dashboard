@@ -225,7 +225,7 @@ function Dashboard() {
         <GoalEditor goals={goals} onSave={setGoals} onClose={() => setGoalsOpen(false)} />
       )}
 
-      <footer className="fixed bottom-2 left-0 right-0 z-40 text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight bg-transparent">
+      <footer className="hidden lg:block fixed bottom-2 left-0 right-0 z-40 text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight bg-transparent">
         <span className="opacity-70">Desenvolvido por</span>{' '}
         <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Publicis</span>
       </footer>

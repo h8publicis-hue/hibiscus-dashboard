@@ -195,7 +195,7 @@ async function gerarPDF(data: {
   kpiRow([
     { label: 'Total chamadas',    value: fmt(data.chamadas.total) },
     { label: 'Finalizadas',       value: fmt(data.chamadas.finalizadas) },
-    { label: 'Demoradas (≥60s)', value: fmt(data.chamadas.demoradas) },
+    { label: 'Putz (≥3min)',      value: fmt(data.chamadas.demoradas) },
     { label: 'Tempo médio',       value: data.chamadas.mediaEspera },
   ]);
   const halfW = (CW - 6) / 2;
@@ -311,7 +311,7 @@ export function Relatorio() {
   const chamadasStats = useMemo(() => {
     const total       = chamadas.length;
     const finalizadas = chamadas.filter(c => c.status === 'finalizado').length;
-    const demoradas   = chamadas.filter(c => parseTempoSec(c.tempoEspera) >= 60).length;
+    const demoradas   = chamadas.filter(c => parseTempoSec(c.tempoEspera) >= 180).length;
     const comEspera   = chamadas.filter(c => c.tempoEspera);
     const mediaSegs   = comEspera.length > 0
       ? comEspera.reduce((s, c) => s + parseTempoSec(c.tempoEspera), 0) / comEspera.length

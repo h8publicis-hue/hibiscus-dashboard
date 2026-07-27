@@ -520,7 +520,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 {monthAbove > 0 && (
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-green-600 dark:text-green-400">
                     <span className="animate-ping inline-block w-2 h-2 rounded-full bg-green-500 opacity-75" />
-                    <span>🏆 Meta arretada!</span>
+                    <span>🏆 Meta Alcançada!</span>
                   </div>
                 )}
                 <div>
@@ -1198,7 +1198,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     : 0;
   const avgMin       = Math.floor(avgEspera / 60);
   const avgSec       = avgEspera % 60;
-  const demoradas    = chamadasHoje.filter(c => parseTempoSec(c.tempoEspera) >= 60).length;
+  const demoradas    = chamadasHoje.filter(c => parseTempoSec(c.tempoEspera) >= 180).length;
 
   const setoresCount = chamadasHoje.reduce<Record<string, number>>((acc, c) => {
     if (c.setor) acc[c.setor] = (acc[c.setor] ?? 0) + 1;
@@ -1222,7 +1222,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // Garçons com chamadas demoradas (≥60s) ainda pendentes
   const garconsDemorados = chamadasHoje
-    .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 60)
+    .filter(c => c.status === 'pendente' && parseTempoSec(c.tempoEspera) >= 180)
     .map(c => {
       const id = c.garcom || (c.mesa != null ? `${c.mesa}` : c.setor) || '—';
       return `${id} (${c.tempoEspera})`;
@@ -1309,9 +1309,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
       {/* Legenda compacta */}
       <div className="flex gap-3 mb-2">
-        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-green-500 inline-block"/>Até 30s Rápido</span>
-        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>31–59s Médio</span>
-        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"/>≥60s Demorado</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-green-500 inline-block"/>≤1min Arretado</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>1–3min Oxente</span>
+        <span className="flex items-center gap-1 text-[9px] text-gray-400"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"/>≥3min Putz</span>
       </div>
 
       {setoresTop.length > 0 && (
