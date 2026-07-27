@@ -261,6 +261,14 @@ export interface ValidacaoDia {
 }
 
 export type HorarioAlmoco = '11h' | '13h' | '14h';
+export type CorGarcom = 'amarelo' | 'vermelho' | 'preto' | 'azul';
+
+export const COR_GARCOM: { value: CorGarcom; label: string; bg: string; ring: string }[] = [
+  { value: 'amarelo',  label: 'Amarelo', bg: 'bg-yellow-400', ring: 'ring-yellow-500'  },
+  { value: 'vermelho', label: 'Vermelho',bg: 'bg-red-500',    ring: 'ring-red-600'     },
+  { value: 'preto',    label: 'Preto',   bg: 'bg-gray-900',   ring: 'ring-gray-700'    },
+  { value: 'azul',     label: 'Azul',    bg: 'bg-blue-500',   ring: 'ring-blue-600'    },
+];
 
 export interface ValidacaoGarcom {
   id:     string;
@@ -269,6 +277,7 @@ export interface ValidacaoGarcom {
   setor?: BeachSetor;
   almoco?: HorarioAlmoco;
   faltou?: boolean;
+  cor?:    CorGarcom;
 }
 
 export const SPACE_CONFIGS = {

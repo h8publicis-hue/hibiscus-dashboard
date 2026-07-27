@@ -4,8 +4,8 @@ import { useAviso } from '../hooks/useAviso';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
-import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus } from '../types';
-import { BEACH_SETORES, SPACE_CONFIGS } from '../types';
+import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus, CorGarcom } from '../types';
+import { BEACH_SETORES, SPACE_CONFIGS, COR_GARCOM } from '../types';
 
 const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string; bg: string }[] = [
   { value: 'T', label: 'T', cls: 'bg-teal-700 text-white',    bg: 'bg-teal-700'    },
@@ -569,6 +569,9 @@ function BoxEscala() {
               {draft.map((g, i) => (
                 <div key={g.id} className={`rounded-xl p-3 border transition-colors ${g.faltou ? 'border-red-200 dark:border-red-800 bg-red-50/60 dark:bg-red-900/10 opacity-70' : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30'}`}>
                   <div className="flex items-center gap-2 mb-2">
+                    {g.cor && (
+                      <span className={`w-3 h-3 rounded-full shrink-0 ${COR_GARCOM.find(c => c.value === g.cor)?.bg ?? ''}`} />
+                    )}
                     <span className="flex-1 text-sm font-semibold text-gray-800 dark:text-white truncate">{g.nome}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${g.area === 'lounge' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                       {g.area === 'lounge' ? '🛋️' : '🏖️'} {g.area === 'lounge' ? 'Lounge' : 'Beach'}
@@ -581,26 +584,48 @@ function BoxEscala() {
                     </button>
                   </div>
                   {!g.faltou && (
-                    <div className="flex gap-2">
-                      {g.area === 'beach' && (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        {g.area === 'beach' && (
+                          <select
+                            value={g.setor ?? 'salao'}
+                            onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, setor: e.target.value as BeachSetor } : x))}
+                            className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex-1"
+                          >
+                            {BEACH_SETORES.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
+                          </select>
+                        )}
                         <select
-                          value={g.setor ?? 'salao'}
-                          onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, setor: e.target.value as BeachSetor } : x))}
+                          value={g.almoco ?? ''}
+                          onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, almoco: (e.target.value || undefined) as any } : x))}
                           className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex-1"
                         >
-                          {BEACH_SETORES.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
+                          <option value="">🍽️ Almoço</option>
+                          <option value="11h">11h</option>
+                          <option value="13h">13h</option>
+                          <option value="14h">14h</option>
                         </select>
-                      )}
-                      <select
-                        value={g.almoco ?? ''}
-                        onChange={e => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, almoco: (e.target.value || undefined) as any } : x))}
-                        className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 flex-1"
-                      >
-                        <option value="">🍽️ Almoço</option>
-                        <option value="11h">11h</option>
-                        <option value="13h">13h</option>
-                        <option value="14h">14h</option>
-                      </select>
+                      </div>
+                      {/* Cor do colaborador */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400 shrink-0">Cor:</span>
+                        <div className="flex gap-1.5">
+                          {/* sem cor */}
+                          <button
+                            onClick={() => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, cor: undefined } : x))}
+                            className={`w-5 h-5 rounded-full border-2 bg-white dark:bg-gray-600 transition-all ${!g.cor ? 'border-brand-500 scale-110' : 'border-gray-300 dark:border-gray-500'}`}
+                            title="Sem cor"
+                          />
+                          {COR_GARCOM.map(c => (
+                            <button
+                              key={c.value}
+                              onClick={() => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, cor: c.value as CorGarcom } : x))}
+                              className={`w-5 h-5 rounded-full ${c.bg} transition-all ${g.cor === c.value ? 'ring-2 ring-offset-1 ' + c.ring + ' scale-110' : ''}`}
+                              title={c.label}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
