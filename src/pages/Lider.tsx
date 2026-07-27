@@ -548,11 +548,65 @@ function BoxChamadas() {
   );
 }
 
+const LIDER_AUTH_KEY = 'hibiscus-lider-auth';
+const LIDER_PASSWORD = '@Hibiscus';
+
+function LiderLogin({ onLogin }: { onLogin: () => void }) {
+  const [senha, setSenha] = useState('');
+  const [erro,  setErro]  = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (senha === LIDER_PASSWORD) {
+      localStorage.setItem(LIDER_AUTH_KEY, 'ok');
+      onLogin();
+    } else {
+      setErro(true);
+      setSenha('');
+      setTimeout(() => setErro(false), 2000);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 w-full max-w-sm flex flex-col gap-5">
+        <div className="text-center">
+          <img src="/logo.png" alt="Hibiscus" className="h-10 w-auto mx-auto mb-3 object-contain" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+          <h1 className="text-lg font-black text-gray-900">App do Líder</h1>
+          <p className="text-xs text-gray-400">Hibiscus Beach Club · Atendimento</p>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="password"
+            placeholder="Senha de acesso"
+            value={senha}
+            onChange={e => setSenha(e.target.value)}
+            autoFocus
+            className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-colors ${
+              erro
+                ? 'border-red-400 ring-red-200 bg-red-50 placeholder-red-400'
+                : 'border-gray-200 focus:ring-brand-200 focus:border-brand-400'
+            }`}
+          />
+          {erro && <p className="text-xs text-red-500 text-center font-semibold">Senha incorreta</p>}
+          <button type="submit"
+            className="w-full py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-colors">
+            Entrar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 type Aba = 'hoje' | 'escala';
 
 export function Lider() {
+  const [authed, setAuthed] = useState(() => localStorage.getItem(LIDER_AUTH_KEY) === 'ok');
   const [aba, setAba] = useState<Aba>('hoje');
+
+  if (!authed) return <LiderLogin onLogin={() => setAuthed(true)} />;
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
