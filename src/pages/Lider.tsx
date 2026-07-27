@@ -1,25 +1,80 @@
-import { useState, useMemo, useEffect } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload } from 'lucide-react';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus } from '../types';
 import { BEACH_SETORES, SPACE_CONFIGS } from '../types';
 
-const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string }[] = [
-  { value: 'T', label: 'T', cls: 'bg-teal-700 text-white' },
-  { value: 'X', label: 'X', cls: 'bg-gray-700 text-white' },
-  { value: 'C', label: 'C', cls: 'bg-yellow-500 text-white' },
-  { value: 'F', label: 'F', cls: 'bg-blue-500 text-white' },
-  { value: 'A', label: 'A', cls: 'bg-red-500 text-white' },
+const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string; bg: string }[] = [
+  { value: 'T', label: 'T', cls: 'bg-teal-700 text-white',    bg: 'bg-teal-700'    },
+  { value: 'X', label: 'X', cls: 'bg-gray-600 text-white',    bg: 'bg-gray-600'    },
+  { value: 'C', label: 'C', cls: 'bg-yellow-500 text-white',  bg: 'bg-yellow-500'  },
+  { value: 'F', label: 'F', cls: 'bg-blue-500 text-white',    bg: 'bg-blue-500'    },
+  { value: 'A', label: 'A', cls: 'bg-red-500 text-white',     bg: 'bg-red-500'     },
 ];
+
+// Parse xlsx no cliente — retorna linhas [{nome, funcao, dias:{DD:status}}]
+async function parseEscalaXlsx(file: File): Promise<EscalaGarcom[]> {
+  const XLSX = await import('xlsx');
+  const buf  = await file.arrayBuffer();
+  const wb   = XLSX.read(buf, { type: 'array' });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  // Identifica linha de cabeçalho (contém '01' ou '1' nas colunas de dias)
+  // Formato: col0=nº, col1=nome, col2=função, col3..=dias
+  const STATUS_SET = new Set(['T', 'X', 'C', 'F', 'A', 'C ']);
+  const garcons: EscalaGarcom[] = [];
+
+  // Encontra índice da coluna de dias (busca pela primeira col com valor '01' ou 1)
+  let headerRow = -1;
+  let firstDayCol = 3;
+  for (let r = 0; r < Math.min(10, raw.length); r++) {
+    const row = raw[r];
+    for (let c = 0; c < row.length; c++) {
+      const v = String(row[c]).trim();
+      if (v === '01' || v === '1') { headerRow = r; firstDayCol = c; break; }
+    }
+    if (headerRow >= 0) break;
+  }
+
+  const dataStart = headerRow >= 0 ? headerRow + 1 : 2;
+
+  for (let r = dataStart; r < raw.length; r++) {
+    const row = raw[r];
+    const nome = String(row[1] ?? '').trim();
+    const func = String(row[2] ?? '').trim().toUpperCase();
+    if (!nome || nome.length < 3) continue;
+
+    const area: 'beach' | 'lounge' = func.includes('LOUNGE') ? 'lounge' : 'beach';
+    const dias: Record<string, EscalaStatus> = {};
+
+    for (let c = firstDayCol; c < row.length; c++) {
+      const dia  = String(c - firstDayCol + 1).padStart(2, '0');
+      const val  = String(row[c] ?? '').trim().toUpperCase();
+      if (STATUS_SET.has(val)) dias[dia] = (val.trim() as EscalaStatus);
+      else if (val === '' || val === '-') dias[dia] = 'T'; // fim de semana/vazio → T por padrão
+    }
+
+    garcons.push({
+      id:   `xlsx-${r}`,
+      nome: nome.split(' ').slice(0, 3).join(' '),
+      area,
+      dias,
+    });
+  }
+  return garcons;
+}
 
 function BoxEscalaMensal() {
   const { escala, loading, salvarEscala } = useEscalaHoje();
-  const [rows, setRows]   = useState<EscalaGarcom[]>([]);
-  const [mes, setMes]     = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
+  const [rows, setRows]     = useState<EscalaGarcom[]>([]);
+  const [mes, setMes]       = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -45,12 +100,29 @@ function BoxEscalaMensal() {
 
   function cycleStatus(ri: number, dia: string) {
     const order: EscalaStatus[] = ['T', 'X', 'C', 'F', 'A'];
-    const cur = rows[ri]?.dias[dia] ?? 'T';
+    const cur  = rows[ri]?.dias[dia] ?? 'T';
     const next = order[(order.indexOf(cur) + 1) % order.length];
     setRows(prev => prev.map((r, i) => i === ri ? { ...r, dias: { ...r.dias, [dia]: next } } : r));
   }
   function setArea(ri: number, area: 'beach' | 'lounge') {
-    setRows(prev => prev.map((r, i) => i === ri ? { ...r, area } : r));
+    setRows(prev => prev.map((r, i) => i === ri ? { ...r, area, setor_padrao: area === 'lounge' ? undefined : (r.setor_padrao ?? 'salao') } : r));
+  }
+  function setSetorPadrao(ri: number, setor: BeachSetor) {
+    setRows(prev => prev.map((r, i) => i === ri ? { ...r, setor_padrao: setor } : r));
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const parsed = await parseEscalaXlsx(file);
+      if (parsed.length > 0) setRows(parsed);
+      else alert('Não foi possível ler a escala. Verifique o formato do arquivo.');
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
   }
 
   async function handleSave() {
@@ -65,28 +137,48 @@ function BoxEscalaMensal() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <input type="month" value={mes} onChange={e => setMes(e.target.value)}
           className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white" />
         <span className="text-xs text-gray-400">{rows.length} garçons</span>
-        <div className="ml-auto flex gap-1 items-center text-[10px]">
-          {STATUS_OPTS.map(s => <span key={s.value} className={`px-1.5 py-0.5 rounded font-bold ${s.cls}`}>{s.value}</span>)}
-        </div>
+
+        {/* Botão importar */}
+        <button onClick={() => fileRef.current?.click()} disabled={importing}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400 text-xs font-semibold hover:bg-brand-50 dark:hover:bg-brand-900/20 disabled:opacity-50 transition-colors">
+          <Upload size={13} />{importing ? 'Importando...' : 'Importar Excel'}
+        </button>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
       </div>
 
+      {/* Legenda */}
+      <div className="flex gap-1.5 flex-wrap items-center text-[10px]">
+        {STATUS_OPTS.map(s => (
+          <span key={s.value} className={`px-2 py-0.5 rounded font-bold ${s.cls}`}>{s.value}</span>
+        ))}
+        <span className="text-gray-400 ml-1">T=Trabalha · X=Folga · C=Compensa · F=Férias · A=Atestado</span>
+      </div>
+
+      {/* Tabela */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 -mx-1">
         <table className="text-[10px] border-collapse min-w-max">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700/50">
-              <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 px-2 py-1.5 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[100px]">Nome</th>
+              <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 px-2 py-1.5 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[110px]">Nome</th>
               <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[60px]">Área</th>
+              <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[72px]">Setor</th>
               {days.map(d => <th key={d} className="px-0.5 py-1.5 font-semibold text-gray-500 w-6 text-center">{d}</th>)}
             </tr>
           </thead>
           <tbody>
             {rows.map((g, ri) => (
-              <tr key={g.id} className="border-t border-gray-100 dark:border-gray-700">
-                <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 px-2 py-1 font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">{g.nome}</td>
+              <tr key={g.id} className={`border-t border-gray-100 dark:border-gray-700 ${g.area === 'lounge' ? 'bg-purple-50/30 dark:bg-purple-900/10' : ''}`}>
+                <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 px-2 py-1 font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                  {g.nome}
+                  <span className={`ml-1 text-[8px] font-bold px-1 py-0.5 rounded ${g.area === 'lounge' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                    {g.area === 'lounge' ? 'L' : 'B'}
+                  </span>
+                </td>
                 <td className="px-1 py-1">
                   <select value={g.area} onChange={e => setArea(ri, e.target.value as 'beach' | 'lounge')}
                     className="text-[10px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">
@@ -94,13 +186,23 @@ function BoxEscalaMensal() {
                     <option value="lounge">Lounge</option>
                   </select>
                 </td>
+                <td className="px-1 py-1">
+                  {g.area === 'beach' ? (
+                    <select value={g.setor_padrao ?? 'salao'} onChange={e => setSetorPadrao(ri, e.target.value as BeachSetor)}
+                      className="text-[10px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                      {BEACH_SETORES.map(s => <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>)}
+                    </select>
+                  ) : (
+                    <span className="text-[10px] text-purple-500">🛋️ Lounge</span>
+                  )}
+                </td>
                 {days.map(d => {
-                  const st = g.dias[d] ?? 'T';
+                  const st  = g.dias[d] ?? 'T';
                   const opt = STATUS_OPTS.find(o => o.value === st)!;
                   return (
                     <td key={d} className="px-0 py-1 text-center">
                       <button onClick={() => cycleStatus(ri, d)}
-                        className={`w-5 h-5 rounded text-[8px] font-bold ${opt.cls} hover:opacity-80`}>
+                        className={`w-5 h-5 rounded text-[8px] font-bold ${opt.cls} hover:opacity-80 active:scale-95`}>
                         {st}
                       </button>
                     </td>
@@ -116,7 +218,7 @@ function BoxEscalaMensal() {
         className="py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
         {saved ? <><Check size={14} /> Salvo!</> : saving ? 'Salvando...' : 'Salvar escala do mês'}
       </button>
-      <p className="text-[10px] text-gray-400 text-center">Toque nas células para alternar T → X → C → F → A</p>
+      <p className="text-[10px] text-gray-400 text-center">Toque nas células para alternar · Setor = padrão usado na validação diária</p>
     </div>
   );
 }
@@ -139,7 +241,7 @@ function BoxEscala() {
   function abrirValidacao() {
     const inicial: ValidacaoGarcom[] = ativosHoje.map(g => ({
       id: g.id, nome: g.nome, area: g.area,
-      setor: g.area === 'lounge' ? undefined : 'salao' as BeachSetor,
+      setor: g.area === 'lounge' ? undefined : (g.setor_padrao ?? 'salao' as BeachSetor),
     }));
     setDraft(inicial);
     setEditando(true);

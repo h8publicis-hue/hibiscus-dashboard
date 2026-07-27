@@ -245,10 +245,11 @@ export const BEACH_SETORES: { value: BeachSetor; label: string; emoji: string }[
 ];
 
 export interface EscalaGarcom {
-  id:   string;
-  nome: string;
-  area: GarcomArea;
-  dias: Record<string, EscalaStatus>; // key = 'DD' e.g. '01'
+  id:           string;
+  nome:         string;
+  area:         GarcomArea;
+  setor_padrao?: BeachSetor; // setor padrão para Beach — pré-fill na validação diária
+  dias:         Record<string, EscalaStatus>; // key = 'DD' e.g. '01'
 }
 
 export interface ValidacaoDia {
