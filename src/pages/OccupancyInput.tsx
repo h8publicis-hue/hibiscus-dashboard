@@ -579,6 +579,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
 }) {
   const [editing, setEditing] = useState<number | null>(null);
   const [moveOrigem, setMoveOrigem] = useState<number | null>(null);
+  const [reservaPreview, setReservaPreview] = useState<LoungeReserva | null>(null);
 
   // reservas já chegam filtradas para hoje — sem necessidade de filtrar por data aqui
   function hasActiveReserva(idx: number) {
@@ -652,9 +653,9 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
         executarMove(moveOrigem, idx);
         return;
       }
-      // Se há reserva ativa e lounge vazio, converter em ocupação e abrir preenchido
+      // Se há reserva ativa e lounge vazio, mostrar painel da reserva (não confirma automaticamente)
       if (reserva && v === 0) {
-        handleChegou(reserva);
+        setReservaPreview(reserva);
         return;
       }
       setEditing(idx);
@@ -691,6 +692,25 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
 
   return (
     <>
+      {/* Painel de preview da reserva — aparece ao tocar num lounge reservado */}
+      {reservaPreview && (
+        <div className="mb-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-blue-800">📋 Reserva — Lounge {501 + reservaPreview.loungeIdx}</span>
+            <button onClick={() => setReservaPreview(null)} className="text-blue-400 hover:text-blue-600 text-lg leading-none">✕</button>
+          </div>
+          {reservaPreview.info.nome     && <p className="text-xs text-blue-700">{reservaPreview.info.nome}{reservaPreview.info.telefone ? ` · ${reservaPreview.info.telefone}` : ''}</p>}
+          {reservaPreview.info.canal    && <p className="text-xs text-blue-600">Canal: {reservaPreview.info.canal}{reservaPreview.info.veiculo ? ` · ${reservaPreview.info.veiculo}` : ''}</p>}
+          {reservaPreview.info.parceiro && <p className="text-xs text-blue-600">Parceiro: {reservaPreview.info.parceiro}</p>}
+          {reservaPreview.info.obs      && <p className="text-xs text-blue-600 italic">"{reservaPreview.info.obs}"</p>}
+          <button
+            onClick={() => { handleChegou(reservaPreview); setReservaPreview(null); }}
+            className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700">
+            ✓ Confirmar chegada
+          </button>
+        </div>
+      )}
+
       {/* Botão mover + banner de instrução */}
       <div className="flex items-center justify-between mb-1">
         <button

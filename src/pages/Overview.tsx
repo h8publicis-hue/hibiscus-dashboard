@@ -250,23 +250,45 @@ function LoungeMap({ lounges, loungeObs, loungeData, reservas }: { lounges: numb
 
       {/* Painel de resumo ao clicar no lounge */}
       {activeIdx !== null && (() => {
-        const idx = activeIdx;
-        const num = SPACE_CONFIGS.lounge.start + idx;
-        const d   = loungeData?.[idx];
+        const idx  = activeIdx;
+        const num  = SPACE_CONFIGS.lounge.start + idx;
+        const d    = loungeData?.[idx];
         const note = obs[idx] ?? '';
+        // Se lounge vazio com reserva, mostrar dados da reserva
+        const reservaAtiva = (reservas ?? []).find(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
+        const isReservaMode = (lounges[idx] ?? 0) === 0 && !!reservaAtiva;
+        const rd = reservaAtiva?.info;
+        const bgCls = isReservaMode
+          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700'
+          : 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700';
+        const textCls = isReservaMode
+          ? 'text-blue-800 dark:text-blue-300'
+          : 'text-amber-800 dark:text-amber-300';
+        const labelCls = isReservaMode
+          ? 'text-blue-700 dark:text-blue-400'
+          : 'text-amber-700 dark:text-amber-400';
+        const icon = isReservaMode ? '📋' : '📝';
+        const paxLabel = isReservaMode ? 'Reservado' : `${lounges[idx]} pax`;
+        const nome    = rd?.nome    || d?.nome;
+        const tel     = rd?.telefone || d?.telefone;
+        const canal   = rd?.canal   || d?.canal;
+        const veiculo = rd?.veiculo || d?.veiculo;
+        const parceiro = rd?.parceiro || d?.parceiro;
+        const codParceiro = rd?.codParceiro || d?.codParceiro;
+        const obsText = rd?.obs || d?.obs || note;
         return (
-          <div className="mt-1 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl px-3 py-2 flex items-start gap-2">
-            <span className="text-amber-500 shrink-0 mt-0.5">📝</span>
+          <div className={`mt-1 border rounded-xl px-3 py-2 flex items-start gap-2 ${bgCls}`}>
+            <span className="shrink-0 mt-0.5">{icon}</span>
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Lounge {num} · {lounges[idx]} pax</p>
-              {d?.nome      && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Nome:</b> {d.nome}{d.telefone ? ` · ${d.telefone}` : ''}</p>}
-              {d?.canal     && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Canal:</b> {d.canal}</p>}
-              {d?.veiculo   && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Veículo:</b> {d.veiculo}</p>}
-              {d?.parceiro  && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug"><b>Parceiro:</b> {d.parceiro}{d.codParceiro ? ` (${d.codParceiro})` : ''}</p>}
+              <p className={`text-[10px] font-bold uppercase tracking-wide ${labelCls}`}>Lounge {num} · {paxLabel}</p>
+              {nome      && <p className={`text-xs leading-snug ${textCls}`}><b>Nome:</b> {nome}{tel ? ` · ${tel}` : ''}</p>}
+              {canal     && <p className={`text-xs leading-snug ${textCls}`}><b>Canal:</b> {canal}</p>}
+              {veiculo   && <p className={`text-xs leading-snug ${textCls}`}><b>Veículo:</b> {veiculo}</p>}
+              {parceiro  && <p className={`text-xs leading-snug ${textCls}`}><b>Parceiro:</b> {parceiro}{codParceiro ? ` (${codParceiro})` : ''}</p>}
               {d?.transferido && <p className="text-xs text-orange-500 leading-snug">🔄 Transferência do Beach</p>}
-              {(d?.obs || note) && <p className="text-xs text-amber-800 dark:text-amber-300 leading-snug italic">{d?.obs || note}</p>}
+              {obsText   && <p className={`text-xs leading-snug italic ${textCls}`}>{obsText}</p>}
             </div>
-            <button onClick={() => setActiveIdx(null)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-200 shrink-0">
+            <button onClick={() => setActiveIdx(null)} className={`shrink-0 ${isReservaMode ? 'text-blue-400 hover:text-blue-600' : 'text-amber-400 hover:text-amber-600'} dark:hover:opacity-80`}>
               <X size={13} />
             </button>
           </div>
