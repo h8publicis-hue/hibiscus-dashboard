@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer, Megaphone, X } from 'lucide-react';
+import { useAviso } from '../hooks/useAviso';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
@@ -925,6 +926,36 @@ function LiderLogin({ onLogin }: { onLogin: () => void }) {
 // ── Página principal ──────────────────────────────────────────────────────────
 type Aba = 'hoje' | 'escala';
 
+function AvisosBanner() {
+  const { avisos } = useAviso();
+  const [dismissed, setDismissed] = useState(false);
+  const [tick, setTick] = useState(0);
+  const activos = avisos.filter(a => a.active && a.text.trim());
+
+  useEffect(() => {
+    if (activos.length <= 1) return;
+    const id = setInterval(() => setTick(t => t + 1), 5000);
+    return () => clearInterval(id);
+  }, [activos.length]);
+
+  if (!activos.length || dismissed) return null;
+
+  return (
+    <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-300 dark:border-amber-700 px-4 py-2.5">
+      <Megaphone size={14} className="text-amber-500 shrink-0" />
+      <p className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug">
+        {activos[tick % activos.length]?.text}
+      </p>
+      {activos.length > 1 && (
+        <span className="text-[10px] text-amber-400 shrink-0">{(tick % activos.length) + 1}/{activos.length}</span>
+      )}
+      <button onClick={() => setDismissed(true)} className="text-amber-400 hover:text-amber-600 shrink-0">
+        <X size={13} />
+      </button>
+    </div>
+  );
+}
+
 export function Lider() {
   const [authed, setAuthed] = useState(() => localStorage.getItem(LIDER_AUTH_KEY) === 'ok');
   const [aba, setAba] = useState<Aba>('hoje');
@@ -957,6 +988,8 @@ export function Lider() {
           </button>
         </div>
       </header>
+
+      <AvisosBanner />
 
       {/* Abas */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex px-4">
