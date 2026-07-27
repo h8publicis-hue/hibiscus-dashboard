@@ -268,90 +268,176 @@ function BoxEscala() {
     setPrinting(true);
     try {
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const W = 210, ML = 14, MR = 14;
+      const now = new Date().toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
       const dataFmt = new Date(dataAlvo + 'T12:00:00').toLocaleDateString('pt-BR', {
         weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
       });
 
-      doc.setFillColor(0, 91, 73);
-      doc.rect(0, 0, 210, 22, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('Hibiscus Beach Club', 14, 9);
-      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-      doc.text(`Escala do dia — ${dataFmt}`, 14, 16);
+      const hex = (h: string): [number, number, number] => [
+        parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16),
+      ];
 
-      let y = 30;
+      let y = 14;
+      let resolvedLogoW = 0;
+
+      // Logo (mesmo padrão do Satisfaction.tsx)
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+            canvas.getContext('2d')!.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png');
+            const ratio = img.naturalWidth / img.naturalHeight;
+            const logoW = Math.min(Math.round(ratio * 14), 36);
+            const logoH = Math.round(logoW / ratio);
+            doc.addImage(dataUrl, 'PNG', ML, y + (14 - logoH) / 2 + 1, logoW, logoH, undefined, 'FAST');
+            resolvedLogoW = logoW;
+          } catch { /* sem logo */ }
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = '/logo.png';
+      });
+
+      // Faixa roxa no topo
+      doc.setFillColor(...hex('#7c3aed'));
+      doc.rect(0, 0, W, 2, 'F');
+
+      const tx = ML + resolvedLogoW + 4;
+      doc.setFontSize(15); doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...hex('#7c3aed'));
+      doc.text('Hibiscus Beach Club', tx, y + 8);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...hex('#6b7280'));
+      doc.text('Escala Diária de Atendimento', tx, y + 15);
+      doc.setFontSize(7); doc.setFont('helvetica', 'italic');
+      doc.setTextColor(...hex('#9ca3af'));
+      doc.text('Uso exclusivo da gestão operacional', tx, y + 21);
+
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      doc.setTextColor(...hex('#9ca3af'));
+      doc.text(`Gerado em ${now}`, W - MR, y + 8, { align: 'right' });
+      doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...hex('#374151'));
+      doc.text(dataFmt, W - MR, y + 15, { align: 'right' });
+      y += 30;
+
+      doc.setDrawColor(...hex('#e5e7eb'));
+      doc.setLineWidth(0.4);
+      doc.line(ML, y, W - MR, y);
+      y += 8;
+
+      // Dados
       const allGarcons: ValidacaoGarcom[] = validacao.validado
         ? validacao.garcons
         : ativosHoje.map(g => ({ id: g.id, nome: g.nome, area: g.area, setor: g.setor_padrao }));
 
-      const ativos    = allGarcons.filter(g => !g.faltou);
-      const lounge    = ativos.filter(g => g.area === 'lounge');
-      const beach     = ativos.filter(g => g.area === 'beach');
-      const faltaram  = allGarcons.filter(g => g.faltou);
+      const ativos   = allGarcons.filter(g => !g.faltou);
+      const lounge   = ativos.filter(g => g.area === 'lounge');
+      const beach    = ativos.filter(g => g.area === 'beach');
+      const faltaram = allGarcons.filter(g => g.faltou);
 
-      // Resumo
-      doc.setFillColor(240, 253, 250); doc.setDrawColor(16, 185, 129);
-      doc.roundedRect(14, y, 182, 12, 2, 2, 'FD');
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-      doc.setTextColor(5, 150, 105);
-      doc.text(`Total: ${ativos.length} em serviço`, 18, y + 8);
-      doc.setTextColor(107, 70, 193);
-      doc.text(`Lounge: ${lounge.length}`, 90, y + 8);
-      doc.setTextColor(37, 99, 235);
-      doc.text(`Beach: ${beach.length}`, 145, y + 8);
-      y += 18;
+      // Cards de resumo
+      const cards = [
+        { label: 'Total em serviço', value: String(ativos.length), bg: '#f5f3ff', color: '#7c3aed' },
+        { label: 'Lounge',          value: String(lounge.length),  bg: '#faf5ff', color: '#7c3aed' },
+        { label: 'Beach',           value: String(beach.length),   bg: '#eff6ff', color: '#1d4ed8' },
+        { label: 'Faltaram',        value: String(faltaram.length),bg: '#fef2f2', color: '#dc2626' },
+      ];
+      const cardW = (W - ML - MR - 3 * 3) / 4;
+      cards.forEach((c, i) => {
+        const cx = ML + i * (cardW + 3);
+        doc.setFillColor(...hex(c.bg));
+        doc.roundedRect(cx, y, cardW, 18, 2, 2, 'F');
+        doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...hex(c.color));
+        doc.text(c.value, cx + cardW / 2, y + 11, { align: 'center' });
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...hex('#6b7280'));
+        doc.text(c.label, cx + cardW / 2, y + 16, { align: 'center' });
+      });
+      y += 24;
 
-      const drawHeader = () => {
-        doc.setFillColor(31, 41, 55); doc.rect(14, y, 182, 7, 'F');
+      doc.setDrawColor(...hex('#e5e7eb'));
+      doc.line(ML, y, W - MR, y);
+      y += 6;
+
+      const drawSectionHeader = (title: string, color: string) => {
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...hex(color));
+        doc.text(title, ML, y + 4);
+        doc.setFillColor(...hex(color));
+        doc.rect(ML, y + 6, W - ML - MR, 0.4, 'F');
+        y += 12;
+      };
+
+      const drawTableHeader = () => {
+        doc.setFillColor(...hex('#1f2937')); doc.rect(ML, y, W - ML - MR, 7, 'F');
         doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-        doc.text('Nome', 16, y + 5);
-        doc.text('Setor', 96, y + 5);
-        doc.text('Almoço', 150, y + 5);
+        doc.text('Nome', ML + 2, y + 5);
+        doc.text('Área / Setor', ML + 85, y + 5);
+        doc.text('Almoço', ML + 145, y + 5);
         y += 7;
       };
 
       const drawRow = (g: ValidacaoGarcom, idx: number) => {
-        if (y > 265) { doc.addPage(); y = 20; }
-        if (idx % 2 === 1) { doc.setFillColor(249, 250, 251); doc.rect(14, y, 182, 7, 'F'); }
-        doc.setTextColor(30, 30, 30); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-        doc.text(g.nome.substring(0, 35), 16, y + 5);
+        if (y > 268) { doc.addPage(); y = 20; }
+        if (idx % 2 === 1) { doc.setFillColor(...hex('#f9fafb')); doc.rect(ML, y, W - ML - MR, 7, 'F'); }
+        doc.setTextColor(...hex('#111827')); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text(g.nome.substring(0, 38), ML + 2, y + 5);
         const setorLabel = g.area === 'lounge'
-          ? 'Lounge'
-          : (BEACH_SETORES.find(s => s.value === g.setor)?.label ?? '—');
-        doc.text(setorLabel, 96, y + 5);
-        doc.text(g.almoco ?? '—', 150, y + 5);
+          ? '🛋 Lounge'
+          : '🏖 Beach — ' + (BEACH_SETORES.find(s => s.value === g.setor)?.label ?? '—');
+        doc.text(setorLabel, ML + 85, y + 5);
+        if (g.almoco) {
+          doc.setFillColor(...hex('#ede9fe'));
+          doc.roundedRect(ML + 143, y + 1, 22, 5, 1, 1, 'F');
+          doc.setTextColor(...hex('#7c3aed')); doc.setFont('helvetica', 'bold');
+          doc.text(g.almoco, ML + 154, y + 5, { align: 'center' });
+          doc.setFont('helvetica', 'normal');
+        } else {
+          doc.setTextColor(...hex('#9ca3af'));
+          doc.text('—', ML + 154, y + 5, { align: 'center' });
+        }
         y += 7;
       };
 
       if (lounge.length > 0) {
-        doc.setTextColor(107, 70, 193); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('Lounge', 14, y + 4); y += 10;
-        drawHeader();
+        drawSectionHeader('Lounge', '#7c3aed');
+        drawTableHeader();
         lounge.forEach((g, i) => drawRow(g, i));
-        y += 4;
+        y += 5;
       }
       if (beach.length > 0) {
-        doc.setTextColor(37, 99, 235); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('Beach', 14, y + 4); y += 10;
-        drawHeader();
+        drawSectionHeader('Beach', '#1d4ed8');
+        drawTableHeader();
         beach.forEach((g, i) => drawRow(g, i));
-        y += 4;
+        y += 5;
       }
       if (faltaram.length > 0) {
-        doc.setTextColor(220, 38, 38); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text('Faltaram', 14, y + 4); y += 10;
-        drawHeader();
+        drawSectionHeader('Faltaram', '#dc2626');
+        drawTableHeader();
         faltaram.forEach((g, i) => drawRow(g, i));
       }
 
-      const total = doc.getNumberOfPages();
-      for (let p = 1; p <= total; p++) {
+      // Rodapé em todas as páginas
+      const pageCount = doc.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
         doc.setPage(p);
-        doc.setFontSize(8); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
-        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' })} · H8 Sistemas`, 14, 290);
-        doc.text(`${p}/${total}`, 200, 290, { align: 'right' });
+        doc.setDrawColor(...hex('#e5e7eb')); doc.setLineWidth(0.3);
+        doc.line(ML, 287, W - MR, 287);
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...hex('#9ca3af'));
+        doc.text('Hibiscus Beach Club · H8 Sistemas', ML, 291);
+        doc.text(`${p} / ${pageCount}`, W - MR, 291, { align: 'right' });
       }
 
       doc.save(`escala-${dataAlvo}.pdf`);
