@@ -1193,17 +1193,17 @@ export function OccupancyInput() {
         {/* Categorias Beach */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Categorias Beach</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <MiniCounter label="CHD FREE" value={occ.beachChdFree ?? 0}
               onInc={() => update({ ...occRef.current, beachChdFree: (occRef.current.beachChdFree ?? 0) + 1 })}
               onDec={() => update({ ...occRef.current, beachChdFree: Math.max(0, (occRef.current.beachChdFree ?? 0) - 1) })} />
             <MiniCounter label="CTZ" value={occ.beachCtz ?? 0}
               onInc={() => update({ ...occRef.current, beachCtz: (occRef.current.beachCtz ?? 0) + 1 })}
               onDec={() => update({ ...occRef.current, beachCtz: Math.max(0, (occRef.current.beachCtz ?? 0) - 1) })} />
-            <MiniCounter label="ALMOCO" value={occ.beachAlmoco ?? 0}
+            <MiniCounter label="ALMOÇO" value={occ.beachAlmoco ?? 0}
               onInc={() => update({ ...occRef.current, beachAlmoco: (occRef.current.beachAlmoco ?? 0) + 1 })}
               onDec={() => update({ ...occRef.current, beachAlmoco: Math.max(0, (occRef.current.beachAlmoco ?? 0) - 1) })} />
-            <MiniCounter label="COND" value={occ.beachCondo ?? 0}
+            <MiniCounter label="CONDOMÍNIO" value={occ.beachCondo ?? 0}
               onInc={() => update({ ...occRef.current, beachCondo: (occRef.current.beachCondo ?? 0) + 1 })}
               onDec={() => update({ ...occRef.current, beachCondo: Math.max(0, (occRef.current.beachCondo ?? 0) - 1) })} />
           </div>
