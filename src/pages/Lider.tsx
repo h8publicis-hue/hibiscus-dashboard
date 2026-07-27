@@ -421,50 +421,117 @@ function BoxChamadas() {
   const { chamadas, loading } = useChamadas();
 
   const stats = useMemo(() => {
-    const total      = chamadas.length;
-    const finalizadas = chamadas.filter(c => c.status === 'finalizada').length;
-    const demoradas  = chamadas.filter(c => parseTempoSec(c.tempoEspera) >= 180).length;
+    const total       = chamadas.length;
+    const pendentes   = chamadas.filter(c => c.status === 'pendente').length;
+    const finalizadas = chamadas.filter(c => c.status === 'finalizado' || c.status === 'finalizada').length;
+    const demoradas   = chamadas.filter(c => parseTempoSec(c.tempoEspera) >= 180).length;
 
+    // Tempo médio de espera
+    const comEspera = chamadas.filter(c => c.tempoEspera);
+    const avgSec    = comEspera.length
+      ? Math.round(comEspera.reduce((s, c) => s + parseTempoSec(c.tempoEspera), 0) / comEspera.length)
+      : 0;
+    const avgStr = avgSec > 0 ? `${Math.floor(avgSec / 60)}m ${avgSec % 60}s` : null;
+
+    // Setores com pendência agora
+    const setoresPendentes = [...new Set(
+      chamadas.filter(c => c.status === 'pendente' && c.setor).map(c => c.setor)
+    )];
+
+    // Mesas pendentes (ticker)
+    const mesasPendentes = chamadas
+      .filter(c => c.status === 'pendente')
+      .map(c => c.mesa != null ? String(c.mesa) : (c.garcom || c.setor || '—'));
+
+    // Ranking de setores com barra
     const setorMap: Record<string, number> = {};
-    chamadas.forEach(c => { setorMap[c.setor] = (setorMap[c.setor] ?? 0) + 1; });
-    const topSetores = Object.entries(setorMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    chamadas.forEach(c => { if (c.setor) setorMap[c.setor] = (setorMap[c.setor] ?? 0) + 1; });
+    const topSetores = Object.entries(setorMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const maxSetor = topSetores[0]?.[1] ?? 1;
 
-    return { total, finalizadas, demoradas, topSetores };
+    return { total, pendentes, finalizadas, demoradas, avgStr, setoresPendentes, mesasPendentes, topSetores, maxSetor };
   }, [chamadas]);
+
+  const tempoColor = (sec: number) => sec <= 60 ? 'text-green-600' : sec <= 179 ? 'text-yellow-500' : 'text-red-500';
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
         <Bell size={18} className="text-brand-600 dark:text-brand-400" />
         <h2 className="font-bold text-gray-900 dark:text-white text-sm">Chamadas de hoje</h2>
-        {loading && <span className="text-[10px] text-gray-400 ml-auto">atualizando...</span>}
+        {loading && <span className="text-[10px] text-gray-400 ml-auto animate-pulse">atualizando...</span>}
       </div>
-      <div className="p-5 flex flex-col gap-3">
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
-            <p className="text-2xl font-black text-gray-800 dark:text-white">{stats.total}</p>
-            <p className="text-[10px] text-gray-500 font-semibold">Total</p>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-black text-green-700 dark:text-green-400">{stats.finalizadas}</p>
-            <p className="text-[10px] text-green-600 font-semibold">Finalizadas</p>
-          </div>
-          <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-black text-red-700 dark:text-red-400">{stats.demoradas}</p>
-            <p className="text-[10px] text-red-600 font-semibold">Putz (≥3min)</p>
-          </div>
+
+      <div className="p-4 flex flex-col gap-3">
+        {/* 4 stats */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: 'Pendentes',   val: stats.pendentes,   color: 'text-amber-500' },
+            { label: 'Demoradas',   val: stats.demoradas,   color: stats.demoradas > 0 ? 'text-red-600' : 'text-gray-700 dark:text-gray-200' },
+            { label: 'Finalizadas', val: stats.finalizadas, color: 'text-green-600' },
+            { label: 'Total',       val: stats.total,       color: 'text-gray-800 dark:text-white' },
+          ].map(({ label, val, color }) => (
+            <div key={label} className="text-center">
+              <p className={`text-2xl font-black ${color}`}>{val}</p>
+              <p className="text-[9px] text-gray-400 font-semibold uppercase tracking-wide">{label}</p>
+            </div>
+          ))}
         </div>
 
-        {stats.topSetores.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Top setores</p>
-            {stats.topSetores.map(([setor, count]) => (
-              <div key={setor} className="flex items-center gap-2">
-                <span className="text-xs text-gray-700 dark:text-gray-300 flex-1">{setor}</span>
-                <span className="text-xs font-bold text-gray-800 dark:text-white">{count}</span>
-              </div>
-            ))}
+        {/* Ticker mesas pendentes */}
+        {stats.mesasPendentes.length > 0 && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-1.5 overflow-hidden">
+            <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 truncate">
+              ⚠️ MESAS {stats.mesasPendentes.join(' · ')}
+            </p>
           </div>
+        )}
+
+        {/* Setores aguardando */}
+        {stats.setoresPendentes.length > 0 && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg px-3 py-1.5">
+            <p className="text-[10px] font-semibold text-yellow-800 dark:text-yellow-300">
+              ⚠️ Aguardando: {stats.setoresPendentes.join(' · ')}
+            </p>
+          </div>
+        )}
+
+        {/* Tempo médio */}
+        {stats.avgStr && (
+          <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+            Tempo médio de espera: <span className="font-bold text-gray-800 dark:text-white">{stats.avgStr}</span>
+          </p>
+        )}
+
+        {/* Legenda */}
+        <div className="flex gap-3 text-[10px] justify-center">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block"/> ≤1min Arretado</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"/> 1–3min Oxente</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"/> ≥3min Putz</span>
+        </div>
+
+        {/* Ranking setores com barra */}
+        {stats.topSetores.length > 0 && (
+          <div className="flex flex-col gap-2 pt-1">
+            {stats.topSetores.map(([setor, count]) => {
+              const pct = Math.round((count / stats.total) * 100);
+              const barW = Math.round((count / stats.maxSetor) * 100);
+              return (
+                <div key={setor} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-700 dark:text-gray-300 w-24 shrink-0 truncate">{setor}</span>
+                  <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                    <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${barW}%` }} />
+                  </div>
+                  <span className="text-xs font-bold text-gray-800 dark:text-white w-5 text-right">{count}</span>
+                  <span className="text-[10px] text-gray-400 w-8 text-right">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {stats.total === 0 && !loading && (
+          <p className="text-xs text-gray-400 text-center py-2">Nenhuma chamada hoje</p>
         )}
       </div>
     </div>
