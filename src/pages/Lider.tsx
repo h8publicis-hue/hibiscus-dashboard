@@ -548,16 +548,28 @@ function BoxChamadas() {
   );
 }
 
-const LIDER_AUTH_KEY = 'hibiscus-lider-auth';
-const LIDER_PASSWORD = '@Hibiscus';
+const LIDER_AUTH_KEY          = 'hibiscus-lider-auth';
+const LIDER_PASSWORD_DEFAULT  = '@Hibiscus';
+
+async function fetchLiderPassword(): Promise<string> {
+  try {
+    const r = await fetch('/api/goals?type=config');
+    const { config } = await r.json();
+    return config?.liderPassword ?? LIDER_PASSWORD_DEFAULT;
+  } catch { return LIDER_PASSWORD_DEFAULT; }
+}
 
 function LiderLogin({ onLogin }: { onLogin: () => void }) {
   const [senha, setSenha] = useState('');
   const [erro,  setErro]  = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (senha === LIDER_PASSWORD) {
+    setLoading(true);
+    const correta = await fetchLiderPassword();
+    setLoading(false);
+    if (senha === correta) {
       localStorage.setItem(LIDER_AUTH_KEY, 'ok');
       onLogin();
     } else {
@@ -589,7 +601,7 @@ function LiderLogin({ onLogin }: { onLogin: () => void }) {
             }`}
           />
           {erro && <p className="text-xs text-red-500 text-center font-semibold">Senha incorreta</p>}
-          <button type="submit"
+          <button type="submit" disabled={loading}
             className="w-full py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 transition-colors">
             Entrar
           </button>

@@ -3,7 +3,19 @@ import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode, Tags, Plus, R
 import QRCode from 'qrcode';
 import { useSectors } from '../hooks/useSectors';
 
-const DEFAULT_PASSWORD = 'Admin@!$';
+const DEFAULT_PASSWORD      = 'Admin@!$';
+const DEFAULT_LIDER_PASSWORD = '@Hibiscus';
+
+async function fetchConfig(): Promise<{ adminPassword: string; liderPassword: string }> {
+  try {
+    const r = await fetch('/api/goals?type=config');
+    const { config } = await r.json();
+    return {
+      adminPassword: config?.adminPassword ?? DEFAULT_PASSWORD,
+      liderPassword: config?.liderPassword ?? DEFAULT_LIDER_PASSWORD,
+    };
+  } catch { return { adminPassword: DEFAULT_PASSWORD, liderPassword: DEFAULT_LIDER_PASSWORD }; }
+}
 
 async function fetchSenhaAtual(): Promise<string> {
   try {
@@ -90,6 +102,80 @@ function TrocaSenha() {
       <button onClick={handleSalvar} disabled={loading || !atual || !nova || !confirma}
         className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors disabled:opacity-40">
         {loading ? 'Salvando…' : 'Alterar senha'}
+      </button>
+    </div>
+  );
+}
+
+const inputCls = 'w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-300 dark:focus:ring-brand-700';
+
+function QrInline({ path, label }: { path: string; label: string }) {
+  const [dataUrl, setDataUrl] = useState('');
+  const url = window.location.origin + path;
+  useEffect(() => {
+    QRCode.toDataURL(url, { width: 200, margin: 2 }).then(setDataUrl).catch(() => {});
+  }, [url]);
+  return (
+    <div className="flex flex-col items-start gap-2">
+      {dataUrl
+        ? <img src={dataUrl} alt={`QR ${label}`} className="rounded-lg w-[160px] h-[160px] border border-gray-200 dark:border-gray-600" />
+        : <div className="w-[160px] h-[160px] bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse" />
+      }
+      <div className="flex items-center gap-2">
+        <p className="text-[10px] text-gray-400 break-all">{url}</p>
+        <button onClick={() => { navigator.clipboard.writeText(url); }}
+          className="p-1 rounded text-gray-400 hover:text-brand-600 transition-colors shrink-0" title="Copiar link">
+          <Copy size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SenhaLider() {
+  const [nova,     setNova]     = useState('');
+  const [confirma, setConfirma] = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [msg,      setMsg]      = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function handleSalvar() {
+    if (nova !== confirma) { setMsg({ ok: false, text: 'Senhas não coincidem.' }); return; }
+    if (nova.length < 4)   { setMsg({ ok: false, text: 'Mínimo de 4 caracteres.' }); return; }
+    setLoading(true);
+    try {
+      const cfg = await fetchConfig();
+      await fetch('/api/goals?type=config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: cfg.adminPassword, liderPassword: nova }),
+      });
+      setMsg({ ok: true, text: 'Senha do líder alterada!' });
+      setNova(''); setConfirma('');
+    } catch { setMsg({ ok: false, text: 'Erro ao salvar.' }); }
+    finally  { setLoading(false); }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 max-w-sm">
+      <p className="text-xs text-gray-400">Senha atual: <span className="font-mono font-semibold text-gray-600 dark:text-gray-300">{DEFAULT_LIDER_PASSWORD}</span> (padrão)</p>
+      {[
+        { label: 'Nova senha',           val: nova,     set: setNova },
+        { label: 'Confirmar nova senha', val: confirma, set: setConfirma },
+      ].map(({ label, val, set }) => (
+        <div key={label}>
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{label}</label>
+          <input type="password" value={val} onChange={e => set(e.target.value)}
+            placeholder="••••••••" className={inputCls} />
+        </div>
+      ))}
+      {msg && (
+        <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${msg.ok ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'}`}>
+          {msg.ok ? <Check size={14} /> : <X size={14} />} {msg.text}
+        </div>
+      )}
+      <button onClick={handleSalvar} disabled={loading || !nova || !confirma}
+        className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors disabled:opacity-40">
+        {loading ? 'Salvando…' : 'Alterar senha do líder'}
       </button>
     </div>
   );
@@ -253,6 +339,16 @@ export function Configuracoes() {
 
       <SectionCard title="Setores de Avaliação" icon={<Tags size={16} />}>
         <SetoresEditor />
+      </SectionCard>
+
+      <SectionCard title="App do Líder — Acesso" icon={<Key size={16} />}>
+        <div className="flex flex-col gap-4">
+          <SenhaLider />
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">QR Code de acesso</p>
+            <QrInline path="/lider" label="App do Líder" />
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard title="Links de Acesso Operacional" icon={<Link2 size={16} />}>
