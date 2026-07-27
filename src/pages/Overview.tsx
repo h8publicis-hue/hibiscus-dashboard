@@ -988,6 +988,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
     const nacasa       = occupancy.beach + loungesTotal;
 
+    const agora = new Date();
+    const h = agora.getHours(), m = agora.getMinutes();
+    const depois1030 = h > 10 || (h === 10 && m >= 30);
+    const reservasPendentes = depois1030
+      ? (occupancy.reservasHoje ?? []).filter(r => r.status === 'reserva').length
+      : 0;
+
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -1028,6 +1035,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         </div>
 
         <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} reservas={occupancy.reservasHoje} />
+        {reservasPendentes > 0 && (
+          <p className="text-xs font-semibold text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-center">
+            ⚠️ {reservasPendentes} reserva{reservasPendentes > 1 ? 's' : ''} pendente{reservasPendentes > 1 ? 's' : ''} — confirmar com o comercial
+          </p>
+        )}
         {loungesFull > 0 && (
           <p className="text-xs text-red-600 font-semibold text-right">
             {loungesFull} lounge{loungesFull > 1 ? 's' : ''} em Ocupação Máxima
