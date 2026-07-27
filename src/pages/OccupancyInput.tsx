@@ -31,6 +31,8 @@ const DEFAULT: OccupancyState = {
   prime: 0, parceiros: 0, colaboradores: 0,
   loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
   loungeData: Array(SPACE_CONFIGS.lounge.count).fill(null).map(emptyInfo),
+  beachChdFree: 0, beachCtz: 0, beachAlmoco: 0, beachCondo: 0,
+  loungeChdFree: 0, loungeCtz: 0,
 };
 
 function clamp(n: number, min: number, max: number) { return Math.min(max, Math.max(min, n)); }
@@ -49,6 +51,12 @@ async function fetchOcc(): Promise<OccupancyState & { reservasHoje?: LoungeReser
       loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
       loungeData:    Array(SPACE_CONFIGS.lounge.count).fill(null).map((_, i) => d.loungeData?.[i] ?? emptyInfo()),
       reservasHoje:  Array.isArray(d.reservasHoje) ? d.reservasHoje : [],
+      beachChdFree:  d.beachChdFree  ?? 0,
+      beachCtz:      d.beachCtz      ?? 0,
+      beachAlmoco:   d.beachAlmoco   ?? 0,
+      beachCondo:    d.beachCondo    ?? 0,
+      loungeChdFree: d.loungeChdFree ?? 0,
+      loungeCtz:     d.loungeCtz     ?? 0,
     };
   } catch { return { ...DEFAULT, reservasHoje: [] }; }
 }
@@ -131,6 +139,28 @@ function Counter({ label, sublabel, value, max, color, onInc, onDec }: {
           <span className="text-lg text-gray-400 ml-1">/{max}</span>
         </div>
         <StepBtn label="+" onClick={onInc} />
+      </div>
+    </div>
+  );
+}
+
+// ── Mini contador compacto (categorias especiais) ─────────────────────────────
+function MiniCounter({ label, value, onInc, onDec }: {
+  label: string; value: number; onInc: () => void; onDec: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 flex-1">
+      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-center leading-tight">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <button
+          className="w-8 h-8 rounded-xl bg-gray-100 text-gray-600 text-lg font-light active:bg-gray-200 select-none"
+          onPointerDown={e => { e.preventDefault(); onDec(); }}
+        >−</button>
+        <span className="text-xl font-bold text-gray-900 w-8 text-center">{value}</span>
+        <button
+          className="w-8 h-8 rounded-xl bg-gray-100 text-gray-600 text-lg font-light active:bg-gray-200 select-none"
+          onPointerDown={e => { e.preventDefault(); onInc(); }}
+        >+</button>
       </div>
     </div>
   );
@@ -793,7 +823,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
   );
 }
 
-// ── PDF ───────────────────────────────────────────────────────────────────────
+// ── PDF (jsPDF — sem popup) ───────────────────────────────────────────────────
 async function getLogoBase64(): Promise<string> {
   try {
     const r = await fetch('/logo.png');
@@ -807,111 +837,159 @@ async function getLogoBase64(): Promise<string> {
 }
 
 async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?: string) {
-  const today = dataRef || todayBRT();
-  const totalOcup = occ.lounges.reduce((a, b) => a + b, 0);
-  const logoSrc = await getLogoBase64();
+  const { jsPDF } = await import('jspdf');
+  const today     = dataRef || todayBRT();
+  const [y, m, d] = today.split('-');
+  const dateFmt   = `${d}/${m}/${y}`;
+  const hora      = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
 
-  const linhas = Array.from({ length: SPACE_CONFIGS.lounge.count }, (_, i) => {
-    const num   = 501 + i;
-    const v     = occ.lounges[i];
-    const info  = occ.loungeData?.[i];
-    const res   = reservas.filter(r => r.loungeIdx === i && r.status !== 'cancelada');
-    return { num, v, info, res };
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const PW = doc.internal.pageSize.getWidth();
+
+  // Cabeçalho roxo
+  doc.setFillColor(109, 40, 217);
+  doc.rect(0, 0, PW, 18, 'F');
+
+  // Logo
+  const logoB64 = await getLogoBase64();
+  if (logoB64) {
+    try { doc.addImage(logoB64, 'PNG', 5, 2, 14, 14); } catch { /* ignore */ }
+  }
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+  doc.text('Hibiscus Beach Club', 22, 9);
+  doc.setFontSize(8);  doc.setFont('helvetica', 'normal');
+  doc.text(`Relatorio de Lounges  |  Data: ${dateFmt}  |  Gerado: ${hora}`, 22, 14);
+
+  // Resumo (cards)
+  const totalLounges = occ.lounges.reduce((a, b) => a + b, 0);
+  const resAtivas    = reservas.filter(r => r.status === 'reserva' || r.status === 'confirmada').length;
+  const cards = [
+    { label: 'Beach Pax',     val: String(occ.beach) },
+    { label: 'Lounge Pax',    val: String(totalLounges) },
+    { label: 'Parceiros',     val: String(occ.parceiros) },
+    { label: 'Reservas',      val: String(resAtivas) },
+    { label: 'CHD FREE Beach',val: String(occ.beachChdFree ?? 0) },
+    { label: 'CTZ Beach',     val: String(occ.beachCtz ?? 0) },
+    { label: 'Almoco Beach',  val: String(occ.beachAlmoco ?? 0) },
+    { label: 'Cond Beach',    val: String(occ.beachCondo ?? 0) },
+    { label: 'CHD FREE Lge',  val: String(occ.loungeChdFree ?? 0) },
+    { label: 'CTZ Lounge',    val: String(occ.loungeCtz ?? 0) },
+  ];
+  const cardW = 28, cardH = 12, startX = 5, startY = 21;
+  cards.forEach((c, i) => {
+    const cx = startX + i * (cardW + 2);
+    doc.setFillColor(243, 244, 246);
+    doc.roundedRect(cx, startY, cardW, cardH, 2, 2, 'F');
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+    doc.text(c.label, cx + cardW / 2, startY + 4, { align: 'center' });
+    doc.setTextColor(17, 24, 39);
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text(c.val, cx + cardW / 2, startY + 10, { align: 'center' });
   });
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>Relatório Lounges ${today}</title>
-  <style>
-    body { font-family: Arial, sans-serif; font-size: 11px; color: #222; margin: 20px; }
-    .header { display:flex; align-items:center; gap:14px; margin-bottom:14px; border-bottom:2px solid #1a1a2e; padding-bottom:10px; }
-    .header img { height:52px; width:auto; }
-    .header-text { display:flex; flex-direction:column; gap:2px; }
-    .header-text .club { font-size:17px; font-weight:800; color:#1a1a2e; letter-spacing:-0.3px; }
-    .header-text .report { font-size:12px; color:#555; }
-    .header-text .meta { font-size:10px; color:#888; margin-top:2px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #1a1a2e; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
-    td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
-    tr:nth-child(even) td { background: #f8f8f8; }
-    .reserva { color: #1d4ed8; font-size: 10px; }
-    .chip { display:inline-block; padding:1px 6px; border-radius:99px; font-size:9px; margin-right:3px; }
-    .verde { background:#dcfce7; color:#166534; }
-    .azul  { background:#dbeafe; color:#1d4ed8; }
-    .trans { color:#f97316; font-size:10px; }
-    .sumario { margin-top:16px; padding:10px; background:#f1f5f9; border-radius:8px; }
-  </style></head><body>
-  <div class="header">
-    ${logoSrc ? `<img src="${logoSrc}" alt="Hibiscus" />` : ''}
-    <div class="header-text">
-      <span class="club">Hibiscus Beach Club</span>
-      <span class="report">🛋️ Relatório de Lounges</span>
-      <span class="meta">Data: ${today.split('-').reverse().join('/')} · Gerado em: ${new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife' })}</span>
-    </div>
-  </div>
-  <table>
-    <thead><tr>
-      <th>Lounge</th><th>Pax</th><th>Nome</th><th>Tel</th><th>Canal</th><th>Veículo</th><th>Parceiro</th><th>Cód</th><th>Obs</th><th>Flags</th>
-    </tr></thead>
-    <tbody>
-    ${linhas.map(({ num, v, info, res }) => {
-      // Só reservas pendentes/confirmadas (não chegou/cancelada)
-      const activeRes = res.filter(r => r.status === 'reserva' || r.status === 'confirmada');
-      const rows: string[] = [];
+  // Tabela de lounges
+  const tableY = startY + cardH + 5;
+  const cols = [
+    { header: 'Lounge', w: 15 },
+    { header: 'Pax',    w: 10 },
+    { header: 'Nome',   w: 45 },
+    { header: 'Tel',    w: 28 },
+    { header: 'Canal',  w: 22 },
+    { header: 'Veic',   w: 28 },
+    { header: 'Parceiro',w: 30 },
+    { header: 'Cod',    w: 18 },
+    { header: 'Obs',    w: 60 },
+    { header: 'Flag',   w: 14 },
+  ];
 
-      const hasInfoData = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs);
+  // Cabeçalho da tabela
+  doc.setFillColor(26, 26, 46);
+  doc.rect(5, tableY, PW - 10, 6, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+  let colX = 5;
+  cols.forEach(c => {
+    doc.text(c.header, colX + 1, tableY + 4);
+    colX += c.w;
+  });
 
-      if (activeRes.length > 0 && v === 0) {
-        // Lounge livre com reserva ativa: mostra reservas (sem linha de ocupação)
-        activeRes.forEach(r => {
-          rows.push(`<tr>
-            <td><b>${num}</b></td>
-            <td><span class="chip azul">Reserva</span></td>
-            <td>${r.info.nome || ''}</td>
-            <td>${r.info.telefone || ''}</td>
-            <td>${r.info.canal || ''}</td>
-            <td>${r.info.veiculo || ''}</td>
-            <td>${r.info.parceiro || ''}</td>
-            <td>${r.info.codParceiro || ''}</td>
-            <td class="reserva">${r.info.obs || ''}</td>
-            <td></td>
-          </tr>`);
-        });
-      } else if (v > 0 || hasInfoData) {
-        // Lounge ocupado OU com dados preenchidos: mostra dados de ocupação
-        rows.push(`<tr>
-          <td><b>${num}</b></td>
-          <td>${v > 0 ? `<span class="chip verde">${v} pax</span>` : '<span style="color:#bbb">0 pax</span>'}</td>
-          <td>${info?.nome || ''}</td>
-          <td>${info?.telefone || ''}</td>
-          <td>${info?.canal || ''}</td>
-          <td>${info?.veiculo || ''}</td>
-          <td>${info?.parceiro || ''}</td>
-          <td>${info?.codParceiro || ''}</td>
-          <td>${info?.obs || ''}</td>
-          <td>${info?.transferido ? '<span class="trans">🔄 Transfer</span>' : ''}</td>
-        </tr>`);
-      } else {
-        rows.push(`<tr><td><b>${num}</b></td><td colspan="9" style="color:#bbb">—</td></tr>`);
-      }
-      return rows.join('');
-    }).join('')}
-    </tbody>
-  </table>
-  <div class="sumario">
-    <b>Resumo do dia</b><br>
-    Total ocupado: <b>${totalOcup}</b> pax em lounges ·
-    Beach: <b>${occ.beach}</b> ·
-    Parceiros: <b>${occ.parceiros}</b> ·
-    Reservas ativas: <b>${reservas.filter(r => r.status === 'reserva' || r.status === 'confirmada').length}</b>
-  </div>
-  </body></html>`;
+  // Linhas
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+  let rowY = tableY + 6;
+  const rowH = 6;
 
-  const win = window.open('', '_blank');
-  if (!win) return alert('Permita pop-ups para exportar o PDF.');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 500);
+  for (let i = 0; i < SPACE_CONFIGS.lounge.count; i++) {
+    const num  = 501 + i;
+    const v    = occ.lounges[i];
+    const info = occ.loungeData?.[i];
+    const activeRes = reservas.filter(r => r.loungeIdx === i && (r.status === 'reserva' || r.status === 'confirmada'));
+    const hasData   = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs);
+
+    const isEven = i % 2 === 0;
+    if (isEven) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(5, rowY, PW - 10, rowH, 'F');
+    }
+
+    doc.setTextColor(17, 24, 39);
+    colX = 5;
+
+    function cell(txt: string, w: number, bold = false) {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      const clipped = txt.length > 30 ? txt.slice(0, 28) + '..' : txt;
+      doc.text(clipped, colX + 1, rowY + 4);
+      colX += w;
+    }
+
+    if (activeRes.length > 0 && v === 0) {
+      const res = activeRes[0];
+      cell(String(num), 15, true);
+      doc.setTextColor(29, 78, 216);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Reserva', colX + 1, rowY + 4); colX += 10;
+      doc.setTextColor(17, 24, 39);
+      cell(res.info.nome || '', 45);
+      cell(res.info.telefone || '', 28);
+      cell(res.info.canal || '', 22);
+      cell(res.info.veiculo || '', 28);
+      cell(res.info.parceiro || '', 30);
+      cell(res.info.codParceiro || '', 18);
+      cell(res.info.obs || '', 60);
+      cell('', 14);
+    } else if (v > 0 || hasData) {
+      cell(String(num), 15, true);
+      cell(v > 0 ? `${v} pax` : '0 pax', 10);
+      cell(info?.nome || '', 45);
+      cell(info?.telefone || '', 28);
+      cell(info?.canal || '', 22);
+      cell(info?.veiculo || '', 28);
+      cell(info?.parceiro || '', 30);
+      cell(info?.codParceiro || '', 18);
+      cell(info?.obs || '', 60);
+      cell(info?.transferido ? 'Transfer' : '', 14);
+    } else {
+      cell(String(num), 15, true);
+      doc.setTextColor(156, 163, 175);
+      doc.text('—', colX + 1, rowY + 4);
+      doc.setTextColor(17, 24, 39);
+    }
+
+    rowY += rowH;
+    if (rowY > 190) {
+      doc.addPage();
+      rowY = 15;
+    }
+  }
+
+  // Rodapé
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(156, 163, 175);
+  doc.text('H8 Sistemas', PW / 2, 205, { align: 'center' });
+
+  doc.save(`relatorio-lounges-${today}.pdf`);
 }
 
 // ── Histórico de dias anteriores ─────────────────────────────────────────────
@@ -937,6 +1015,12 @@ function HistoricoBtn() {
         colaboradores: hist.colaboradores ?? 0,
         loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_: unknown, i: number) => hist.loungeObs?.[i] ?? ''),
         loungeData:    Array(SPACE_CONFIGS.lounge.count).fill(null).map((_: unknown, i: number) => hist.loungeData?.[i] ?? emptyInfo()),
+        beachChdFree:  hist.beachChdFree  ?? 0,
+        beachCtz:      hist.beachCtz      ?? 0,
+        beachAlmoco:   hist.beachAlmoco   ?? 0,
+        beachCondo:    hist.beachCondo    ?? 0,
+        loungeChdFree: hist.loungeChdFree ?? 0,
+        loungeCtz:     hist.loungeCtz     ?? 0,
       };
       const reservasHist: LoungeReserva[] = [];
       gerarPDF(occHist, reservasHist, data);
@@ -1099,12 +1183,31 @@ export function OccupancyInput() {
 
         {/* Beach */}
         <Counter
-          label="🏖️ Beach"
+          label="Beach"
           sublabel={`Capacidade total: ${SPACE_CONFIGS.beach.max} pessoas`}
           value={occ.beach} max={SPACE_CONFIGS.beach.max} color={badgeColor(pctBeach)}
           onInc={() => update({ ...occRef.current, beach: clamp(occRef.current.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
           onDec={() => update({ ...occRef.current, beach: clamp(occRef.current.beach - 1, 0, SPACE_CONFIGS.beach.max) })}
         />
+
+        {/* Categorias Beach */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Categorias Beach</p>
+          <div className="flex gap-2">
+            <MiniCounter label="CHD FREE" value={occ.beachChdFree ?? 0}
+              onInc={() => update({ ...occRef.current, beachChdFree: (occRef.current.beachChdFree ?? 0) + 1 })}
+              onDec={() => update({ ...occRef.current, beachChdFree: Math.max(0, (occRef.current.beachChdFree ?? 0) - 1) })} />
+            <MiniCounter label="CTZ" value={occ.beachCtz ?? 0}
+              onInc={() => update({ ...occRef.current, beachCtz: (occRef.current.beachCtz ?? 0) + 1 })}
+              onDec={() => update({ ...occRef.current, beachCtz: Math.max(0, (occRef.current.beachCtz ?? 0) - 1) })} />
+            <MiniCounter label="ALMOCO" value={occ.beachAlmoco ?? 0}
+              onInc={() => update({ ...occRef.current, beachAlmoco: (occRef.current.beachAlmoco ?? 0) + 1 })}
+              onDec={() => update({ ...occRef.current, beachAlmoco: Math.max(0, (occRef.current.beachAlmoco ?? 0) - 1) })} />
+            <MiniCounter label="COND" value={occ.beachCondo ?? 0}
+              onInc={() => update({ ...occRef.current, beachCondo: (occRef.current.beachCondo ?? 0) + 1 })}
+              onDec={() => update({ ...occRef.current, beachCondo: Math.max(0, (occRef.current.beachCondo ?? 0) - 1) })} />
+          </div>
+        </div>
 
         {/* Lounges */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-3">
@@ -1149,6 +1252,19 @@ export function OccupancyInput() {
             update={update}
             onReservaUpdate={r => setReservas(prev => prev.map(x => x.id === r.id ? r : x))}
           />
+
+          {/* Categorias Lounge */}
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Categorias Lounge</p>
+            <div className="flex gap-3">
+              <MiniCounter label="CHD FREE" value={occ.loungeChdFree ?? 0}
+                onInc={() => update({ ...occRef.current, loungeChdFree: (occRef.current.loungeChdFree ?? 0) + 1 })}
+                onDec={() => update({ ...occRef.current, loungeChdFree: Math.max(0, (occRef.current.loungeChdFree ?? 0) - 1) })} />
+              <MiniCounter label="CTZ" value={occ.loungeCtz ?? 0}
+                onInc={() => update({ ...occRef.current, loungeCtz: (occRef.current.loungeCtz ?? 0) + 1 })}
+                onDec={() => update({ ...occRef.current, loungeCtz: Math.max(0, (occRef.current.loungeCtz ?? 0) - 1) })} />
+            </div>
+          </div>
         </div>
 
         {/* Exportar PDF */}
@@ -1173,6 +1289,8 @@ export function OccupancyInput() {
               prime: 0, parceiros: 0, colaboradores: occRef.current.colaboradores,
               loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
               loungeData: Array(SPACE_CONFIGS.lounge.count).fill(null).map(emptyInfo),
+              beachChdFree: 0, beachCtz: 0, beachAlmoco: 0, beachCondo: 0,
+              loungeChdFree: 0, loungeCtz: 0,
             });
           }}
           className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-300 hover:text-red-400 transition-colors"

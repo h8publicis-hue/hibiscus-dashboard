@@ -9,6 +9,12 @@ const DEFAULT_STATE: OccupancyState = {
   colaboradores: 0,
   loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''),
   loungeData: Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY })),
+  beachChdFree: 0,
+  beachCtz:     0,
+  beachAlmoco:  0,
+  beachCondo:   0,
+  loungeChdFree: 0,
+  loungeCtz:     0,
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -29,6 +35,12 @@ async function fetchOcc(): Promise<OccupancyState> {
       loungeObs:     Array(SPACE_CONFIGS.lounge.count).fill('').map((_, i) => d.loungeObs?.[i] ?? ''),
       loungeData:    Array(SPACE_CONFIGS.lounge.count).fill(null).map((_, i) => d.loungeData?.[i] ?? { ...LOUNGE_INFO_EMPTY }),
       reservasHoje:  Array.isArray((d as any).reservasHoje) ? (d as any).reservasHoje : [],
+      beachChdFree:  d.beachChdFree  ?? 0,
+      beachCtz:      d.beachCtz      ?? 0,
+      beachAlmoco:   d.beachAlmoco   ?? 0,
+      beachCondo:    d.beachCondo    ?? 0,
+      loungeChdFree: d.loungeChdFree ?? 0,
+      loungeCtz:     d.loungeCtz     ?? 0,
     };
   } catch {
     return { ...DEFAULT_STATE };
@@ -90,13 +102,13 @@ export function useOccupancy(): [OccupancyState, OccupancyActions] {
     setColaboradores: (n) => update({ ...state, colaboradores: clamp(n, 0, 999) }),
     resetSilent: () => {
       const emptyData = Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY }));
-      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: state.colaboradores, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''), loungeData: emptyData });
+      update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: state.colaboradores, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''), loungeData: emptyData, beachChdFree: 0, beachCtz: 0, beachAlmoco: 0, beachCondo: 0, loungeChdFree: 0, loungeCtz: 0 });
     },
     reset: async () => {
       if (window.confirm('Zerar todos os contadores de ocupação?')) {
         await fetch('/api/fluxo-snapshot', { method: 'POST' }).catch(() => {});
         const emptyData = Array(SPACE_CONFIGS.lounge.count).fill(null).map(() => ({ ...LOUNGE_INFO_EMPTY }));
-        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''), loungeData: emptyData });
+        update({ beach: 0, lounges: Array(SPACE_CONFIGS.lounge.count).fill(0), prime: 0, parceiros: 0, colaboradores: 0, loungeObs: Array(SPACE_CONFIGS.lounge.count).fill(''), loungeData: emptyData, beachChdFree: 0, beachCtz: 0, beachAlmoco: 0, beachCondo: 0, loungeChdFree: 0, loungeCtz: 0 });
       }
     },
   };

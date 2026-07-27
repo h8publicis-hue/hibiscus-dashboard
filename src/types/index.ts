@@ -231,6 +231,14 @@ export interface OccupancyState {
   loungeObs: string[];
   loungeData?: LoungeInfo[];
   reservasHoje?: LoungeReserva[];
+  // categorias especiais Beach
+  beachChdFree?: number;
+  beachCtz?: number;
+  beachAlmoco?: number;
+  beachCondo?: number;
+  // categorias especiais Lounge
+  loungeChdFree?: number;
+  loungeCtz?: number;
 }
 
 export type EscalaStatus = 'T' | 'X' | 'C' | 'F' | 'A';
