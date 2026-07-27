@@ -478,12 +478,22 @@ function BoxChamadas() {
           ))}
         </div>
 
-        {/* Ticker mesas pendentes */}
+        {/* Ticker mesas pendentes — rolando */}
         {stats.mesasPendentes.length > 0 && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-1.5 overflow-hidden">
-            <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 truncate">
-              ⚠️ MESAS {stats.mesasPendentes.join(' · ')}
-            </p>
+          <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-2 py-1.5 overflow-hidden">
+            <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0 uppercase tracking-wide">⚠ Mesas</span>
+            <div className="flex-1 overflow-hidden relative">
+              <div
+                className="flex gap-4 whitespace-nowrap"
+                style={{ animation: `ticker ${Math.max(8, stats.mesasPendentes.length * 4)}s linear infinite` }}
+              >
+                {[...stats.mesasPendentes, null, ...stats.mesasPendentes, null].map((g, i) =>
+                  g === null
+                    ? <span key={i} className="text-[9px] text-amber-400 dark:text-amber-600 mx-1 select-none">❯❯❯</span>
+                    : <span key={i} className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">{g}</span>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
