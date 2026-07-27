@@ -787,6 +787,78 @@ function BoxChamadas() {
   );
 }
 
+// ── Box Notificações (chamadas pendentes ao vivo) ─────────────────────────────
+function BoxNotificacoes() {
+  const { chamadas, loading, refresh } = useChamadas();
+
+  useEffect(() => {
+    const id = setInterval(refresh, 15_000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const pendentes = chamadas.filter(c => c.status === 'pendente');
+
+  const tempoColor = (t: string) => {
+    const s = parseTempoSec(t);
+    if (!t || s === 0) return 'bg-gray-100 dark:bg-gray-700 text-gray-500';
+    if (s <= 60)  return 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400';
+    if (s <= 179) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400';
+    return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell size={18} className="text-brand-600 dark:text-brand-400" />
+          <h2 className="font-bold text-gray-900 dark:text-white text-sm">Notificações pendentes</h2>
+          {pendentes.length > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+              {pendentes.length}
+            </span>
+          )}
+        </div>
+        <button onClick={refresh} disabled={loading}
+          className="text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-40 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className={loading ? 'animate-spin' : ''}>
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            <path d="M8 16H3v5"/>
+          </svg>
+        </button>
+      </div>
+
+      <div className="p-4 flex flex-col gap-2 max-h-72 overflow-y-auto">
+        {pendentes.length === 0 && (
+          <p className="text-xs text-gray-400 text-center py-4">
+            {loading ? 'Carregando...' : '✅ Nenhuma chamada pendente'}
+          </p>
+        )}
+        {pendentes.map((c, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5 border border-gray-100 dark:border-gray-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
+                {c.setor ? `${c.setor}` : '—'}
+                {c.mesa != null && <span className="ml-1 text-gray-500 font-normal text-xs">· Mesa {c.mesa}</span>}
+              </p>
+              <p className="text-[10px] text-gray-400 truncate">
+                {c.tipo || 'Chamada'}{c.garcom ? ` · ${c.garcom}` : ''}
+              </p>
+            </div>
+            {c.tempoEspera && (
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${tempoColor(c.tempoEspera)}`}>
+                {c.tempoEspera}
+              </span>
+            )}
+          </div>
+        ))}
+        <p className="text-[9px] text-gray-300 dark:text-gray-600 text-center pt-1">Atualiza a cada 15s</p>
+      </div>
+    </div>
+  );
+}
+
 const LIDER_AUTH_KEY          = 'hibiscus-lider-auth';
 const LIDER_PASSWORD_DEFAULT  = '@Hibiscus';
 
@@ -907,6 +979,7 @@ export function Lider() {
         {aba === 'hoje' && (
           <>
             <BoxEscala />
+            <BoxNotificacoes />
             <BoxOcupacao />
             <BoxChamadas />
           </>

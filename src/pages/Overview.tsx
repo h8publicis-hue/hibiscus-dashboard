@@ -86,15 +86,18 @@ function monthName(offset: number): string {
 }
 
 // ── Linha compacta Beach / Prime ──────────────────────────────────────────────
-function OccupancyRow({ label, current, max, hideMax }: { label: string; current: number; max: number; hideMax?: boolean }) {
+function OccupancyRow({ label, current, max, hideMax, sublabel }: { label: string; current: number; max: number; hideMax?: boolean; sublabel?: string }) {
   const pct  = current / max;
   const bar  = pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
   const text = pct >= 0.9 ? 'text-red-600' : pct >= 0.6 ? 'text-yellow-600' : 'text-green-600';
   return (
     <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
       <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-16 shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
-        <div className={clsx('h-full rounded-full transition-all duration-300', bar)} style={{ width: `${Math.min(Math.round(pct * 100), 100)}%` }} />
+      <div className="flex-1 flex flex-col gap-0.5">
+        <div className="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+          <div className={clsx('h-full rounded-full transition-all duration-300', bar)} style={{ width: `${Math.min(Math.round(pct * 100), 100)}%` }} />
+        </div>
+        {sublabel && <span className="text-[9px] text-gray-400 dark:text-gray-500">{sublabel}</span>}
       </div>
       <span className={clsx('text-xs font-bold w-12 text-right shrink-0', text)}>
         {hideMax ? current : `${current}/${max}`}
@@ -1009,7 +1012,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         {/* Beach / Lounges / Prime */}
         <div className="flex flex-col gap-1">
           <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
-          <OccupancyRow label="🛋️ Lounges" current={loungesTotal}       max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} hideMax />
+          <OccupancyRow
+            label="🛋️ Lounges"
+            current={loungesTotal}
+            max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count}
+            hideMax
+            sublabel={`${occupancy.lounges.filter(v => v > 0).length} de ${SPACE_CONFIGS.lounge.count} lounges`}
+          />
           <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} hideMax />
         </div>
 
