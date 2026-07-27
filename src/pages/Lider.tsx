@@ -1,10 +1,125 @@
-import { useState, useMemo } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check } from 'lucide-react';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
-import type { ValidacaoGarcom, BeachSetor } from '../types';
+import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus } from '../types';
 import { BEACH_SETORES, SPACE_CONFIGS } from '../types';
+
+const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string }[] = [
+  { value: 'T', label: 'T', cls: 'bg-teal-700 text-white' },
+  { value: 'X', label: 'X', cls: 'bg-gray-700 text-white' },
+  { value: 'C', label: 'C', cls: 'bg-yellow-500 text-white' },
+  { value: 'F', label: 'F', cls: 'bg-blue-500 text-white' },
+  { value: 'A', label: 'A', cls: 'bg-red-500 text-white' },
+];
+
+function BoxEscalaMensal() {
+  const { escala, loading, salvarEscala } = useEscalaHoje();
+  const [rows, setRows]   = useState<EscalaGarcom[]>([]);
+  const [mes, setMes]     = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      if (escala.length > 0) {
+        setRows(escala);
+      } else {
+        const raw = localStorage.getItem('hibiscus-staff');
+        if (raw) {
+          const staff: { id: string; name: string; sector: string }[] = JSON.parse(raw);
+          setRows(staff.filter(s => s.sector === 'ATENDIMENTO').map(s => ({
+            id: s.id,
+            nome: s.name.split(' ').slice(0, 2).join(' '),
+            area: 'beach' as const,
+            dias: {},
+          })));
+        }
+      }
+    }
+  }, [loading, escala]);
+
+  const daysInMes = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0).getDate();
+  const days = Array.from({ length: daysInMes }, (_, i) => String(i + 1).padStart(2, '0'));
+
+  function cycleStatus(ri: number, dia: string) {
+    const order: EscalaStatus[] = ['T', 'X', 'C', 'F', 'A'];
+    const cur = rows[ri]?.dias[dia] ?? 'T';
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    setRows(prev => prev.map((r, i) => i === ri ? { ...r, dias: { ...r.dias, [dia]: next } } : r));
+  }
+  function setArea(ri: number, area: 'beach' | 'lounge') {
+    setRows(prev => prev.map((r, i) => i === ri ? { ...r, area } : r));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await salvarEscala(rows);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  if (loading) return <p className="text-sm text-gray-400 py-6 text-center">Carregando...</p>;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+          className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white" />
+        <span className="text-xs text-gray-400">{rows.length} garçons</span>
+        <div className="ml-auto flex gap-1 items-center text-[10px]">
+          {STATUS_OPTS.map(s => <span key={s.value} className={`px-1.5 py-0.5 rounded font-bold ${s.cls}`}>{s.value}</span>)}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 -mx-1">
+        <table className="text-[10px] border-collapse min-w-max">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-700/50">
+              <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 px-2 py-1.5 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[100px]">Nome</th>
+              <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[60px]">Área</th>
+              {days.map(d => <th key={d} className="px-0.5 py-1.5 font-semibold text-gray-500 w-6 text-center">{d}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((g, ri) => (
+              <tr key={g.id} className="border-t border-gray-100 dark:border-gray-700">
+                <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 px-2 py-1 font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">{g.nome}</td>
+                <td className="px-1 py-1">
+                  <select value={g.area} onChange={e => setArea(ri, e.target.value as 'beach' | 'lounge')}
+                    className="text-[10px] border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                    <option value="beach">Beach</option>
+                    <option value="lounge">Lounge</option>
+                  </select>
+                </td>
+                {days.map(d => {
+                  const st = g.dias[d] ?? 'T';
+                  const opt = STATUS_OPTS.find(o => o.value === st)!;
+                  return (
+                    <td key={d} className="px-0 py-1 text-center">
+                      <button onClick={() => cycleStatus(ri, d)}
+                        className={`w-5 h-5 rounded text-[8px] font-bold ${opt.cls} hover:opacity-80`}>
+                        {st}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button onClick={handleSave} disabled={saving}
+        className="py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+        {saved ? <><Check size={14} /> Salvo!</> : saving ? 'Salvando...' : 'Salvar escala do mês'}
+      </button>
+      <p className="text-[10px] text-gray-400 text-center">Toque nas células para alternar T → X → C → F → A</p>
+    </div>
+  );
+}
 
 function todayBRT() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' });
@@ -255,7 +370,11 @@ function BoxChamadas() {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
+type Aba = 'hoje' | 'escala';
+
 export function Lider() {
+  const [aba, setAba] = useState<Aba>('hoje');
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       {/* Header */}
@@ -275,10 +394,42 @@ export function Lider() {
         </div>
       </header>
 
+      {/* Abas */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex px-4">
+        {([
+          { id: 'hoje',   label: 'Hoje',          icon: <LayoutDashboard size={14} /> },
+          { id: 'escala', label: 'Escala Mensal',  icon: <CalendarDays size={14} /> },
+        ] as { id: Aba; label: string; icon: React.ReactNode }[]).map(t => (
+          <button key={t.id} onClick={() => setAba(t.id)}
+            className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors ${
+              aba === t.id
+                ? 'border-brand-600 text-brand-600 dark:text-brand-400 dark:border-brand-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}>
+            {t.icon}{t.label}
+          </button>
+        ))}
+      </div>
+
       <main className="p-4 max-w-lg mx-auto flex flex-col gap-4 pb-8">
-        <BoxEscala />
-        <BoxOcupacao />
-        <BoxChamadas />
+        {aba === 'hoje' && (
+          <>
+            <BoxEscala />
+            <BoxOcupacao />
+            <BoxChamadas />
+          </>
+        )}
+        {aba === 'escala' && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+              <CalendarDays size={18} className="text-brand-600 dark:text-brand-400" />
+              <h2 className="font-bold text-gray-900 dark:text-white text-sm">Escala Mensal</h2>
+            </div>
+            <div className="p-4">
+              <BoxEscalaMensal />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
