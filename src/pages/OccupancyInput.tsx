@@ -13,6 +13,25 @@ const LOUNGE_GROUPS = [
 const CANAIS   = ['', 'Balcão', 'Paytour', 'Comercial', 'Diretoria', 'Edilene', 'Outros'] as const;
 const VEICULOS = ['', 'TX/UBER/PRIV', 'Particular', 'Luck', 'WS', 'CTZ', 'Van', 'Não identificado'] as const;
 
+function AvisoCard({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const first = text.split('\n').find(l => l.trim()) ?? text;
+  return (
+    <div className="bg-amber-100 border border-amber-300 rounded-lg overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-start gap-1.5 px-3 py-2 text-left">
+        <span className="shrink-0 mt-0.5">⚠️</span>
+        <p className="flex-1 text-xs font-semibold text-amber-900 truncate">{first}</p>
+        <span className="shrink-0 text-amber-500 text-[10px] mt-0.5">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-2.5">
+          <p className="text-xs text-amber-800 whitespace-pre-wrap leading-relaxed">{text}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
@@ -1186,12 +1205,12 @@ export function OccupancyInput() {
         </div>
         {/* Avisos */}
         {activeAvisos.length > 0 && (
-          <div className="bg-amber-50 border-t border-amber-200 px-4 py-2 flex flex-col gap-1">
-            {activeAvisos.map((a, i) => (
-              <p key={i} className="text-xs font-medium text-amber-800 flex items-start gap-1.5">
-                <span className="mt-0.5 shrink-0">📢</span> {a.text}
-              </p>
-            ))}
+          <div className="bg-amber-50 border-t border-amber-200 px-4 py-2 flex flex-col gap-1.5">
+            {activeAvisos.map((a, i) =>
+              a.layout === 'expandido'
+                ? <AvisoCard key={i} text={a.text} />
+                : <p key={i} className="text-xs font-medium text-amber-800 flex items-start gap-1.5"><span className="mt-0.5 shrink-0">📢</span> {a.text}</p>
+            )}
           </div>
         )}
       </div>

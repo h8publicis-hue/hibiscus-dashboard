@@ -3,6 +3,25 @@ import { Megaphone } from 'lucide-react';
 import { OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso } from '../hooks/useAviso';
 
+function AvisoCardExp({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const first = text.split('\n').find(l => l.trim()) ?? text;
+  return (
+    <div className="bg-amber-100 border border-amber-300 rounded-lg overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-start gap-1.5 px-3 py-2 text-left">
+        <span className="shrink-0 mt-0.5">⚠️</span>
+        <p className="flex-1 text-xs font-semibold text-amber-900 truncate">{first}</p>
+        <span className="shrink-0 text-amber-500 text-[10px] mt-0.5">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-2.5">
+          <p className="text-xs text-amber-800 whitespace-pre-wrap leading-relaxed">{text}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
@@ -89,6 +108,8 @@ export function Cozinha() {
   const [fade, setFade]               = useState(true);
   const { avisos }                    = useAviso();
   const activeAvisos                  = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'cozinha'));
+  const avisosCompact                 = activeAvisos.filter(a => a.layout !== 'expandido');
+  const avisosExpand                  = activeAvisos.filter(a => a.layout === 'expandido');
 
   useEffect(() => {
     const load = () => fetchOcc().then(d => setOcc(d));
@@ -109,19 +130,19 @@ export function Cozinha() {
   }, []);
 
   useEffect(() => {
-    if (activeAvisos.length <= 1) return;
+    if (avisosCompact.length <= 1) return;
     const id = setInterval(() => {
       setFade(false);
-      setTimeout(() => { setTicker(t => (t + 1) % activeAvisos.length); setFade(true); }, 300);
+      setTimeout(() => { setTicker(t => (t + 1) % avisosCompact.length); setFade(true); }, 300);
     }, 5000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAvisos.length]);
+  }, [avisosCompact.length]);
 
   const loungesTotal = occ ? occ.lounges.reduce((a, b) => a + b, 0) : 0;
   const loungesMax   = SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count;
   const refeitorio   = occ ? (occ.colaboradores ?? 0) + (occ.parceiros ?? 0) : 0;
-  const currentAviso = activeAvisos[ticker % Math.max(activeAvisos.length, 1)];
+  const currentAviso = avisosCompact[ticker % Math.max(avisosCompact.length, 1)];
 
   // Horário do refeitório: 11h–15h (BRT)
   const REFEITORIO_OPEN  = 11;
@@ -159,8 +180,8 @@ export function Cozinha() {
       </div>
       </div>
 
-      {/* Banner comunicados */}
-      {activeAvisos.length > 0 && (
+      {/* Banner comunicados compactos (ticker) */}
+      {avisosCompact.length > 0 && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
           <Megaphone size={14} className="text-amber-500 shrink-0" />
           <p
@@ -169,11 +190,17 @@ export function Cozinha() {
           >
             {currentAviso?.text}
           </p>
-          {activeAvisos.length > 1 && (
+          {avisosCompact.length > 1 && (
             <span className="text-[10px] text-amber-400 font-medium shrink-0">
-              {(ticker % activeAvisos.length) + 1}/{activeAvisos.length}
+              {(ticker % avisosCompact.length) + 1}/{avisosCompact.length}
             </span>
           )}
+        </div>
+      )}
+      {/* Cards expandidos */}
+      {avisosExpand.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex flex-col gap-1.5">
+          {avisosExpand.map((a, i) => <AvisoCardExp key={i} text={a.text} />)}
         </div>
       )}
 

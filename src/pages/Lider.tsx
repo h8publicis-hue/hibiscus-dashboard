@@ -977,32 +977,62 @@ function LiderLogin({ onLogin }: { onLogin: () => void }) {
 // ── Página principal ──────────────────────────────────────────────────────────
 type Aba = 'hoje' | 'escala';
 
+function AvisoCardLider({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const first = text.split('\n').find(l => l.trim()) ?? text;
+  return (
+    <div className="bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-start gap-1.5 px-3 py-2 text-left">
+        <span className="shrink-0 mt-0.5">⚠️</span>
+        <p className="flex-1 text-xs font-semibold text-amber-900 dark:text-amber-200 truncate">{first}</p>
+        <span className="shrink-0 text-amber-500 text-[10px] mt-0.5">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-2.5">
+          <p className="text-xs text-amber-800 dark:text-amber-300 whitespace-pre-wrap leading-relaxed">{text}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AvisosBanner() {
   const { avisos } = useAviso();
   const [dismissed, setDismissed] = useState(false);
   const [tick, setTick] = useState(0);
   const activos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'lider'));
+  const compact  = activos.filter(a => a.layout !== 'expandido');
+  const expanded = activos.filter(a => a.layout === 'expandido');
 
   useEffect(() => {
-    if (activos.length <= 1) return;
+    if (compact.length <= 1) return;
     const id = setInterval(() => setTick(t => t + 1), 5000);
     return () => clearInterval(id);
-  }, [activos.length]);
+  }, [compact.length]);
 
   if (!activos.length || dismissed) return null;
 
   return (
-    <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-300 dark:border-amber-700 px-4 py-2.5">
-      <Megaphone size={14} className="text-amber-500 shrink-0" />
-      <p className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug">
-        {activos[tick % activos.length]?.text}
-      </p>
-      {activos.length > 1 && (
-        <span className="text-[10px] text-amber-400 shrink-0">{(tick % activos.length) + 1}/{activos.length}</span>
+    <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-300 dark:border-amber-700">
+      {compact.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <Megaphone size={14} className="text-amber-500 shrink-0" />
+          <p className="flex-1 text-sm text-amber-800 dark:text-amber-300 font-medium leading-snug">
+            {compact[tick % compact.length]?.text}
+          </p>
+          {compact.length > 1 && (
+            <span className="text-[10px] text-amber-400 shrink-0">{(tick % compact.length) + 1}/{compact.length}</span>
+          )}
+          <button onClick={() => setDismissed(true)} className="text-amber-400 hover:text-amber-600 shrink-0">
+            <X size={13} />
+          </button>
+        </div>
       )}
-      <button onClick={() => setDismissed(true)} className="text-amber-400 hover:text-amber-600 shrink-0">
-        <X size={13} />
-      </button>
+      {expanded.length > 0 && (
+        <div className="px-4 pb-2 flex flex-col gap-1.5">
+          {expanded.map((a, i) => <AvisoCardLider key={i} text={a.text} />)}
+        </div>
+      )}
     </div>
   );
 }

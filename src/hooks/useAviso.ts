@@ -10,7 +10,8 @@ export const AVISO_AREAS: { value: AvisoArea; label: string; emoji: string }[] =
   { value: 'cozinha',  label: 'Cozinha',  emoji: '🍽️' },
 ];
 
-export interface Aviso { text: string; active: boolean; area?: AvisoArea }
+export type AvisoLayout = 'compact' | 'expandido';
+export interface Aviso { text: string; active: boolean; area?: AvisoArea; layout?: AvisoLayout }
 export type AvisoList = Aviso[]; // até 5 itens
 
 const LS_KEY = 'hibiscus_avisos_v2';

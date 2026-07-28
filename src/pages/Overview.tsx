@@ -10,7 +10,7 @@ import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
-import { useAviso, AvisoList, AvisoArea, AVISO_AREAS } from '../hooks/useAviso';
+import { useAviso, AvisoList, AvisoArea, AVISO_AREAS, AvisoLayout } from '../hooks/useAviso';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { BEACH_SETORES, BEACH_SETOR_GRUPOS } from '../types';
@@ -457,6 +457,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const [avisoFade,      setAvisoFade]      = useState(true);
   const [avisoPresetsOpen, setAvisoPresetsOpen] = useState(false);
   const [avisoArea,        setAvisoArea]        = useState<AvisoArea>('todos');
+  const [avisoLayout,      setAvisoLayout]      = useState<AvisoLayout>('compact');
   const [portariaCount, setPortariaCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1161,6 +1162,24 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   ))}
                 </div>
 
+                {/* Seletor de layout */}
+                <div className="flex gap-1.5 items-center">
+                  <span className="text-[10px] text-gray-400 font-medium">Layout:</span>
+                  {(['compact', 'expandido'] as AvisoLayout[]).map(l => (
+                    <button
+                      key={l}
+                      onClick={() => setAvisoLayout(l)}
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+                        avisoLayout === l
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-white text-gray-500 border-gray-300 hover:border-amber-400 hover:text-amber-600 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      {l === 'compact' ? '▬ Compacto' : '☰ Expandido'}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="relative">
                   <button
                     onClick={() => setAvisoPresetsOpen(o => !o)}
@@ -1183,33 +1202,47 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   )}
                 </div>
 
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    placeholder="Ou escreva um comunicado pontual…"
-                    maxLength={300}
-                    value={avisoCustom}
-                    onChange={e => setAvisoCustom(e.target.value)}
-                    onKeyDown={async e => {
-                      if (e.key === 'Enter' && avisoCustom.trim()) {
-                        const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true, area: avisoArea }];
+                <div className="flex flex-col gap-1.5">
+                  {avisoLayout === 'expandido' ? (
+                    <textarea
+                      className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                      placeholder="Escreva o comunicado completo (parágrafos são preservados)…"
+                      rows={5}
+                      maxLength={2000}
+                      value={avisoCustom}
+                      onChange={e => setAvisoCustom(e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      placeholder="Ou escreva um comunicado pontual…"
+                      maxLength={300}
+                      value={avisoCustom}
+                      onChange={e => setAvisoCustom(e.target.value)}
+                      onKeyDown={async e => {
+                        if (e.key === 'Enter' && avisoCustom.trim()) {
+                          const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true, area: avisoArea, layout: avisoLayout }];
+                          await saveAvisos(next);
+                          setAvisoCustom(''); setAvisoDismissed(false); setAvisoLayout('compact');
+                        }
+                      }}
+                    />
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400">{avisoCustom.length}/{avisoLayout === 'expandido' ? 2000 : 300}</span>
+                    <button
+                      onClick={async () => {
+                        if (!avisoCustom.trim()) return;
+                        const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true, area: avisoArea, layout: avisoLayout }];
                         await saveAvisos(next);
-                        setAvisoCustom(''); setAvisoDismissed(false);
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={async () => {
-                      if (!avisoCustom.trim()) return;
-                      const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true, area: avisoArea }];
-                      await saveAvisos(next);
-                      setAvisoCustom(''); setAvisoDismissed(false);
-                    }}
-                    disabled={avisoSaving || !avisoCustom.trim()}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1 disabled:opacity-40 transition-colors"
-                  >
-                    <Check size={11} /> Adicionar
-                  </button>
+                        setAvisoCustom(''); setAvisoDismissed(false); setAvisoLayout('compact');
+                      }}
+                      disabled={avisoSaving || !avisoCustom.trim()}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1 disabled:opacity-40 transition-colors"
+                    >
+                      <Check size={11} /> Adicionar
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
