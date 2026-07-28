@@ -1028,7 +1028,13 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
     // col 1 — Pax
     doc.setFont('helvetica', 'normal');
     if (isReserva) doc.setTextColor(...hex('#1d4ed8')); else doc.setTextColor(...hex('#111827'));
-    doc.text(isReserva ? 'Reserva' : `${pax} pax`, cx2 + 2, midY); cx2 += tCols[1].w;
+    doc.text(isReserva ? 'Reserva' : `${pax} pax`, cx2 + 2, midY);
+    if (!isReserva && info?.transferido) {
+      doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#ea580c'));
+      doc.text('Transf. Beach', cx2 + 2, midY + lineH);
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+    }
+    cx2 += tCols[1].w;
 
     // col 2-4 — Nome, Canal, Veículo (truncado ao width)
     doc.setTextColor(...hex('#111827'));
