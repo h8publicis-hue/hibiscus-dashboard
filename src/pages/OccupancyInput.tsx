@@ -865,155 +865,175 @@ async function getLogoBase64(): Promise<string> {
 async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?: string) {
   const { jsPDF } = await import('jspdf');
   const today     = dataRef || todayBRT();
-  const [y, m, d] = today.split('-');
-  const dateFmt   = `${d}/${m}/${y}`;
+  const [yr, mo, dy] = today.split('-');
+  const dateFmt   = `${dy}/${mo}/${yr}`;
   const hora      = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Recife', hour: '2-digit', minute: '2-digit' });
 
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
-  const PW = doc.internal.pageSize.getWidth();
+  const doc  = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const PW   = doc.internal.pageSize.getWidth();   // 210
+  const PH   = doc.internal.pageSize.getHeight();  // 297
+  const ML   = 14;
+  const CW   = PW - ML * 2;
 
-  // Cabeçalho roxo
-  doc.setFillColor(109, 40, 217);
-  doc.rect(0, 0, PW, 18, 'F');
+  const hex = (h: string): [number,number,number] => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+
+  // ── Cabeçalho ──────────────────────────────────────────────────────
+  // Faixa roxa no topo
+  doc.setFillColor(...hex('#7c3aed'));
+  doc.rect(0, 0, PW, 2, 'F');
 
   // Logo
   const logoB64 = await getLogoBase64();
+  let logoW = 0;
   if (logoB64) {
-    try { doc.addImage(logoB64, 'PNG', 5, 2, 14, 14); } catch { /* ignore */ }
+    await new Promise<void>(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+          canvas.getContext('2d')!.drawImage(img, 0, 0);
+          const ratio = img.naturalWidth / img.naturalHeight;
+          logoW = Math.min(Math.round(ratio * 12), 32);
+          doc.addImage(canvas.toDataURL('image/png'), 'PNG', ML, 6, logoW, 12, undefined, 'FAST');
+        } catch { /* ignore */ }
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = logoB64;
+    });
   }
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-  doc.text('Hibiscus Beach Club', 22, 9);
-  doc.setFontSize(8);  doc.setFont('helvetica', 'normal');
-  doc.text(`Relatorio de Lounges  |  Data: ${dateFmt}  |  Gerado: ${hora}`, 22, 14);
+  const tx = ML + logoW + (logoW > 0 ? 4 : 0);
+  doc.setFontSize(15); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#7c3aed'));
+  doc.text('Hibiscus Beach Club', tx, 11);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#374151'));
+  doc.text(`Relatorio de Lounges  —  ${dateFmt}`, tx, 17);
+  doc.setFontSize(8); doc.setTextColor(...hex('#9ca3af'));
+  doc.text(`Gerado as ${hora}`, PW - ML, 11, { align: 'right' });
 
-  // Resumo (cards)
+  let y = 26;
+
+  // ── Resumo (cards 5×2) ─────────────────────────────────────────────
   const totalLounges = occ.lounges.reduce((a, b) => a + b, 0);
   const resAtivas    = reservas.filter(r => r.status === 'reserva' || r.status === 'confirmada').length;
-  const cards = [
-    { label: 'Beach Pax',     val: String(occ.beach) },
-    { label: 'Lounge Pax',    val: String(totalLounges) },
-    { label: 'Parceiros',     val: String(occ.parceiros) },
-    { label: 'Reservas',      val: String(resAtivas) },
-    { label: 'CHD FREE Beach',val: String(occ.beachChdFree ?? 0) },
-    { label: 'CTZ Beach',     val: String(occ.beachCtz ?? 0) },
-    { label: 'Almoco Beach',  val: String(occ.beachAlmoco ?? 0) },
-    { label: 'Cond Beach',    val: String(occ.beachCondo ?? 0) },
-    { label: 'CHD FREE Lge',  val: String(occ.loungeChdFree ?? 0) },
-    { label: 'CTZ Lounge',    val: String(occ.loungeCtz ?? 0) },
+  const summaryCards = [
+    { label: 'Beach Pax',      val: String(occ.beach) },
+    { label: 'Lounge Pax',     val: String(totalLounges) },
+    { label: 'Parceiros',      val: String(occ.parceiros) },
+    { label: 'Reservas',       val: String(resAtivas) },
+    { label: 'CHD FREE Beach', val: String(occ.beachChdFree ?? 0) },
+    { label: 'CTZ Beach',      val: String(occ.beachCtz ?? 0) },
+    { label: 'Almoco Beach',   val: String(occ.beachAlmoco ?? 0) },
+    { label: 'Cond Beach',     val: String(occ.beachCondo ?? 0) },
+    { label: 'CHD FREE Lge',   val: String(occ.loungeChdFree ?? 0) },
+    { label: 'CTZ Lounge',     val: String(occ.loungeCtz ?? 0) },
   ];
-  const cardW = 28, cardH = 12, startX = 5, startY = 21;
-  cards.forEach((c, i) => {
-    const cx = startX + i * (cardW + 2);
-    doc.setFillColor(243, 244, 246);
-    doc.roundedRect(cx, startY, cardW, cardH, 2, 2, 'F');
-    doc.setTextColor(107, 114, 128);
-    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-    doc.text(c.label, cx + cardW / 2, startY + 4, { align: 'center' });
-    doc.setTextColor(17, 24, 39);
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-    doc.text(c.val, cx + cardW / 2, startY + 10, { align: 'center' });
-  });
-
-  // Tabela de lounges
-  const tableY = startY + cardH + 5;
-  const cols = [
-    { header: 'Lounge', w: 15 },
-    { header: 'Pax',    w: 10 },
-    { header: 'Nome',   w: 45 },
-    { header: 'Tel',    w: 28 },
-    { header: 'Canal',  w: 22 },
-    { header: 'Veic',   w: 28 },
-    { header: 'Parceiro',w: 30 },
-    { header: 'Cod',    w: 18 },
-    { header: 'Obs',    w: 60 },
-    { header: 'Flag',   w: 14 },
-  ];
-
-  // Cabeçalho da tabela
-  doc.setFillColor(26, 26, 46);
-  doc.rect(5, tableY, PW - 10, 6, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-  let colX = 5;
-  cols.forEach(c => {
-    doc.text(c.header, colX + 1, tableY + 4);
-    colX += c.w;
-  });
-
-  // Linhas
-  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-  let rowY = tableY + 6;
-  const rowH = 6;
-
-  for (let i = 0; i < SPACE_CONFIGS.lounge.count; i++) {
-    const num  = 501 + i;
-    const v    = occ.lounges[i];
-    const info = occ.loungeData?.[i];
-    const activeRes = reservas.filter(r => r.loungeIdx === i && (r.status === 'reserva' || r.status === 'confirmada'));
-    const hasData   = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs);
-
-    const isEven = i % 2 === 0;
-    if (isEven) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(5, rowY, PW - 10, rowH, 'F');
-    }
-
-    doc.setTextColor(17, 24, 39);
-    colX = 5;
-
-    function cell(txt: string, w: number, bold = false) {
-      doc.setFont('helvetica', bold ? 'bold' : 'normal');
-      const clipped = txt.length > 30 ? txt.slice(0, 28) + '..' : txt;
-      doc.text(clipped, colX + 1, rowY + 4);
-      colX += w;
-    }
-
-    if (activeRes.length > 0 && v === 0) {
-      const res = activeRes[0];
-      cell(String(num), 15, true);
-      doc.setTextColor(29, 78, 216);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Reserva', colX + 1, rowY + 4); colX += 10;
-      doc.setTextColor(17, 24, 39);
-      cell(res.info.nome || '', 45);
-      cell(res.info.telefone || '', 28);
-      cell(res.info.canal || '', 22);
-      cell(res.info.veiculo || '', 28);
-      cell(res.info.parceiro || '', 30);
-      cell(res.info.codParceiro || '', 18);
-      cell(res.info.obs || '', 60);
-      cell('', 14);
-    } else if (v > 0 || hasData) {
-      cell(String(num), 15, true);
-      cell(v > 0 ? `${v} pax` : '0 pax', 10);
-      cell(info?.nome || '', 45);
-      cell(info?.telefone || '', 28);
-      cell(info?.canal || '', 22);
-      cell(info?.veiculo || '', 28);
-      cell(info?.parceiro || '', 30);
-      cell(info?.codParceiro || '', 18);
-      cell(info?.obs || '', 60);
-      cell(info?.transferido ? 'Transfer' : '', 14);
-    } else {
-      cell(String(num), 15, true);
-      doc.setTextColor(156, 163, 175);
-      doc.text('—', colX + 1, rowY + 4);
-      doc.setTextColor(17, 24, 39);
-    }
-
-    rowY += rowH;
-    if (rowY > 190) {
-      doc.addPage();
-      rowY = 15;
+  const cols5 = 5, cardW5 = (CW - 4 * 2) / cols5, cardH5 = 13;
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < cols5; col++) {
+      const c = summaryCards[row * cols5 + col];
+      if (!c) continue;
+      const cx = ML + col * (cardW5 + 2);
+      const cy = y + row * (cardH5 + 2);
+      doc.setFillColor(...hex('#f3f4f6'));
+      doc.roundedRect(cx, cy, cardW5, cardH5, 1.5, 1.5, 'F');
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#6b7280'));
+      doc.text(c.label, cx + cardW5 / 2, cy + 4.5, { align: 'center' });
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#111827'));
+      doc.text(c.val, cx + cardW5 / 2, cy + 10.5, { align: 'center' });
     }
   }
+  y += 2 * (cardH5 + 2) + 5;
 
-  // Rodapé
-  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-  doc.setTextColor(156, 163, 175);
-  doc.text('H8 Sistemas', PW / 2, 205, { align: 'center' });
+  // ── Tabela (somente lounges com dados ou reserva) ──────────────────
+  // Cabeçalho cinza escuro
+  doc.setFillColor(...hex('#1a1a2e'));
+  doc.rect(ML, y, CW, 6.5, 'F');
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+  const tCols = [
+    { h: 'Lounge', w: 16 },
+    { h: 'Pax',    w: 10 },
+    { h: 'Nome',   w: 48 },
+    { h: 'Canal',  w: 24 },
+    { h: 'Veiculo',w: 30 },
+    { h: 'Obs',    w: CW - 16 - 10 - 48 - 24 - 30 },
+  ];
+  let cx2 = ML;
+  tCols.forEach(c => { doc.text(c.h, cx2 + 1.5, y + 4.5); cx2 += c.w; });
+  y += 6.5;
+
+  const rowH = 6.5;
+  let rowIdx = 0;
+  for (let i = 0; i < SPACE_CONFIGS.lounge.count; i++) {
+    const num        = 501 + i;
+    const pax        = occ.lounges[i];
+    const info       = occ.loungeData?.[i];
+    const activeRes  = reservas.filter(r => r.loungeIdx === i && (r.status === 'reserva' || r.status === 'confirmada'));
+    const hasData    = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs || (info.chdFree ?? 0) > 0 || (info.ctz ?? 0) > 0);
+    const isReserva  = activeRes.length > 0 && pax === 0;
+
+    if (!isReserva && pax === 0 && !hasData) continue; // pula vazios
+
+    if (y + rowH > PH - 14) { doc.addPage(); y = 14; }
+
+    // zebra
+    if (rowIdx % 2 === 0) {
+      doc.setFillColor(...hex('#f8fafc'));
+      doc.rect(ML, y, CW, rowH, 'F');
+    }
+    rowIdx++;
+
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#111827'));
+    const src = isReserva ? activeRes[0].info : info;
+    const vals = [
+      String(num),
+      isReserva ? 'Reserva' : `${pax} pax`,
+      src?.nome        || '',
+      src?.canal       || '',
+      src?.veiculo     || '',
+      src?.obs         || '',
+    ];
+
+    cx2 = ML;
+    tCols.forEach((col, ci) => {
+      if (ci === 0) { doc.setFont('helvetica', 'bold'); } else { doc.setFont('helvetica', 'normal'); }
+      if (ci === 1 && isReserva) doc.setTextColor(...hex('#1d4ed8'));
+      else doc.setTextColor(...hex('#111827'));
+      const maxCh = Math.floor(col.w / 1.8);
+      const txt   = vals[ci].length > maxCh ? vals[ci].slice(0, maxCh - 1) + '…' : vals[ci];
+      doc.text(txt, cx2 + 1.5, y + 4.5);
+      cx2 += col.w;
+    });
+
+    // badge CHD FREE / CTZ por lounge (se aplicável)
+    if (!isReserva && ((info?.chdFree ?? 0) > 0 || (info?.ctz ?? 0) > 0)) {
+      const badges: string[] = [];
+      if ((info?.chdFree ?? 0) > 0) badges.push(`CHD FREE:${info!.chdFree}`);
+      if ((info?.ctz     ?? 0) > 0) badges.push(`CTZ:${info!.ctz}`);
+      doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#7c3aed'));
+      doc.text(badges.join('  '), ML + CW - 1, y + 4.5, { align: 'right' });
+    }
+
+    y += rowH;
+  }
+
+  if (rowIdx === 0) {
+    doc.setFontSize(9); doc.setFont('helvetica', 'italic'); doc.setTextColor(...hex('#9ca3af'));
+    doc.text('Nenhum lounge com ocupacao registrada.', ML, y + 8);
+    y += 16;
+  }
+
+  // ── Rodapé ─────────────────────────────────────────────────────────
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFillColor(...hex('#7c3aed'));
+    doc.rect(0, PH - 2, PW, 2, 'F');
+    doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(...hex('#9ca3af'));
+    doc.text('Desenvolvido por H8 Sistemas', ML, PH - 4);
+    doc.text(`Pagina ${p} de ${pages}`, PW - ML, PH - 4, { align: 'right' });
+  }
 
   doc.save(`relatorio-lounges-${today}.pdf`);
 }
