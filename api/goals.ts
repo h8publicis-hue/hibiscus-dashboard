@@ -76,7 +76,12 @@ export default async function handler(req: any, res: any) {
       const body   = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
       const avisos = (Array.isArray(body.avisos) ? body.avisos : [])
         .slice(0, 5)
-        .map((a: any) => ({ text: String(a.text ?? '').slice(0, 300), active: !!a.active }));
+        .map((a: any) => ({
+          text:   String(a.text ?? '').slice(0, 2000),
+          active: !!a.active,
+          area:   a.area   ?? 'todos',
+          layout: a.layout ?? 'compact',
+        }));
       await kvSet(KV_KEY_AVISO, { avisos });
       return res.json({ ok: true, avisos });
     }
