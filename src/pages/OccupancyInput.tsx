@@ -910,11 +910,13 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+          const iw = img.naturalWidth  || img.width  || 200;
+          const ih = img.naturalHeight || img.height || 200;
+          canvas.width = iw; canvas.height = ih;
           canvas.getContext('2d')!.drawImage(img, 0, 0);
-          const ratio = img.naturalWidth / img.naturalHeight;
-          logoW = Math.min(Math.round(ratio * 12), 32);
-          doc.addImage(canvas.toDataURL('image/png'), 'PNG', ML, 6, logoW, 12, undefined, 'FAST');
+          const logoH = 14;
+          logoW = Math.min(Math.round((iw / ih) * logoH), 40);
+          doc.addImage(canvas.toDataURL('image/png'), 'PNG', ML, 5, logoW, logoH, undefined, 'FAST');
         } catch { /* ignore */ }
         resolve();
       };
