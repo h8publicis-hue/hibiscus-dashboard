@@ -188,7 +188,7 @@ function StepBtn({ label, onClick, disabled }: { label: string; onClick: () => v
 
 export function Portaria() {
   const { avisos } = useAviso();
-  const activeAvisos = avisos.filter(a => a.active && a.text.trim());
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'portaria'));
 
   const [count,   setCount]   = useState(0);
   const [saved,   setSaved]   = useState(false);

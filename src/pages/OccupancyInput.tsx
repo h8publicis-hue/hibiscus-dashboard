@@ -1097,7 +1097,7 @@ function HistoricoBtn() {
 // ── Página principal ──────────────────────────────────────────────────────────
 export function OccupancyInput() {
   const { avisos } = useAviso();
-  const activeAvisos = avisos.filter(a => a.active && a.text.trim());
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'entrada'));
 
   const [occ,      setOcc]      = useState<OccupancyState>({ ...DEFAULT });
   const [reservas, setReservas] = useState<LoungeReserva[]>([]);

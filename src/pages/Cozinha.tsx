@@ -88,7 +88,7 @@ export function Cozinha() {
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
   const { avisos }                    = useAviso();
-  const activeAvisos                  = avisos.filter(a => a.active && a.text.trim());
+  const activeAvisos                  = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'cozinha'));
 
   useEffect(() => {
     const load = () => fetchOcc().then(d => setOcc(d));

@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 
-export interface Aviso { text: string; active: boolean }
+export type AvisoArea = 'todos' | 'entrada' | 'lider' | 'portaria' | 'cozinha';
+
+export const AVISO_AREAS: { value: AvisoArea; label: string; emoji: string }[] = [
+  { value: 'todos',    label: 'Todos',    emoji: '📢' },
+  { value: 'entrada',  label: 'Entrada',  emoji: '🎟️' },
+  { value: 'lider',    label: 'Líder',    emoji: '👔' },
+  { value: 'portaria', label: 'Portaria', emoji: '🚪' },
+  { value: 'cozinha',  label: 'Cozinha',  emoji: '🍽️' },
+];
+
+export interface Aviso { text: string; active: boolean; area?: AvisoArea }
 export type AvisoList = Aviso[]; // até 5 itens
 
 const LS_KEY = 'hibiscus_avisos_v2';

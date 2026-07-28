@@ -981,7 +981,7 @@ function AvisosBanner() {
   const { avisos } = useAviso();
   const [dismissed, setDismissed] = useState(false);
   const [tick, setTick] = useState(0);
-  const activos = avisos.filter(a => a.active && a.text.trim());
+  const activos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'lider'));
 
   useEffect(() => {
     if (activos.length <= 1) return;

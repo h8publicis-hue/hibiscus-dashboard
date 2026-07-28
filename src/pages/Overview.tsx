@@ -10,7 +10,7 @@ import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
-import { useAviso, AvisoList } from '../hooks/useAviso';
+import { useAviso, AvisoList, AvisoArea, AVISO_AREAS } from '../hooks/useAviso';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { BEACH_SETORES, BEACH_SETOR_GRUPOS } from '../types';
@@ -456,6 +456,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const [avisoTicker,    setAvisoTicker]    = useState(0);
   const [avisoFade,      setAvisoFade]      = useState(true);
   const [avisoPresetsOpen, setAvisoPresetsOpen] = useState(false);
+  const [avisoArea,        setAvisoArea]        = useState<AvisoArea>('todos');
   const [portariaCount, setPortariaCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1120,7 +1121,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             {/* Lista dos comunicados */}
             {avisos.map((a, i) => a.text.trim() ? (
               <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
-                <p className="flex-1 text-xs text-amber-800 dark:text-amber-300 truncate">{a.text}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-amber-800 dark:text-amber-300 truncate">{a.text}</p>
+                  <p className="text-[10px] text-amber-500 mt-0.5">
+                    {AVISO_AREAS.find(ar => ar.value === (a.area ?? 'todos'))?.emoji}{' '}
+                    {AVISO_AREAS.find(ar => ar.value === (a.area ?? 'todos'))?.label}
+                  </p>
+                </div>
                 <button
                   onClick={async () => {
                     const next: AvisoList = avisos.filter((_, idx) => idx !== i);
@@ -1133,9 +1140,27 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               </div>
             ) : null)}
 
-            {/* Frases prontas */}
+            {/* Frases prontas + seletor de área */}
             {avisos.filter(a => a.active && a.text.trim()).length < 5 && (
               <div className="space-y-1.5">
+
+                {/* Seletor de área */}
+                <div className="flex flex-wrap gap-1">
+                  {AVISO_AREAS.map(ar => (
+                    <button
+                      key={ar.value}
+                      onClick={() => setAvisoArea(ar.value)}
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+                        avisoArea === ar.value
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-white text-gray-500 border-gray-300 hover:border-amber-400 hover:text-amber-600 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      {ar.emoji} {ar.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="relative">
                   <button
                     onClick={() => setAvisoPresetsOpen(o => !o)}
@@ -1167,7 +1192,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     onChange={e => setAvisoCustom(e.target.value)}
                     onKeyDown={async e => {
                       if (e.key === 'Enter' && avisoCustom.trim()) {
-                        const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true }];
+                        const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true, area: avisoArea }];
                         await saveAvisos(next);
                         setAvisoCustom(''); setAvisoDismissed(false);
                       }
@@ -1176,7 +1201,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   <button
                     onClick={async () => {
                       if (!avisoCustom.trim()) return;
-                      const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true }];
+                      const next: AvisoList = [...avisos.filter(a => a.text.trim()), { text: avisoCustom.trim(), active: true, area: avisoArea }];
                       await saveAvisos(next);
                       setAvisoCustom(''); setAvisoDismissed(false);
                     }}
