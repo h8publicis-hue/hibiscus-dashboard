@@ -1068,7 +1068,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     '🎉 Evento especial hoje — seguir briefing do dia',
   ];
 
-  const activeAvisos = avisos.filter(a => a.active && a.text.trim());
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'visao-geral'));
 
   useEffect(() => {
     if (activeAvisos.length <= 1) return;

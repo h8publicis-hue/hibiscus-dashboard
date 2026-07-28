@@ -1116,7 +1116,21 @@ function HistoricoBtn() {
 // ── Página principal ──────────────────────────────────────────────────────────
 export function OccupancyInput() {
   const { avisos } = useAviso();
-  const activeAvisos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'entrada'));
+  const activeAvisos  = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'entrada'));
+  const avisosCompact = activeAvisos.filter(a => a.layout !== 'expandido');
+  const avisosExpand  = activeAvisos.filter(a => a.layout === 'expandido');
+  const [avisoTick,    setAvisoTick]    = useState(0);
+  const [avisoFade,    setAvisoFade]    = useState(true);
+  const [avisoDismiss, setAvisoDismiss] = useState(false);
+  useEffect(() => {
+    if (avisosCompact.length <= 1) return;
+    const id = setInterval(() => {
+      setAvisoFade(false);
+      setTimeout(() => { setAvisoTick(t => (t + 1) % avisosCompact.length); setAvisoFade(true); }, 300);
+    }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avisosCompact.length]);
 
   const [occ,      setOcc]      = useState<OccupancyState>({ ...DEFAULT });
   const [reservas, setReservas] = useState<LoungeReserva[]>([]);
@@ -1204,13 +1218,28 @@ export function OccupancyInput() {
           </div>
         </div>
         {/* Avisos */}
-        {activeAvisos.length > 0 && (
+        {activeAvisos.length > 0 && !avisoDismiss && (
           <div className="bg-amber-50 border-t border-amber-200 px-4 py-2 flex flex-col gap-1.5">
-            {activeAvisos.map((a, i) =>
-              a.layout === 'expandido'
-                ? <AvisoCard key={i} text={a.text} />
-                : <p key={i} className="text-xs font-medium text-amber-800 flex items-start gap-1.5"><span className="mt-0.5 shrink-0">📢</span> {a.text}</p>
+            {avisosCompact.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-amber-500">📢</span>
+                <p
+                  className="flex-1 text-xs font-medium text-amber-800 transition-opacity duration-300"
+                  style={{ opacity: avisoFade ? 1 : 0 }}
+                >
+                  {avisosCompact[avisoTick % avisosCompact.length]?.text}
+                </p>
+                {avisosCompact.length > 1 && (
+                  <span className="text-[10px] text-amber-400 shrink-0">
+                    {(avisoTick % avisosCompact.length) + 1}/{avisosCompact.length}
+                  </span>
+                )}
+                <button onClick={() => setAvisoDismiss(true)} className="text-amber-400 hover:text-amber-600 shrink-0">
+                  <span className="text-xs">✕</span>
+                </button>
+              </div>
             )}
+            {avisosExpand.map((a, i) => <AvisoCard key={i} text={a.text} />)}
           </div>
         )}
       </div>

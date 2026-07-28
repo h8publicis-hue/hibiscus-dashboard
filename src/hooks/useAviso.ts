@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 
-export type AvisoArea = 'todos' | 'entrada' | 'lider' | 'portaria' | 'cozinha';
+export type AvisoArea = 'todos' | 'visao-geral' | 'entrada' | 'lider' | 'portaria' | 'cozinha';
 
 export const AVISO_AREAS: { value: AvisoArea; label: string; emoji: string }[] = [
-  { value: 'todos',    label: 'Todos',    emoji: '📢' },
-  { value: 'entrada',  label: 'Entrada',  emoji: '🎟️' },
-  { value: 'lider',    label: 'Líder',    emoji: '👔' },
-  { value: 'portaria', label: 'Portaria', emoji: '🚪' },
-  { value: 'cozinha',  label: 'Cozinha',  emoji: '🍽️' },
+  { value: 'todos',       label: 'Todos',        emoji: '📢' },
+  { value: 'visao-geral', label: 'Visão Geral',  emoji: '🏠' },
+  { value: 'entrada',     label: 'Entrada',      emoji: '🎟️' },
+  { value: 'lider',       label: 'Líder',        emoji: '👔' },
+  { value: 'portaria',    label: 'Portaria',     emoji: '🚪' },
+  { value: 'cozinha',     label: 'Cozinha',      emoji: '🍽️' },
 ];
 
 export type AvisoLayout = 'compact' | 'expandido';
