@@ -458,6 +458,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const [avisoPresetsOpen, setAvisoPresetsOpen] = useState(false);
   const [avisoArea,        setAvisoArea]        = useState<AvisoArea>('todos');
   const [avisoLayout,      setAvisoLayout]      = useState<AvisoLayout>('compact');
+  const [editingIdx,       setEditingIdx]       = useState<number | null>(null);
+  const [editText,         setEditText]         = useState('');
+  const [editArea,         setEditArea]         = useState<AvisoArea>('todos');
+  const [editLayout,       setEditLayout]       = useState<AvisoLayout>('compact');
   const [portariaCount, setPortariaCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1121,24 +1125,87 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
             {/* Lista dos comunicados */}
             {avisos.map((a, i) => a.text.trim() ? (
-              <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-amber-800 dark:text-amber-300 truncate">{a.text}</p>
-                  <p className="text-[10px] text-amber-500 mt-0.5">
-                    {AVISO_AREAS.find(ar => ar.value === (a.area ?? 'todos'))?.emoji}{' '}
-                    {AVISO_AREAS.find(ar => ar.value === (a.area ?? 'todos'))?.label}
-                  </p>
+              editingIdx === i ? (
+                <div key={i} className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-2.5 space-y-1.5 border border-amber-300 dark:border-amber-600">
+                  {/* Área */}
+                  <div className="flex flex-wrap gap-1">
+                    {AVISO_AREAS.map(ar => (
+                      <button key={ar.value} onClick={() => setEditArea(ar.value)}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${editArea === ar.value ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-500 border-gray-300 hover:border-amber-400 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'}`}>
+                        {ar.emoji} {ar.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Layout */}
+                  <div className="flex gap-1.5 items-center">
+                    <span className="text-[10px] text-gray-400 font-medium">Layout:</span>
+                    {(['compact', 'expandido'] as AvisoLayout[]).map(l => (
+                      <button key={l} onClick={() => setEditLayout(l)}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${editLayout === l ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-500 border-gray-300 hover:border-amber-400 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'}`}>
+                        {l === 'compact' ? '▬ Compacto' : '☰ Expandido'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Texto */}
+                  {editLayout === 'expandido' ? (
+                    <textarea
+                      className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                      rows={4} maxLength={2000} value={editText} onChange={e => setEditText(e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      maxLength={300} value={editText} onChange={e => setEditText(e.target.value)}
+                    />
+                  )}
+                  <div className="flex gap-1.5 justify-end">
+                    <button onClick={() => setEditingIdx(null)}
+                      className="text-[10px] px-2.5 py-1 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!editText.trim()) return;
+                        const next: AvisoList = avisos.map((av, idx) =>
+                          idx === i ? { ...av, text: editText.trim(), area: editArea, layout: editLayout } : av
+                        );
+                        await saveAvisos(next);
+                        setEditingIdx(null);
+                      }}
+                      disabled={avisoSaving || !editText.trim()}
+                      className="text-[10px] px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg flex items-center gap-1 disabled:opacity-40 transition-colors"
+                    >
+                      <Check size={10} /> Salvar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={async () => {
-                    const next: AvisoList = avisos.filter((_, idx) => idx !== i);
-                    await saveAvisos(next);
-                  }}
-                  className="shrink-0 text-amber-400 hover:text-red-500 transition-colors"
-                >
-                  <X size={12} />
-                </button>
-              </div>
+              ) : (
+                <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-amber-800 dark:text-amber-300 truncate">{a.text}</p>
+                    <p className="text-[10px] text-amber-500 mt-0.5">
+                      {AVISO_AREAS.find(ar => ar.value === (a.area ?? 'todos'))?.emoji}{' '}
+                      {AVISO_AREAS.find(ar => ar.value === (a.area ?? 'todos'))?.label}
+                      {a.layout === 'expandido' && ' · ☰ Expandido'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setEditingIdx(i); setEditText(a.text); setEditArea(a.area ?? 'todos'); setEditLayout(a.layout ?? 'compact'); }}
+                    className="shrink-0 text-amber-400 hover:text-amber-600 transition-colors"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const next: AvisoList = avisos.filter((_, idx) => idx !== i);
+                      await saveAvisos(next);
+                    }}
+                    className="shrink-0 text-amber-400 hover:text-red-500 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )
             ) : null)}
 
             {/* Frases prontas + seletor de área */}
