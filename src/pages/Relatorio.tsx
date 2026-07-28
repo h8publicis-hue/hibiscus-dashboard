@@ -60,25 +60,29 @@ const LOUNGE_COUNT = SPACE_CONFIGS.lounge.count;
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
-        <Icon size={16} className="text-gray-400" />
-        <h2 className="text-xs font-bold text-gray-700 uppercase tracking-widest">{title}</h2>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+        <Icon size={14} className="text-gray-400 shrink-0" />
+        <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{title}</h2>
       </div>
       <div className="p-4">{children}</div>
     </div>
   );
 }
 
-function KpiGrid({ items, cols = 4 }: { items: { label: string; value: string; sub?: string; color?: string }[]; cols?: 2 | 4 }) {
+function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className={clsx('grid gap-3', cols === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}>
-      {items.map(({ label, value, sub, color }) => (
-        <div key={label} className="bg-gray-50 rounded-xl p-4">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 leading-tight">{label}</p>
-          <p className={clsx('text-3xl font-bold leading-none', color ?? 'text-gray-900')}>{value}</p>
-          {sub && <p className="text-[10px] text-gray-400 mt-1.5">{sub}</p>}
-        </div>
-      ))}
+    <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1 min-w-0 overflow-hidden">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight truncate">{label}</p>
+      <p className={clsx('text-2xl font-bold leading-tight truncate', color ?? 'text-gray-900')}>{value}</p>
+      {sub && <p className="text-[10px] text-gray-400 leading-tight truncate">{sub}</p>}
+    </div>
+  );
+}
+
+function KpiGrid({ items }: { items: { label: string; value: string; sub?: string; color?: string }[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {items.map(item => <KpiCard key={item.label} {...item} />)}
     </div>
   );
 }
@@ -374,28 +378,28 @@ export function Relatorio() {
   };
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+    <div className="max-w-md mx-auto px-4 py-5 space-y-3">
       {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Fechamento do Dia</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Resumo operacional para encerramento</p>
+          <h1 className="text-base font-bold text-gray-900">Fechamento do Dia</h1>
+          <p className="text-[11px] text-gray-400 mt-0.5">{dateLabel}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <input
             type="date"
             value={date}
             max={todayISO()}
             onChange={e => setDate(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-3 py-1.5"
+            className="text-xs border border-gray-200 bg-white text-gray-700 rounded-lg px-2 py-1.5"
           />
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-gray-900 text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
           >
-            <FileDown size={15} />
-            {exporting ? 'Gerando…' : 'Exportar PDF'}
+            <FileDown size={13} />
+            {exporting ? '…' : 'PDF'}
           </button>
         </div>
       </div>
@@ -408,21 +412,10 @@ export function Relatorio() {
           { label: 'Reservas',           value: fmt(todayOrders) },
           { label: 'Ticket médio',       value: fmtR(ticket) },
         ]} />
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Acumulado do Mês</p>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{fmtR(mesRev)}</p>
-            {pctMeta != null && <p className="text-[10px] text-gray-400 mt-1.5">{pctMeta}% da meta</p>}
-          </div>
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Meta Mensal</p>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{fmtR(goals.receitaTotal)}</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Receita A&BS</p>
-            <p className="text-2xl font-bold text-gray-900 leading-none">{fmtR(absData?.receita_abs ?? null)}</p>
-            {absData?.atualizado_em && <p className="text-[10px] text-gray-400 mt-1.5">atualizado {new Date(absData.atualizado_em).toLocaleDateString('pt-BR')}</p>}
-          </div>
+        <div className="grid grid-cols-2 gap-2.5 mt-2.5">
+          <KpiCard label="Acumulado do Mês" value={fmtR(mesRev)} sub={pctMeta != null ? `${pctMeta}% da meta` : undefined} />
+          <KpiCard label="Meta Mensal"      value={fmtR(goals.receitaTotal)} />
+          <KpiCard label="Receita A&BS"     value={fmtR(absData?.receita_abs ?? null)} sub={absData?.atualizado_em ? `atualizado ${new Date(absData.atualizado_em).toLocaleDateString('pt-BR')}` : undefined} />
         </div>
       </Section>
 
@@ -435,18 +428,11 @@ export function Relatorio() {
           { label: 'Total Na Casa',value: fmt(occ.beach + loungesTotal + occ.parceiros) },
         ]} />
         {checkin && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-            {[
-              { label: 'Reservados',       value: fmt(checkin.reservados) },
-              { label: 'Check-ins feitos', value: fmt(checkin.checkins),  color: 'text-green-600' },
-              { label: 'Pendentes',        value: fmt(checkin.pendentes), color: (checkin.pendentes ?? 0) > 0 ? 'text-amber-500' : undefined },
-              { label: 'Taxa check-in',    value: taxaCI ? `${taxaCI}%` : '—' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="bg-gray-50 rounded-xl p-4">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-                <p className={clsx('text-3xl font-bold leading-none', color ?? 'text-gray-900')}>{value}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-2.5 mt-2.5">
+            <KpiCard label="Reservados"       value={fmt(checkin.reservados)} />
+            <KpiCard label="Check-ins feitos" value={fmt(checkin.checkins)}  color="text-green-600" />
+            <KpiCard label="Pendentes"        value={fmt(checkin.pendentes)} color={(checkin.pendentes ?? 0) > 0 ? 'text-amber-500' : undefined} />
+            <KpiCard label="Taxa check-in"    value={taxaCI ? `${taxaCI}%` : '—'} />
           </div>
         )}
       </Section>
@@ -508,19 +494,11 @@ export function Relatorio() {
               { label: 'Oxente',      value: sd ? `${Math.round(sd.neutrals)}%` : '—',  color: 'text-amber-600' },
               { label: 'Putz',        value: sd ? `${Math.round(sd.detractors)}%` : '—',color: 'text-red-600 dark:text-red-400' },
             ]} />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-              {[
-                { label: 'Nota Survey',    value: sd?.avgScore != null ? sd.avgScore.toFixed(1) : '—', sub: `${sd?.totalResponses ?? 0} respostas` },
-                { label: 'Nota Google',    value: gd?.averageRating != null ? gd.averageRating.toFixed(1) : '—', sub: `${gd?.totalReviews ?? 0} avaliações` },
-                { label: 'Sem resposta',   value: fmt(gd?.unansweredCount), color: (gd?.unansweredCount ?? 0) > 0 ? 'text-amber-500' : undefined },
-                { label: 'Respostas hoje', value: fmt(sd?.totalResponses) },
-              ].map(({ label, value, sub, color }) => (
-                <div key={label} className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-                  <p className={clsx('text-3xl font-bold leading-none', color ?? 'text-gray-900')}>{value}</p>
-                  {sub && <p className="text-[10px] text-gray-400 mt-1.5">{sub}</p>}
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-2.5 mt-2.5">
+              <KpiCard label="Nota Survey"    value={sd?.avgScore != null ? sd.avgScore.toFixed(1) : '—'}           sub={`${sd?.totalResponses ?? 0} respostas`} />
+              <KpiCard label="Nota Google"    value={gd?.averageRating != null ? gd.averageRating.toFixed(1) : '—'} sub={`${gd?.totalReviews ?? 0} avaliações`} />
+              <KpiCard label="Sem resposta"   value={fmt(gd?.unansweredCount)} color={(gd?.unansweredCount ?? 0) > 0 ? 'text-amber-500' : undefined} />
+              <KpiCard label="Respostas hoje" value={fmt(sd?.totalResponses)} />
             </div>
           </>
         ) : (
