@@ -45,7 +45,8 @@ export function useAviso(): {
   }, []);
 
   const save = async (next: AvisoList) => {
-    const clamped = next.slice(0, MAX);
+    // normaliza avisos sem área para 'todos' explicitamente
+    const clamped = next.slice(0, MAX).map(a => ({ ...a, area: a.area ?? 'todos' })) as AvisoList;
     setSaving(true);
     setAvisos(clamped);
     try { localStorage.setItem(LS_KEY, JSON.stringify(clamped)); } catch { /* */ }

@@ -1000,7 +1000,7 @@ function AvisosBanner() {
   const { avisos } = useAviso();
   const [dismissed, setDismissed] = useState(false);
   const [tick, setTick] = useState(0);
-  const activos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'lider'));
+  const activos = avisos.filter(a => a.active && a.text.trim() && (a.area === 'todos' || a.area === 'lider' || !a.area));
   const compact  = activos.filter(a => a.layout !== 'expandido');
   const expanded = activos.filter(a => a.layout === 'expandido');
 

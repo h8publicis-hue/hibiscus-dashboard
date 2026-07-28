@@ -1116,7 +1116,7 @@ function HistoricoBtn() {
 // ── Página principal ──────────────────────────────────────────────────────────
 export function OccupancyInput() {
   const { avisos } = useAviso();
-  const activeAvisos  = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'entrada'));
+  const activeAvisos  = avisos.filter(a => a.active && a.text.trim() && (a.area === 'todos' || a.area === 'entrada' || !a.area));
   const avisosCompact = activeAvisos.filter(a => a.layout !== 'expandido');
   const avisosExpand  = activeAvisos.filter(a => a.layout === 'expandido');
   const [avisoTick,    setAvisoTick]    = useState(0);

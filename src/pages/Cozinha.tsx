@@ -107,7 +107,7 @@ export function Cozinha() {
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
   const { avisos }                    = useAviso();
-  const activeAvisos                  = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos' || a.area === 'cozinha'));
+  const activeAvisos                  = avisos.filter(a => a.active && a.text.trim() && (a.area === 'todos' || a.area === 'cozinha' || !a.area));
   const avisosCompact                 = activeAvisos.filter(a => a.layout !== 'expandido');
   const avisosExpand                  = activeAvisos.filter(a => a.layout === 'expandido');
 
