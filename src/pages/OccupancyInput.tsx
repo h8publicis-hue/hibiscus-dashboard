@@ -1221,17 +1221,17 @@ export function OccupancyInput() {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Categorias Beach</p>
           <div className="grid grid-cols-2 gap-3">
             <MiniCounter label="CHD FREE" value={occ.beachChdFree ?? 0}
-              onInc={() => update({ ...occRef.current, beachChdFree: (occRef.current.beachChdFree ?? 0) + 1 })}
-              onDec={() => update({ ...occRef.current, beachChdFree: Math.max(0, (occRef.current.beachChdFree ?? 0) - 1) })} />
+              onInc={() => update({ ...occRef.current, beachChdFree: (occRef.current.beachChdFree ?? 0) + 1, beach: clamp(occRef.current.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
+              onDec={() => { const cur = occRef.current; if ((cur.beachChdFree ?? 0) <= 0) return; update({ ...cur, beachChdFree: cur.beachChdFree! - 1, beach: clamp(cur.beach - 1, 0, SPACE_CONFIGS.beach.max) }); }} />
             <MiniCounter label="CTZ" value={occ.beachCtz ?? 0}
-              onInc={() => update({ ...occRef.current, beachCtz: (occRef.current.beachCtz ?? 0) + 1 })}
-              onDec={() => update({ ...occRef.current, beachCtz: Math.max(0, (occRef.current.beachCtz ?? 0) - 1) })} />
+              onInc={() => update({ ...occRef.current, beachCtz: (occRef.current.beachCtz ?? 0) + 1, beach: clamp(occRef.current.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
+              onDec={() => { const cur = occRef.current; if ((cur.beachCtz ?? 0) <= 0) return; update({ ...cur, beachCtz: cur.beachCtz! - 1, beach: clamp(cur.beach - 1, 0, SPACE_CONFIGS.beach.max) }); }} />
             <MiniCounter label="ALMOÇO" value={occ.beachAlmoco ?? 0}
-              onInc={() => update({ ...occRef.current, beachAlmoco: (occRef.current.beachAlmoco ?? 0) + 1 })}
-              onDec={() => update({ ...occRef.current, beachAlmoco: Math.max(0, (occRef.current.beachAlmoco ?? 0) - 1) })} />
+              onInc={() => update({ ...occRef.current, beachAlmoco: (occRef.current.beachAlmoco ?? 0) + 1, beach: clamp(occRef.current.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
+              onDec={() => { const cur = occRef.current; if ((cur.beachAlmoco ?? 0) <= 0) return; update({ ...cur, beachAlmoco: cur.beachAlmoco! - 1, beach: clamp(cur.beach - 1, 0, SPACE_CONFIGS.beach.max) }); }} />
             <MiniCounter label="CONDOMÍNIO" value={occ.beachCondo ?? 0}
-              onInc={() => update({ ...occRef.current, beachCondo: (occRef.current.beachCondo ?? 0) + 1 })}
-              onDec={() => update({ ...occRef.current, beachCondo: Math.max(0, (occRef.current.beachCondo ?? 0) - 1) })} />
+              onInc={() => update({ ...occRef.current, beachCondo: (occRef.current.beachCondo ?? 0) + 1, beach: clamp(occRef.current.beach + 1, 0, SPACE_CONFIGS.beach.max) })}
+              onDec={() => { const cur = occRef.current; if ((cur.beachCondo ?? 0) <= 0) return; update({ ...cur, beachCondo: cur.beachCondo! - 1, beach: clamp(cur.beach - 1, 0, SPACE_CONFIGS.beach.max) }); }} />
           </div>
         </div>
 
