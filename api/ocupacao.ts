@@ -161,6 +161,12 @@ export default async function handler(req: any, res: any) {
       colaboradores: clamp(d.colaboradores, 0, 999),
       loungeObs:     Array(19).fill('').map((_: unknown, i: number) => String(obs[i] ?? '').slice(0, 200)),
       loungeData:    Array(19).fill(null).map((_: unknown, i: number) => sanitizeInfo(ld[i])),
+      beachChdFree:  clamp(d.beachChdFree,  0, 9999),
+      beachCtz:      clamp(d.beachCtz,      0, 9999),
+      beachAlmoco:   clamp(d.beachAlmoco,   0, 9999),
+      beachCondo:    clamp(d.beachCondo,    0, 9999),
+      loungeChdFree: clamp(d.loungeChdFree, 0, 9999),
+      loungeCtz:     clamp(d.loungeCtz,     0, 9999),
     };
     await kvSet('ocupacao', data);
     return res.json(data);

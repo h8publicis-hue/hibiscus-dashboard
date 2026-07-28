@@ -927,7 +927,7 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
   doc.setFontSize(15); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#7c3aed'));
   doc.text('Hibiscus Beach Club', tx, 11);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#374151'));
-  doc.text(`Relatorio de Lounges  —  ${dateFmt}`, tx, 17);
+  doc.text(`Fechamento do Dia  —  ${dateFmt}`, tx, 17);
   doc.setFontSize(8); doc.setTextColor(...hex('#9ca3af'));
   doc.text(`Gerado as ${hora}`, PW - ML, 11, { align: 'right' });
 
@@ -966,73 +966,88 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
   y += 2 * (cardH5 + 2) + 5;
 
   // ── Tabela (somente lounges com dados ou reserva) ──────────────────
-  // Cabeçalho cinza escuro
-  doc.setFillColor(...hex('#1a1a2e'));
-  doc.rect(ML, y, CW, 6.5, 'F');
-  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
   const tCols = [
-    { h: 'Lounge', w: 16 },
-    { h: 'Pax',    w: 10 },
-    { h: 'Nome',   w: 48 },
-    { h: 'Canal',  w: 24 },
-    { h: 'Veiculo',w: 30 },
-    { h: 'Obs',    w: CW - 16 - 10 - 48 - 24 - 30 },
+    { h: 'Lounge',  w: 14 },
+    { h: 'Pax',     w: 16 },
+    { h: 'Nome',    w: 44 },
+    { h: 'Canal',   w: 22 },
+    { h: 'Veículo', w: 26 },
+    { h: 'Obs',     w: CW - 14 - 16 - 44 - 22 - 26 },
   ];
-  let cx2 = ML;
-  tCols.forEach(c => { doc.text(c.h, cx2 + 1.5, y + 4.5); cx2 += c.w; });
-  y += 6.5;
+  const obsW    = tCols[5].w - 3;
+  const lineH   = 4.5;
+  const padV    = 3;
+  const hdrH    = 7;
 
-  const rowH = 6.5;
+  // cabeçalho
+  doc.setFillColor(...hex('#1a1a2e'));
+  doc.rect(ML, y, CW, hdrH, 'F');
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+  let cx2 = ML;
+  tCols.forEach(c => { doc.text(c.h, cx2 + 2, y + 4.8); cx2 += c.w; });
+  y += hdrH;
+
   let rowIdx = 0;
   for (let i = 0; i < SPACE_CONFIGS.lounge.count; i++) {
-    const num        = 501 + i;
-    const pax        = occ.lounges[i];
-    const info       = occ.loungeData?.[i];
-    const activeRes  = reservas.filter(r => r.loungeIdx === i && (r.status === 'reserva' || r.status === 'confirmada'));
-    const hasData    = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs || (info.chdFree ?? 0) > 0 || (info.ctz ?? 0) > 0);
-    const isReserva  = activeRes.length > 0 && pax === 0;
+    const num       = 501 + i;
+    const pax       = occ.lounges[i];
+    const info      = occ.loungeData?.[i];
+    const activeRes = reservas.filter(r => r.loungeIdx === i && (r.status === 'reserva' || r.status === 'confirmada'));
+    const hasData   = info && (info.nome || info.canal || info.veiculo || info.parceiro || info.telefone || info.obs || (info.chdFree ?? 0) > 0 || (info.ctz ?? 0) > 0);
+    const isReserva = activeRes.length > 0 && pax === 0;
+    if (!isReserva && pax === 0 && !hasData) continue;
 
-    if (!isReserva && pax === 0 && !hasData) continue; // pula vazios
+    const src    = isReserva ? activeRes[0].info : info;
+    // badges CHD/CTZ inline na obs
+    const badges: string[] = [];
+    if (!isReserva && (info?.chdFree ?? 0) > 0) badges.push(`CHD FREE: ${info!.chdFree}`);
+    if (!isReserva && (info?.ctz     ?? 0) > 0) badges.push(`CTZ: ${info!.ctz}`);
+    const obsRaw   = [src?.obs || '', ...badges].filter(Boolean).join('  |  ');
+    doc.setFontSize(7.5);
+    const obsLines = doc.splitTextToSize(obsRaw, obsW) as string[];
+    const rowH     = Math.max(lineH + padV * 2, obsLines.length * lineH + padV * 2);
 
     if (y + rowH > PH - 14) { doc.addPage(); y = 14; }
 
-    // zebra
     if (rowIdx % 2 === 0) {
       doc.setFillColor(...hex('#f8fafc'));
       doc.rect(ML, y, CW, rowH, 'F');
     }
     rowIdx++;
 
-    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#111827'));
-    const src = isReserva ? activeRes[0].info : info;
-    const vals = [
-      String(num),
-      isReserva ? 'Reserva' : `${pax} pax`,
-      src?.nome        || '',
-      src?.canal       || '',
-      src?.veiculo     || '',
-      src?.obs         || '',
-    ];
+    const midY = y + padV + lineH * 0.75;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#111827'));
 
+    // col 0 — Lounge (bold)
     cx2 = ML;
-    tCols.forEach((col, ci) => {
-      if (ci === 0) { doc.setFont('helvetica', 'bold'); } else { doc.setFont('helvetica', 'normal'); }
-      if (ci === 1 && isReserva) doc.setTextColor(...hex('#1d4ed8'));
-      else doc.setTextColor(...hex('#111827'));
-      const maxCh = Math.floor(col.w / 1.8);
-      const txt   = vals[ci].length > maxCh ? vals[ci].slice(0, maxCh - 1) + '…' : vals[ci];
-      doc.text(txt, cx2 + 1.5, y + 4.5);
-      cx2 += col.w;
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(num), cx2 + 2, midY); cx2 += tCols[0].w;
+
+    // col 1 — Pax
+    doc.setFont('helvetica', 'normal');
+    if (isReserva) doc.setTextColor(...hex('#1d4ed8')); else doc.setTextColor(...hex('#111827'));
+    doc.text(isReserva ? 'Reserva' : `${pax} pax`, cx2 + 2, midY); cx2 += tCols[1].w;
+
+    // col 2-4 — Nome, Canal, Veículo (truncado ao width)
+    doc.setTextColor(...hex('#111827'));
+    [src?.nome || '', src?.canal || '', src?.veiculo || ''].forEach((val, ci) => {
+      const colW  = tCols[ci + 2].w - 3;
+      const lines = doc.splitTextToSize(val, colW) as string[];
+      doc.text(lines[0] || '', cx2 + 2, midY);
+      cx2 += tCols[ci + 2].w;
     });
 
-    // badge CHD FREE / CTZ por lounge (se aplicável)
-    if (!isReserva && ((info?.chdFree ?? 0) > 0 || (info?.ctz ?? 0) > 0)) {
-      const badges: string[] = [];
-      if ((info?.chdFree ?? 0) > 0) badges.push(`CHD FREE:${info!.chdFree}`);
-      if ((info?.ctz     ?? 0) > 0) badges.push(`CTZ:${info!.ctz}`);
-      doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#7c3aed'));
-      doc.text(badges.join('  '), ML + CW - 1, y + 4.5, { align: 'right' });
-    }
+    // col 5 — Obs (multi-linha, roxa se badge)
+    const obsX = cx2 + 2;
+    obsLines.forEach((line, li) => {
+      const isBadge = badges.some(b => line.includes(b.slice(0, 6)));
+      doc.setTextColor(...hex(isBadge ? '#7c3aed' : '#374151'));
+      doc.text(line, obsX, y + padV + (li + 0.75) * lineH);
+    });
+
+    // linha separadora
+    doc.setDrawColor(...hex('#e5e7eb'));
+    doc.line(ML, y + rowH, ML + CW, y + rowH);
 
     y += rowH;
   }
@@ -1054,7 +1069,7 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
     doc.text(`Pagina ${p} de ${pages}`, PW - ML, PH - 4, { align: 'right' });
   }
 
-  doc.save(`relatorio-lounges-${today}.pdf`);
+  doc.save(`fechamento-${today}.pdf`);
 }
 
 // ── Histórico de dias anteriores ─────────────────────────────────────────────
