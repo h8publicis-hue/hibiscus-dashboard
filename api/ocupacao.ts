@@ -50,6 +50,8 @@ function sanitizeInfo(raw: any) {
     codParceiro: String(raw.codParceiro ?? '').slice(0, 50),
     obs:         String(raw.obs         ?? '').slice(0, 500),
     transferido: Boolean(raw.transferido),
+    chdFree:     clamp(raw.chdFree, 0, 9999),
+    ctz:         clamp(raw.ctz,     0, 9999),
   };
 }
 
