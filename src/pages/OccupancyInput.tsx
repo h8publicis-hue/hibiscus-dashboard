@@ -300,26 +300,26 @@ function LoungeModal({ idx, value, info: infoInit, currentBeach, max, onClose, o
               <p className="text-xs text-orange-500 font-medium flex items-center gap-1">🔄 Transferência do Beach registrada</p>
             )}
 
-            {/* Categorias do lounge */}
+            {/* Categorias do lounge — linked ao contador principal */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-center">CHD FREE</p>
                 <div className="flex items-center justify-center gap-3">
                   <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
-                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, chdFree: Math.max(0, (i.chdFree ?? 0) - 1) })); }}>−</button>
+                    onPointerDown={e => { e.preventDefault(); setInfo(i => { const cur = i.chdFree ?? 0; if (cur <= 0) return i; setQty(q => clamp(q - 1, 0, max)); return { ...i, chdFree: cur - 1 }; }); }}>−</button>
                   <span className="text-xl font-bold text-gray-900 w-6 text-center">{info.chdFree ?? 0}</span>
                   <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
-                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, chdFree: (i.chdFree ?? 0) + 1 })); }}>+</button>
+                    onPointerDown={e => { e.preventDefault(); setQty(q => clamp(q + 1, 0, max)); setInfo(i => ({ ...i, chdFree: (i.chdFree ?? 0) + 1 })); }}>+</button>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-center">CTZ</p>
                 <div className="flex items-center justify-center gap-3">
                   <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
-                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, ctz: Math.max(0, (i.ctz ?? 0) - 1) })); }}>−</button>
+                    onPointerDown={e => { e.preventDefault(); setInfo(i => { const cur = i.ctz ?? 0; if (cur <= 0) return i; setQty(q => clamp(q - 1, 0, max)); return { ...i, ctz: cur - 1 }; }); }}>−</button>
                   <span className="text-xl font-bold text-gray-900 w-6 text-center">{info.ctz ?? 0}</span>
                   <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
-                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, ctz: (i.ctz ?? 0) + 1 })); }}>+</button>
+                    onPointerDown={e => { e.preventDefault(); setQty(q => clamp(q + 1, 0, max)); setInfo(i => ({ ...i, ctz: (i.ctz ?? 0) + 1 })); }}>+</button>
                 </div>
               </div>
             </div>
