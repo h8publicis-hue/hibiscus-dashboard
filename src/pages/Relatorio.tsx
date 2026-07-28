@@ -71,10 +71,10 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
 
 function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1 min-w-0 overflow-hidden">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight truncate">{label}</p>
-      <p className={clsx('text-2xl font-bold leading-tight truncate', color ?? 'text-gray-900')}>{value}</p>
-      {sub && <p className="text-[10px] text-gray-400 leading-tight truncate">{sub}</p>}
+    <div className="bg-gray-50 rounded-xl px-3 py-2.5 flex flex-col gap-0.5 min-w-0 overflow-hidden">
+      <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider leading-tight truncate">{label}</p>
+      <p className={clsx('text-lg font-bold leading-snug truncate', color ?? 'text-gray-800')}>{value}</p>
+      {sub && <p className="text-[9px] text-gray-400 leading-tight truncate">{sub}</p>}
     </div>
   );
 }
