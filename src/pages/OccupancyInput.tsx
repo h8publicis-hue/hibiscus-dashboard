@@ -281,6 +281,30 @@ function LoungeModal({ idx, value, info: infoInit, currentBeach, max, onClose, o
               <p className="text-xs text-orange-500 font-medium flex items-center gap-1">🔄 Transferência do Beach registrada</p>
             )}
 
+            {/* Categorias do lounge */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-center">CHD FREE</p>
+                <div className="flex items-center justify-center gap-3">
+                  <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
+                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, chdFree: Math.max(0, (i.chdFree ?? 0) - 1) })); }}>−</button>
+                  <span className="text-xl font-bold text-gray-900 w-6 text-center">{info.chdFree ?? 0}</span>
+                  <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
+                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, chdFree: (i.chdFree ?? 0) + 1 })); }}>+</button>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide text-center">CTZ</p>
+                <div className="flex items-center justify-center gap-3">
+                  <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
+                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, ctz: Math.max(0, (i.ctz ?? 0) - 1) })); }}>−</button>
+                  <span className="text-xl font-bold text-gray-900 w-6 text-center">{info.ctz ?? 0}</span>
+                  <button className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-gray-600 text-lg active:bg-gray-100 select-none"
+                    onPointerDown={e => { e.preventDefault(); setInfo(i => ({ ...i, ctz: (i.ctz ?? 0) + 1 })); }}>+</button>
+                </div>
+              </div>
+            </div>
+
             <LoungeInfoForm info={info} onChange={setInfo} />
 
             <button onClick={handleConfirm}
@@ -814,7 +838,9 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
             lounges[editing]    = novoLounge;
             loungeData[editing] = novoLounge === 0 ? emptyInfo() : novaInfo;
             loungeObs[editing]  = novoLounge === 0 ? '' : novaInfo.obs;
-            update({ ...occ, lounges, loungeData, loungeObs, beach: novoBeach });
+            const loungeChdFree = loungeData.reduce((s, d) => s + (d?.chdFree ?? 0), 0);
+            const loungeCtz     = loungeData.reduce((s, d) => s + (d?.ctz     ?? 0), 0);
+            update({ ...occ, lounges, loungeData, loungeObs, beach: novoBeach, loungeChdFree, loungeCtz });
             setEditing(null);
           }}
         />
@@ -1253,18 +1279,6 @@ export function OccupancyInput() {
             onReservaUpdate={r => setReservas(prev => prev.map(x => x.id === r.id ? r : x))}
           />
 
-          {/* Categorias Lounge */}
-          <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Categorias Lounge</p>
-            <div className="flex gap-3">
-              <MiniCounter label="CHD FREE" value={occ.loungeChdFree ?? 0}
-                onInc={() => update({ ...occRef.current, loungeChdFree: (occRef.current.loungeChdFree ?? 0) + 1 })}
-                onDec={() => update({ ...occRef.current, loungeChdFree: Math.max(0, (occRef.current.loungeChdFree ?? 0) - 1) })} />
-              <MiniCounter label="CTZ" value={occ.loungeCtz ?? 0}
-                onInc={() => update({ ...occRef.current, loungeCtz: (occRef.current.loungeCtz ?? 0) + 1 })}
-                onDec={() => update({ ...occRef.current, loungeCtz: Math.max(0, (occRef.current.loungeCtz ?? 0) - 1) })} />
-            </div>
-          </div>
         </div>
 
         {/* Exportar PDF */}

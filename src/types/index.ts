@@ -207,10 +207,13 @@ export interface LoungeInfo {
   codParceiro: string;
   obs:         string;
   transferido: boolean;
+  chdFree?:    number;
+  ctz?:        number;
 }
 
 export const LOUNGE_INFO_EMPTY: LoungeInfo = {
   nome: '', telefone: '', canal: '', veiculo: '', parceiro: '', codParceiro: '', obs: '', transferido: false,
+  chdFree: 0, ctz: 0,
 };
 
 export interface LoungeReserva {
