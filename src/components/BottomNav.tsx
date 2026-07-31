@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BottomNavProps {
@@ -21,6 +21,7 @@ const ALL_ITEMS = [
   { to: '/fluxo',         icon: Activity,         label: 'Fluxo',      primary: false },
   { to: '/cozinha',       icon: UtensilsCrossed,  label: 'Cozinha',    primary: false },
   { to: '/refeicao/admin',icon: UtensilsCrossed,  label: 'Refeitório', primary: false },
+  { to: '/ajuda',         icon: BookOpen,         label: 'Treino',     primary: false },
   { to: '/configuracoes', icon: Settings,         label: 'Config.',    primary: false },
 ];
 
