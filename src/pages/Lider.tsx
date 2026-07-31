@@ -68,14 +68,27 @@ async function parseEscalaXlsx(file: File): Promise<EscalaGarcom[]> {
   return garcons;
 }
 
+const MES_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DAY_ABBR  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
 function BoxEscalaMensal() {
-  const [mes, setMes] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
+  const [mes, setMes] = useState(() => {
+    const stored = localStorage.getItem('hibiscus-escala-mes');
+    const today  = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7);
+    return stored ?? today;
+  });
   const { escala, loading, salvarEscala } = useEscalaHoje(`${mes}-01`);
-  const [rows, setRows]     = useState<EscalaGarcom[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
+  const [rows, setRows]         = useState<EscalaGarcom[]>([]);
+  const [saving, setSaving]     = useState(false);
+  const [saved,  setSaved]      = useState(false);
+  const [savedMes, setSavedMes] = useState('');
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function changeMes(value: string) {
+    setMes(value);
+    localStorage.setItem('hibiscus-escala-mes', value);
+  }
 
   useEffect(() => {
     if (!loading) {
@@ -136,17 +149,27 @@ function BoxEscalaMensal() {
     setRows(rowsNormalized);
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSavedMes(mes);
+    setTimeout(() => setSaved(false), 3000);
   }
 
-  if (loading) return <p className="text-sm text-gray-400 py-6 text-center">Carregando...</p>;
+  const mesLabel = (() => {
+    const [y, m] = mes.split('-');
+    return `${MES_NAMES[Number(m) - 1]} ${y}`;
+  })();
+  const isCurrentMonth = mes === new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7);
+
+  if (loading) return <p className="text-sm text-gray-400 py-6 text-center">Carregando {mesLabel}...</p>;
 
   return (
     <div className="flex flex-col gap-3">
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+        <input type="month" value={mes} onChange={e => changeMes(e.target.value)}
           className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white" />
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isCurrentMonth ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+          {mesLabel}
+        </span>
         <span className="text-xs text-gray-400">{rows.length} garçons</span>
 
         {/* Botão importar */}
@@ -174,9 +197,8 @@ function BoxEscalaMensal() {
               <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[60px]">Área</th>
               <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[72px]">Setor</th>
               {days.map(d => {
-                const date = new Date(`${mes}-${d}T12:00:00Z`);
-                const dow  = date.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.','');
-                const isWknd = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+                const dow    = DAY_ABBR[new Date(`${mes}-${d}T12:00:00Z`).getUTCDay()];
+                const isWknd = new Date(`${mes}-${d}T12:00:00Z`).getUTCDay() === 0 || new Date(`${mes}-${d}T12:00:00Z`).getUTCDay() === 6;
                 return (
                   <th key={d} className={`px-0.5 py-1 font-semibold w-6 text-center ${isWknd ? 'text-red-400' : 'text-gray-400'}`}>
                     <div className="text-[8px] font-normal leading-tight">{dow}</div>
@@ -234,7 +256,10 @@ function BoxEscalaMensal() {
 
       <button onClick={handleSave} disabled={saving}
         className="py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-        {saved ? <><Check size={14} /> Salvo!</> : saving ? 'Salvando...' : 'Salvar escala do mês'}
+        {saved
+          ? <><Check size={14} /> Salvo — {MES_NAMES[Number(savedMes.split('-')[1]) - 1]} {savedMes.split('-')[0]}!</>
+          : saving ? 'Salvando...'
+          : `Salvar escala de ${mesLabel}`}
       </button>
       <p className="text-[10px] text-gray-400 text-center">Toque nas células para alternar · Setor = padrão usado na validação diária</p>
     </div>
