@@ -167,13 +167,23 @@ function BoxEscalaMensal() {
 
       {/* Tabela */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 -mx-1">
-        <table className="text-[10px] border-collapse min-w-max">
+        <table className="text-[10px] border-collapse min-w-max w-full">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700/50">
               <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 px-2 py-1.5 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[110px]">Nome</th>
               <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[60px]">Área</th>
               <th className="px-1 py-1.5 font-semibold text-gray-600 dark:text-gray-300 min-w-[72px]">Setor</th>
-              {days.map(d => <th key={d} className="px-0.5 py-1.5 font-semibold text-gray-500 w-6 text-center">{d}</th>)}
+              {days.map(d => {
+                const date = new Date(`${mes}-${d}T12:00:00Z`);
+                const dow  = date.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.','');
+                const isWknd = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+                return (
+                  <th key={d} className={`px-0.5 py-1 font-semibold w-6 text-center ${isWknd ? 'text-red-400' : 'text-gray-400'}`}>
+                    <div className="text-[8px] font-normal leading-tight">{dow}</div>
+                    <div className="text-[10px]">{d}</div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -203,12 +213,14 @@ function BoxEscalaMensal() {
                   )}
                 </td>
                 {days.map(d => {
-                  const st  = g.dias[d] ?? 'T';
-                  const opt = STATUS_OPTS.find(o => o.value === st)!;
+                  const st   = g.dias[d] ?? 'T';
+                  const opt  = STATUS_OPTS.find(o => o.value === st)!;
+                  const date = new Date(`${mes}-${d}T12:00:00Z`);
+                  const isWknd = date.getUTCDay() === 0 || date.getUTCDay() === 6;
                   return (
-                    <td key={d} className="px-0 py-1 text-center">
+                    <td key={d} className={`px-0 py-1 text-center ${isWknd ? 'bg-red-50/40 dark:bg-red-900/10' : ''}`}>
                       <button onClick={() => cycleStatus(ri, d)}
-                        className={`w-5 h-5 rounded text-[8px] font-bold ${opt.cls} hover:opacity-80 active:scale-95`}>
+                        className={`w-5 h-5 lg:w-6 lg:h-6 rounded text-[8px] font-bold ${opt.cls} hover:opacity-80 active:scale-95`}>
                         {st}
                       </button>
                     </td>
