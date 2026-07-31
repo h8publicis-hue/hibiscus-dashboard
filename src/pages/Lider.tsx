@@ -610,7 +610,11 @@ function BoxEscala() {
         )}
 
         {!loading && ativosHoje.length === 0 && !validacao.validado && (
-          <p className="text-xs text-gray-400 text-center py-2">Escala mensal não cadastrada. Acesse a aba Escala Mensal para inserir.</p>
+          <p className="text-xs text-gray-400 text-center py-2">
+            {totalEscala > 0
+              ? `Nenhum garçom escalado para trabalhar hoje (${totalEscala} na escala do mês).`
+              : 'Escala mensal não cadastrada. Acesse a aba Escala Mensal para inserir.'}
+          </p>
         )}
 
         <div className="flex gap-2">
