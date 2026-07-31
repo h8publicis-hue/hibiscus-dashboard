@@ -47,6 +47,8 @@ async function parseEscalaXlsx(file: File): Promise<EscalaGarcom[]> {
     const nome = String(row[1] ?? '').trim();
     const func = String(row[2] ?? '').trim().toUpperCase();
     if (!nome || nome.length < 3) continue;
+    // ignora linhas de observação/rodapé do Excel
+    if (/^[*#]|obs[s]?[\s:]/i.test(nome)) continue;
 
     const area: 'beach' | 'lounge' = func.includes('LOUNGE') ? 'lounge' : 'beach';
     const dias: Record<string, EscalaStatus> = {};
