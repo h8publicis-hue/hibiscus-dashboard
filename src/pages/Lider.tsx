@@ -134,9 +134,10 @@ function BoxEscalaMensal() {
     try {
       const parsed = await parseEscalaXlsx(file);
       if (parsed.length > 0) {
+        const ok = window.confirm(`Importar ${parsed.length} garçons para a escala de ${mesLabel}?\n\nSe quiser outro mês, cancele e altere o seletor de mês primeiro.`);
+        if (!ok) return;
         userEditedRef.current = true;
         setRows(parsed);
-        // auto-salva imediatamente após importar
         setSaving(true);
         const normalized = parsed.map(r => ({
           ...r,
