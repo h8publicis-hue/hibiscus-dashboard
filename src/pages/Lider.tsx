@@ -83,15 +83,17 @@ function BoxEscalaMensal() {
   const [saved,  setSaved]      = useState(false);
   const [savedMes, setSavedMes] = useState('');
   const [importing, setImporting] = useState(false);
+  const userEditedRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function changeMes(value: string) {
+    userEditedRef.current = false;
     setMes(value);
     localStorage.setItem('hibiscus-escala-mes', value);
   }
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !userEditedRef.current) {
       if (escala.length > 0) {
         setRows(escala);
       } else {
@@ -131,8 +133,23 @@ function BoxEscalaMensal() {
     setImporting(true);
     try {
       const parsed = await parseEscalaXlsx(file);
-      if (parsed.length > 0) setRows(parsed);
-      else alert('Não foi possível ler a escala. Verifique o formato do arquivo.');
+      if (parsed.length > 0) {
+        userEditedRef.current = true;
+        setRows(parsed);
+        // auto-salva imediatamente após importar
+        setSaving(true);
+        const normalized = parsed.map(r => ({
+          ...r,
+          setor_padrao: r.area === 'beach' ? (r.setor_padrao ?? 'salao' as BeachSetor) : undefined,
+        }));
+        await salvarEscala(normalized);
+        setSaving(false);
+        setSaved(true);
+        setSavedMes(mes);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        alert('Não foi possível ler a escala. Verifique o formato do arquivo.');
+      }
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -175,7 +192,7 @@ function BoxEscalaMensal() {
         {/* Botão importar */}
         <button onClick={() => fileRef.current?.click()} disabled={importing}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400 text-xs font-semibold hover:bg-brand-50 dark:hover:bg-brand-900/20 disabled:opacity-50 transition-colors">
-          <Upload size={13} />{importing ? 'Importando...' : 'Importar Excel'}
+          <Upload size={13} />{importing ? (saving ? 'Salvando...' : 'Importando...') : 'Importar Excel'}
         </button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
       </div>
