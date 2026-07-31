@@ -658,9 +658,13 @@ function BoxEscala() {
                       <span className={`w-3 h-3 rounded-full shrink-0 ${COR_GARCOM.find(c => c.value === g.cor)?.bg ?? ''}`} />
                     )}
                     <span className="flex-1 text-sm font-semibold text-gray-800 dark:text-white truncate">{g.nome}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${g.area === 'lounge' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {g.area === 'lounge' ? '🛋️' : '🏖️'} {g.area === 'lounge' ? 'Lounge' : 'Beach'}
-                    </span>
+                    <button
+                      onClick={() => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, area: x.area === 'lounge' ? 'beach' : 'lounge', setor: x.area === 'lounge' ? 'salao' : undefined } : x))}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 border transition-colors ${g.area === 'lounge' ? 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200' : 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200'}`}
+                      title="Toque para transferir"
+                    >
+                      {g.area === 'lounge' ? '🛋️ Lounge' : '🏖️ Beach'} ⇄
+                    </button>
                     <button
                       onClick={() => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, faltou: !x.faltou } : x))}
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors ${g.faltou ? 'bg-red-500 text-white border-red-500' : 'bg-white dark:bg-gray-700 text-red-500 border-red-300 dark:border-red-700 hover:bg-red-50'}`}
@@ -687,6 +691,7 @@ function BoxEscala() {
                         >
                           <option value="">🍽️ Almoço</option>
                           <option value="11h">11h</option>
+                          <option value="12h">12h</option>
                           <option value="13h">13h</option>
                           <option value="14h">14h</option>
                         </select>

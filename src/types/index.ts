@@ -279,7 +279,7 @@ export interface ValidacaoDia {
   garcons:     ValidacaoGarcom[];
 }
 
-export type HorarioAlmoco = '11h' | '13h' | '14h';
+export type HorarioAlmoco = '11h' | '12h' | '13h' | '14h';
 export type CorGarcom = 'amarelo' | 'vermelho' | 'preto' | 'azul';
 
 export const COR_GARCOM: { value: CorGarcom; label: string; bg: string; ring: string }[] = [
