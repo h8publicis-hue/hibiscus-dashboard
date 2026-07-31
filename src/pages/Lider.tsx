@@ -69,9 +69,9 @@ async function parseEscalaXlsx(file: File): Promise<EscalaGarcom[]> {
 }
 
 function BoxEscalaMensal() {
-  const { escala, loading, salvarEscala } = useEscalaHoje();
+  const [mes, setMes] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
+  const { escala, loading, salvarEscala } = useEscalaHoje(`${mes}-01`);
   const [rows, setRows]     = useState<EscalaGarcom[]>([]);
-  const [mes, setMes]       = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' }).slice(0, 7));
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
   const [importing, setImporting] = useState(false);
