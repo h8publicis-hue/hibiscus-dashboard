@@ -75,6 +75,7 @@ import { Refeicao } from './pages/Refeicao';
 import { RefeicaoAdmin } from './pages/RefeicaoAdmin';
 import { Configuracoes } from './pages/Configuracoes';
 import { Relatorio }     from './pages/Relatorio';
+import Ajuda             from './pages/Ajuda';
 import { Lider }         from './pages/Lider';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
@@ -204,6 +205,7 @@ function Dashboard() {
                   <Route path="/refeicao/admin"   element={<RefeicaoAdmin />} />
                   <Route path="/configuracoes"    element={<Configuracoes />} />
                   <Route path="/relatorio"        element={<Relatorio />} />
+                  <Route path="/ajuda"            element={<Ajuda />} />
                 </Routes>
               )
             }

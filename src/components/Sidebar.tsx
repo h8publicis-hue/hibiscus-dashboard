@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell, UtensilsCrossed, Settings, FileText } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
@@ -21,6 +21,7 @@ export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviews
     { to: '/relatorio', icon: FileText,        label: 'Fechamento',  alerts: 0 },
     { to: '/cozinha',          icon: UtensilsCrossed, label: 'Cozinha',     alerts: 0 },
     { to: '/refeicao/admin',   icon: UtensilsCrossed, label: 'Refeitório',  alerts: 0 },
+    { to: '/ajuda',            icon: BookOpen,        label: 'Treinamento',   alerts: 0 },
     { to: '/configuracoes',    icon: Settings,        label: 'Configurações', alerts: 0 },
   ];
 
