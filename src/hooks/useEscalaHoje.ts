@@ -40,7 +40,7 @@ export function useEscalaHoje(data?: string) {
   const ativosHoje: EscalaGarcom[] = escala.filter(g => (g.dias[dia] ?? 'T') === 'T');
 
   const garconsDia: ValidacaoGarcom[] = validacao.validado
-    ? validacao.garcons.filter(g => !g.faltou)
+    ? validacao.garcons.filter(g => !g.ausencia && !g.faltou)
     : ativosHoje.map(g => ({ id: g.id, nome: g.nome, area: g.area, setor: g.setor_padrao }));
 
   const totalHoje   = garconsDia.length;

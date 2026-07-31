@@ -4,8 +4,8 @@ import { useAviso } from '../hooks/useAviso';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
-import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus, CorGarcom } from '../types';
-import { BEACH_SETORES, BEACH_SETOR_GRUPOS, SPACE_CONFIGS, COR_GARCOM } from '../types';
+import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus, CorGarcom, TipoAusencia } from '../types';
+import { BEACH_SETORES, BEACH_SETOR_GRUPOS, SPACE_CONFIGS, COR_GARCOM, AUSENCIA_OPTS } from '../types';
 
 const STATUS_OPTS: { value: EscalaStatus; label: string; cls: string; bg: string }[] = [
   { value: 'T', label: 'T', cls: 'bg-teal-700 text-white',    bg: 'bg-teal-700'    },
@@ -297,10 +297,11 @@ function BoxEscala() {
 
   const [dataAlvo, setDataAlvo] = useState(hoje);
   const { ativosHoje, validacao, loading, validarDia, totalEscala } = useEscalaHoje(dataAlvo);
-  const [editando, setEditando] = useState(false);
-  const [draft, setDraft]       = useState<ValidacaoGarcom[]>([]);
-  const [saving, setSaving]     = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const [editando, setEditando]         = useState(false);
+  const [draft, setDraft]               = useState<ValidacaoGarcom[]>([]);
+  const [saving, setSaving]             = useState(false);
+  const [printing, setPrinting]         = useState(false);
+  const [ausenciaOpen, setAusenciaOpen] = useState<number | null>(null);
 
   const agora = new Date();
   const h = agora.getHours();
@@ -401,17 +402,18 @@ function BoxEscala() {
         ? validacao.garcons
         : ativosHoje.map(g => ({ id: g.id, nome: g.nome, area: g.area, setor: g.setor_padrao }));
 
-      const ativos   = allGarcons.filter(g => !g.faltou);
+      const ausente  = (g: ValidacaoGarcom) => !!(g.ausencia ?? g.faltou);
+      const ativos   = allGarcons.filter(g => !ausente(g));
       const lounge   = ativos.filter(g => g.area === 'lounge');
       const beach    = ativos.filter(g => g.area === 'beach');
-      const faltaram = allGarcons.filter(g => g.faltou);
+      const ausentes = allGarcons.filter(g => ausente(g));
 
       // Cards de resumo
       const cards = [
         { label: 'Total em serviço', value: String(ativos.length), bg: '#f5f3ff', color: '#7c3aed' },
         { label: 'Lounge',          value: String(lounge.length),  bg: '#faf5ff', color: '#7c3aed' },
         { label: 'Beach',           value: String(beach.length),   bg: '#eff6ff', color: '#1d4ed8' },
-        { label: 'Faltaram',        value: String(faltaram.length),bg: '#fef2f2', color: '#dc2626' },
+        { label: 'Ausentes',        value: String(ausentes.length),bg: '#fef2f2', color: '#dc2626' },
       ];
       const cardW = (W - ML - MR - 3 * 3) / 4;
       cards.forEach((c, i) => {
@@ -492,10 +494,19 @@ function BoxEscala() {
         beach.forEach((g, i) => drawRow(g, i));
         y += 5;
       }
-      if (faltaram.length > 0) {
-        drawSectionHeader('Faltaram', '#dc2626');
+      if (ausentes.length > 0) {
+        drawSectionHeader('Ausentes', '#dc2626');
         drawTableHeader();
-        faltaram.forEach((g, i) => drawRow(g, i));
+        ausentes.forEach((g, i) => {
+          const motivo = AUSENCIA_OPTS.find(o => o.value === (g.ausencia ?? 'faltou'))?.label ?? 'Faltou';
+          drawRow({ ...g, almoco: undefined }, i);
+          // sobrescreve coluna almoço com motivo da ausência
+          doc.setFillColor(...hex('#fef2f2'));
+          doc.roundedRect(ML + 143, (y - 7) + 1, 38, 5, 1, 1, 'F');
+          doc.setTextColor(...hex('#dc2626')); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+          doc.text(motivo, ML + 162, (y - 7) + 5, { align: 'center' });
+          doc.setFont('helvetica', 'normal');
+        });
       }
 
       // Rodapé em todas as páginas
@@ -516,7 +527,7 @@ function BoxEscala() {
     }
   }
 
-  const garconsDia = validacao.validado ? validacao.garcons.filter(g => !g.faltou) : [];
+  const garconsDia = validacao.validado ? validacao.garcons.filter(g => !g.ausencia && !g.faltou) : [];
   const totalLounge = garconsDia.filter(g => g.area === 'lounge').length;
   const beachPorSetor = BEACH_SETOR_GRUPOS.map(grupo => ({
     ...grupo,
@@ -651,8 +662,11 @@ function BoxEscala() {
             </div>
 
             <div className="p-4 flex flex-col gap-2">
-              {draft.map((g, i) => (
-                <div key={g.id} className={`rounded-xl p-3 border transition-colors ${g.faltou ? 'border-red-200 dark:border-red-800 bg-red-50/60 dark:bg-red-900/10 opacity-70' : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30'}`}>
+              {draft.map((g, i) => {
+                const ausOpt = AUSENCIA_OPTS.find(o => o.value === g.ausencia);
+                const isAusente = !!g.ausencia;
+                return (
+                <div key={g.id} className={`rounded-xl p-3 border transition-colors ${isAusente ? 'border-red-200 dark:border-red-800 bg-red-50/40 dark:bg-red-900/10' : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30'}`}>
                   <div className="flex items-center gap-2 mb-2">
                     {g.cor && (
                       <span className={`w-3 h-3 rounded-full shrink-0 ${COR_GARCOM.find(c => c.value === g.cor)?.bg ?? ''}`} />
@@ -666,13 +680,41 @@ function BoxEscala() {
                       {g.area === 'lounge' ? '🛋️ Lounge' : '🏖️ Beach'} ⇄
                     </button>
                     <button
-                      onClick={() => setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, faltou: !x.faltou } : x))}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors ${g.faltou ? 'bg-red-500 text-white border-red-500' : 'bg-white dark:bg-gray-700 text-red-500 border-red-300 dark:border-red-700 hover:bg-red-50'}`}
+                      onClick={() => setAusenciaOpen(ausenciaOpen === i ? null : i)}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition-colors ${isAusente ? (ausOpt?.color ?? 'bg-red-100 text-red-700 border-red-300') : 'bg-white dark:bg-gray-700 text-gray-500 border-gray-300 dark:border-gray-600 hover:bg-gray-50'}`}
                     >
-                      Faltou
+                      {isAusente ? `${ausOpt?.emoji} ${ausOpt?.label}` : 'Ausente'}
                     </button>
                   </div>
-                  {!g.faltou && (
+
+                  {/* Seletor de tipo de ausência */}
+                  {ausenciaOpen === i && (
+                    <div className="flex flex-wrap gap-1.5 mb-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                      {AUSENCIA_OPTS.map(opt => (
+                        <button key={opt.value}
+                          onClick={() => {
+                            setDraft(prev => prev.map((x, xi) => xi === i
+                              ? { ...x, ausencia: x.ausencia === opt.value ? undefined : opt.value as TipoAusencia }
+                              : x));
+                            setAusenciaOpen(null);
+                          }}
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${g.ausencia === opt.value ? opt.color + ' font-bold' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50'}`}
+                        >
+                          {opt.emoji} {opt.label}
+                        </button>
+                      ))}
+                      {isAusente && (
+                        <button
+                          onClick={() => { setDraft(prev => prev.map((x, xi) => xi === i ? { ...x, ausencia: undefined } : x)); setAusenciaOpen(null); }}
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-400 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                        >
+                          ✕ Limpar
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {!isAusente && (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         {g.area === 'beach' && (
@@ -719,7 +761,8 @@ function BoxEscala() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               <button onClick={confirmar} disabled={saving}
                 className="mt-3 w-full py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">

@@ -289,14 +289,24 @@ export const COR_GARCOM: { value: CorGarcom; label: string; bg: string; ring: st
   { value: 'azul',     label: 'Azul',    bg: 'bg-blue-500',   ring: 'ring-blue-600'    },
 ];
 
+export type TipoAusencia = 'faltou' | 'atestado' | 'nao-chegou' | 'compensa';
+
+export const AUSENCIA_OPTS: { value: TipoAusencia; label: string; emoji: string; color: string }[] = [
+  { value: 'faltou',     label: 'Faltou',      emoji: '🚫', color: 'bg-red-100 text-red-700 border-red-300'    },
+  { value: 'atestado',   label: 'Atestado',    emoji: '🏥', color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  { value: 'nao-chegou', label: 'Não chegou',  emoji: '⏳', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+  { value: 'compensa',   label: 'Compensa',    emoji: '🔄', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+];
+
 export interface ValidacaoGarcom {
-  id:     string;
-  nome:   string;
-  area:   GarcomArea;
-  setor?: BeachSetor;
-  almoco?: HorarioAlmoco;
-  faltou?: boolean;
-  cor?:    CorGarcom;
+  id:       string;
+  nome:     string;
+  area:     GarcomArea;
+  setor?:   BeachSetor;
+  almoco?:  HorarioAlmoco;
+  faltou?:  boolean;          // legado — novo campo é ausencia
+  ausencia?: TipoAusencia;
+  cor?:     CorGarcom;
 }
 
 export const SPACE_CONFIGS = {
