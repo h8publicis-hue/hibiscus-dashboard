@@ -114,7 +114,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   };
   const seedCfg  = seeds[month];
   const seedAmt  = seedCfg?.amount  ?? 0;
-  const seedCut  = seedCfg?.cutoff  ?? since; // sem config: acumula todo o mês
+  const seedCut  = seedCfg?.cutoff  ?? ''; // sem config: acumula desde o dia 1 (cutoff vazio não exclui nada)
 
   const CANCELLED = new Set(['cancelado', 'estornado', 'reembolsado', 'cancelado_pelo_cliente', 'cancelado_pelo_lojista']);
 
