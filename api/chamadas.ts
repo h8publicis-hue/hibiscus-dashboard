@@ -2,6 +2,36 @@
 
 const PROJECT_ID = 'solicitacaodeatendimento-988f8';
 const API_KEY    = process.env.FIREBASE_API_KEY ?? '';
+const KV_URL     = process.env.KV_REST_API_URL   ?? '';
+const KV_TOKEN   = process.env.KV_REST_API_TOKEN ?? '';
+
+// Cache em memória (por instância serverless) + Redis para compartilhar entre instâncias
+// TTL curto para dados ao vivo — reduz leituras Firestore e evita quota 429
+const MEM_TTL = 60_000;  // 1 min em memória
+const KV_TTL  = 60;      // 1 min no Redis
+
+const memCache = new Map<string, { data: unknown; ts: number }>();
+
+async function kvGet(key: string) {
+  if (!KV_URL || !KV_TOKEN) return null;
+  try {
+    const r = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${KV_TOKEN}` } });
+    const j = await r.json() as any;
+    const raw = j?.result;
+    if (!raw) return null;
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch { return null; }
+}
+
+async function kvSet(key: string, value: unknown) {
+  if (!KV_URL || !KV_TOKEN) return;
+  try {
+    await fetch(`${KV_URL}/set/${encodeURIComponent(key)}?ex=${KV_TTL}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'text/plain' },
+      body: JSON.stringify(value),
+    });
+  } catch { /* ignore */ }
+}
 
 function todayBRT(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -23,6 +53,20 @@ export default async function handler(req: any, res: any) {
 
   const start = (req.query?.start as string) || todayBRT();
   const end   = (req.query?.end   as string) || start;
+  const cacheKey = `chamadas-v1:${start}_${end}`;
+
+  // L1: memória
+  const mem = memCache.get(cacheKey);
+  if (mem && Date.now() - mem.ts < MEM_TTL) {
+    return res.json(mem.data);
+  }
+
+  // L2: Redis
+  const kv = await kvGet(cacheKey);
+  if (kv) {
+    memCache.set(cacheKey, { data: kv, ts: Date.now() });
+    return res.json(kv);
+  }
 
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery?key=${API_KEY}`;
 
@@ -45,10 +89,16 @@ export default async function handler(req: any, res: any) {
 
   try {
     const r    = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const docs = await r.json() as any[];
-    console.log('[chamadas] Firestore raw count:', docs?.length, 'first:', JSON.stringify(docs?.[0])?.slice(0, 300));
+    const raw  = await r.json() as any;
 
-    const chamadas = docs
+    // Firestore 429: quota esgotada — retorna cache antigo se disponível, senão erro claro
+    if (!Array.isArray(raw)) {
+      const code = raw?.error?.code ?? raw?.code;
+      console.error('[chamadas] Firestore erro:', JSON.stringify(raw)?.slice(0, 200));
+      return res.status(code === 429 ? 429 : 502).json({ error: raw?.error?.message ?? 'Firestore error', chamadas: [], start, end });
+    }
+
+    const chamadas = raw
       .filter((d: any) => d.document)
       .map((d: any) => {
         const f = d.document.fields ?? {};
@@ -70,8 +120,13 @@ export default async function handler(req: any, res: any) {
         };
       });
 
-    return res.json({ chamadas, start, end });
+    console.log(`[chamadas] ${start}: ${chamadas.length} chamadas`);
+    const result = { chamadas, start, end };
+    memCache.set(cacheKey, { data: result, ts: Date.now() });
+    kvSet(cacheKey, result);
+    return res.json(result);
   } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+    console.error('[chamadas] erro:', e.message);
+    return res.status(500).json({ error: e.message, chamadas: [], start, end });
   }
 }
