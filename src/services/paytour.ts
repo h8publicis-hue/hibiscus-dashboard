@@ -271,7 +271,9 @@ export async function fetchPaytourData(period: string): Promise<PaytourData> {
       const data   = mapOrders(orders, since, until);
       const result = data;
 
-      cache.set(period, { data: result, ts: Date.now() });
+      // Se hoje sem receita, cacheia só 2 min para re-tentar em breve
+      const effectiveTtl = (period === 'today' && result.todayRevenue === 0) ? 2 * 60 * 1000 : ttl;
+      cache.set(period, { data: result, ts: Date.now() - (ttl - effectiveTtl) });
       return result;
     } finally {
       inflight.delete(period);

@@ -171,10 +171,12 @@ export default async function handler(req: any, res: any) {
   const promise = fn(since, until)
     .then((orders) => {
       const entry = { orders, ts: Date.now() };
-      memCache.set(key, entry);
-      // Não salva no KV resultado vazio para hoje — evita que rate-limit em branco
-      // fique cacheado 10 min e mostre R$ 0 no "Ao Vivo"
-      if (orders.length > 0 || !isToday) kvSet(key, entry, ttlSec).catch(() => {});
+      // Não cacheia resultado vazio para hoje — evita R$ 0 no "Ao Vivo" quando API
+      // retorna branco por rate-limit ou quando ainda não há pedidos no início do dia
+      if (orders.length > 0 || !isToday) {
+        memCache.set(key, entry);
+        kvSet(key, entry, ttlSec).catch(() => {});
+      }
       fetchLock.delete(key);
       return orders;
     })
