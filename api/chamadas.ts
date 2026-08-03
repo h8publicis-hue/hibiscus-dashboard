@@ -46,6 +46,7 @@ export default async function handler(req: any, res: any) {
   try {
     const r    = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const docs = await r.json() as any[];
+    console.log('[chamadas] Firestore raw count:', docs?.length, 'first:', JSON.stringify(docs?.[0])?.slice(0, 300));
 
     const chamadas = docs
       .filter((d: any) => d.document)
