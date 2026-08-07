@@ -1,6 +1,7 @@
 // Check-in: Paytour API (sempre) + loja opcional (PHPSESSID para check-ins físicos).
 
-const LOJA_BASE    = 'https://loja.hibiscusbeachclub.com.br';
+// Loja via Worker — mesmo bypass do Bot Fight Mode usado pela API Paytour
+const LOJA_BASE    = 'https://paytour-proxy.hibiscusbeachclub.workers.dev/loja';
 const PT_BASE      = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
 const PT_KEY       = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET    = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
@@ -105,11 +106,12 @@ async function getSession(): Promise<string> {
 function lojaFetch(path: string, session: string) {
   return fetch(`${LOJA_BASE}${path}`, {
     headers: {
+      'x-proxy-secret': PROXY_SECRET,
       Cookie: `PHPSESSID=${session}`,
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       Accept: 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
-      Referer: `${LOJA_BASE}/admin/checkin`,
+      Referer: 'https://loja.hibiscusbeachclub.com.br/admin/checkin',
     },
     signal: AbortSignal.timeout(10_000),
   });

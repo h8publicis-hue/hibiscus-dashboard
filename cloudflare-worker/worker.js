@@ -1,7 +1,11 @@
-// Proxy Worker — encaminha chamadas ao api-ha.paytour.com.br
-// Vercel → este Worker (IP Cloudflare) → Paytour (sem bloqueio)
+// Proxy Worker — roteia para Paytour API ou Loja conforme prefixo
+// Vercel (AWS) → este Worker (IP Cloudflare) → destino (sem bloqueio Bot Fight Mode)
+//
+// /loja/*  → https://loja.hibiscusbeachclub.com.br/*  (check-in, calendário)
+// /*       → https://api-ha.paytour.com.br/*           (API Paytour)
 
-const TARGET = 'https://api-ha.paytour.com.br';
+const PAYTOUR_TARGET = 'https://api-ha.paytour.com.br';
+const LOJA_TARGET    = 'https://loja.hibiscusbeachclub.com.br';
 
 export default {
   async fetch(request, env) {
@@ -12,21 +16,27 @@ export default {
     }
 
     const url = new URL(request.url);
-    const targetUrl = TARGET + url.pathname + url.search;
 
-    // Replica headers originais removendo o secret
+    // Roteia /loja/* → loja.hibiscusbeachclub.com.br
+    const isLoja = url.pathname.startsWith('/loja/') || url.pathname === '/loja';
+    const target  = isLoja ? LOJA_TARGET : PAYTOUR_TARGET;
+    const path    = isLoja ? url.pathname.replace(/^\/loja/, '') || '/' : url.pathname;
+    const targetUrl = target + path + url.search;
+
     const headers = new Headers(request.headers);
     headers.delete('x-proxy-secret');
-    headers.set('host', 'api-ha.paytour.com.br');
+    headers.set('host', isLoja ? 'loja.hibiscusbeachclub.com.br' : 'api-ha.paytour.com.br');
 
     const proxied = new Request(targetUrl, {
-      method: request.method,
+      method:  request.method,
       headers,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
+      redirect: 'follow',
     });
 
     const response = await fetch(proxied);
 
+    // Preserva Content-Type original (a loja pode retornar JSON ou HTML)
     return new Response(response.body, {
       status: response.status,
       headers: {
