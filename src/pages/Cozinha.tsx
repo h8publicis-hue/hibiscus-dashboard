@@ -1,7 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Megaphone } from 'lucide-react';
-import { OccupancyState, SPACE_CONFIGS } from '../types';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Megaphone, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { OccupancyState, SPACE_CONFIGS, Pessoa } from '../types';
 import { useAviso } from '../hooks/useAviso';
+
+type ScanFeedback =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'sucesso';   pessoa: Pessoa; hora: string }
+  | { kind: 'duplicada'; nome: string; horaAnterior: string }
+  | { kind: 'invalido' };
 
 function AvisoCardExp({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -106,7 +113,65 @@ export function Cozinha() {
   const [almocosHoje, setAlmocosHoje] = useState(0);
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
+  const [scanFb, setScanFb]           = useState<ScanFeedback>({ kind: 'idle' });
   const { avisos }                    = useAviso();
+
+  const kbBuffer  = useRef('');
+  const kbTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanFbRef = useRef<ScanFeedback>({ kind: 'idle' });
+  useEffect(() => { scanFbRef.current = scanFb; }, [scanFb]);
+
+  const processarQR = useCallback(async (qr: string) => {
+    setScanFb({ kind: 'loading' });
+    try {
+      const lookup = await fetch(`/api/refeicoes?action=lookup&qr=${encodeURIComponent(qr)}`).then(r => r.json());
+      if (!lookup.found || !lookup.pessoa?.ativo) {
+        setScanFb({ kind: 'invalido' });
+        setTimeout(() => setScanFb({ kind: 'idle' }), 3000);
+        return;
+      }
+      const pessoa: Pessoa = lookup.pessoa;
+      const reg = await fetch('/api/refeicoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pessoaId: pessoa.id, nome: pessoa.nome, categoria: pessoa.categoria,
+          empresa: pessoa.empresa, tipoRefeicao: 'almoco', origemRegistro: 'QRCode',
+        }),
+      }).then(r => r.json());
+
+      if (reg.status === 'duplicada') {
+        setScanFb({ kind: 'duplicada', nome: pessoa.nome, horaAnterior: reg.horaAnterior });
+      } else {
+        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
+        setScanFb({ kind: 'sucesso', pessoa, hora });
+        setAlmocosHoje(n => n + 1);
+      }
+    } catch {
+      setScanFb({ kind: 'invalido' });
+    }
+    setTimeout(() => setScanFb({ kind: 'idle' }), 3000);
+  }, []);
+
+  // Captura leitor físico USB/BT (simula teclado: caracteres rápidos + Enter)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const state = scanFbRef.current.kind;
+      if (state === 'loading' || state === 'sucesso' || state === 'duplicada' || state === 'invalido') return;
+      if (e.key === 'Enter') {
+        const code = kbBuffer.current.trim();
+        kbBuffer.current = '';
+        if (kbTimer.current) { clearTimeout(kbTimer.current); kbTimer.current = null; }
+        if (code.length >= 4) processarQR(code);
+      } else if (e.key.length === 1) {
+        kbBuffer.current += e.key;
+        if (kbTimer.current) clearTimeout(kbTimer.current);
+        kbTimer.current = setTimeout(() => { kbBuffer.current = ''; }, 500);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [processarQR]);
   const activeAvisos                  = avisos.filter(a => a.active && a.text.trim() && (a.area === 'todos' || a.area === 'cozinha' || !a.area));
   const avisosCompact                 = activeAvisos.filter(a => a.layout !== 'expandido');
   const avisosExpand                  = activeAvisos.filter(a => a.layout === 'expandido');
@@ -287,6 +352,43 @@ export function Cozinha() {
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Overlay leitor físico */}
+      {scanFb.kind !== 'idle' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          {scanFb.kind === 'loading' && (
+            <div className="bg-white rounded-3xl p-10 flex flex-col items-center gap-4 shadow-2xl">
+              <div className="w-14 h-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+              <p className="text-gray-600 font-semibold">Verificando...</p>
+            </div>
+          )}
+          {scanFb.kind === 'sucesso' && (
+            <div className="bg-green-500 rounded-3xl p-10 flex flex-col items-center gap-3 shadow-2xl min-w-[280px]">
+              <CheckCircle size={56} className="text-white" />
+              <p className="text-3xl font-black text-white text-center">{scanFb.pessoa.nome}</p>
+              {scanFb.pessoa.empresa && <p className="text-green-100 text-sm">{scanFb.pessoa.empresa}</p>}
+              <p className="text-white text-lg font-bold">Bom almoço! 🍽️</p>
+              <p className="text-green-200 text-sm">{scanFb.hora}</p>
+            </div>
+          )}
+          {scanFb.kind === 'duplicada' && (
+            <div className="bg-amber-500 rounded-3xl p-10 flex flex-col items-center gap-3 shadow-2xl min-w-[280px]">
+              <AlertCircle size={56} className="text-white" />
+              <p className="text-2xl font-black text-white text-center">{scanFb.nome}</p>
+              <p className="text-amber-100 text-base text-center">
+                Almoço já registrado hoje às <span className="font-bold">{scanFb.horaAnterior}</span>
+              </p>
+            </div>
+          )}
+          {scanFb.kind === 'invalido' && (
+            <div className="bg-red-600 rounded-3xl p-10 flex flex-col items-center gap-3 shadow-2xl min-w-[280px]">
+              <XCircle size={56} className="text-white" />
+              <p className="text-2xl font-black text-white">Não encontrado</p>
+              <p className="text-red-200 text-sm">Código não cadastrado no sistema</p>
+            </div>
+          )}
         </div>
       )}
 
