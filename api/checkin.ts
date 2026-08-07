@@ -220,6 +220,7 @@ export default async function handler(req: any, res: any) {
         session,
       );
       const testText = await testRes.text();
+      console.log('[checkin] validação status:', testRes.status, 'url:', testRes.url, 'body[:100]:', testText.slice(0, 100));
       if (isSessionExpired(testText, testRes.status)) {
         throw new Error('Sessão inválida — PHPSESSID não autenticado. Faça login no Paytour primeiro.');
       }
