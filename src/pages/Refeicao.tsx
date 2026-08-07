@@ -25,7 +25,13 @@ export function Refeicao() {
   const scanningRef           = useRef(false);
   const tipoRef               = useRef<TipoRefeicao>('almoco');
 
+  // Buffer para leitor físico (USB/Bluetooth) — digita rápido + Enter
+  const kbBuffer  = useRef('');
+  const kbTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fbRef     = useRef<FeedbackState>({ kind: 'idle' });
+
   useEffect(() => { tipoRef.current = tipo; }, [tipo]);
+  useEffect(() => { fbRef.current = fb; }, [fb]);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
@@ -119,6 +125,35 @@ export function Refeicao() {
     return () => { stopScanner(); };
   }, [startScanner, stopScanner]);
 
+  // Suporte a leitor físico (USB/BT) — captura teclado rápido + Enter
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Ignora se estiver em loading/sucesso/duplicada/invalido
+      const state = fbRef.current.kind;
+      if (state === 'loading' || state === 'sucesso' || state === 'duplicada' || state === 'invalido') return;
+
+      if (e.key === 'Enter') {
+        const code = kbBuffer.current.trim();
+        kbBuffer.current = '';
+        if (kbTimer.current) { clearTimeout(kbTimer.current); kbTimer.current = null; }
+        if (code.length >= 4) {
+          // Para a câmera e processa como se tivesse sido lido pela câmera
+          stopScanner().then(() => {
+            setFb({ kind: 'loading' });
+            processarQR(code, tipoRef.current);
+          });
+        }
+      } else if (e.key.length === 1) {
+        kbBuffer.current += e.key;
+        // Limpa buffer se nenhum Enter vier em 500ms (digitação humana, não scanner)
+        if (kbTimer.current) clearTimeout(kbTimer.current);
+        kbTimer.current = setTimeout(() => { kbBuffer.current = ''; }, 500);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [stopScanner]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tipoAtual = TIPOS.find(t => t.key === tipo)!;
 
   return (
@@ -161,7 +196,7 @@ export function Refeicao() {
           className="absolute inset-0 flex flex-col items-center justify-center"
           style={{ display: (fb.kind === 'idle' || fb.kind === 'scanning') ? 'flex' : 'none' }}
         >
-          <p className="text-gray-400 text-sm mb-4">Aproxime o QR Code da câmera</p>
+          <p className="text-gray-400 text-sm mb-4">Aproxime o QR Code da câmera ou use o leitor físico</p>
           <div className="relative">
             <div id="qr-reader" className="rounded-2xl overflow-hidden" style={{ width: 300, height: 300 }} />
             {/* Guia visual */}

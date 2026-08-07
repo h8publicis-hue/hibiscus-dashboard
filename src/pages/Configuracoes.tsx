@@ -38,7 +38,7 @@ const LINKS_OPERACIONAIS = [
   { label: 'App / Portaria',   path: '/portaria',  desc: 'Registro de entrada de pessoas' },
   { label: 'App / RH',         path: '/rh',        desc: 'Contador de colaboradores' },
   { label: 'App / Cozinha',    path: '/cozinha',   desc: 'Painel da cozinha' },
-  { label: 'App / Refeitório', path: '/refeicao',  desc: 'Scanner de QR code' },
+  { label: 'Leitor QR / Refeitório', path: '/refeicao',  desc: 'Scanner de QR code e código de barras (câmera ou leitor físico)' },
   { label: 'App / Líder',      path: '/lider',     desc: 'Escala e validação — líder de atendimento' },
   { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
 ];
