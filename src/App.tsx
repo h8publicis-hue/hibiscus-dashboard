@@ -238,8 +238,8 @@ function Dashboard() {
 }
 
 function ProtectedDashboard() {
-  const [authed, setAuthed] = useState(() => localStorage.getItem('hibiscus-admin-auth-v2') === 'ok');
-  // useRef para não criar nova referência a cada render
+  const isKioskMode = new URLSearchParams(window.location.search).has('kiosk');
+  const [authed, setAuthed] = useState(() => isKioskMode || localStorage.getItem('hibiscus-admin-auth-v2') === 'ok');
   const handleLogin = useRef(() => setAuthed(true)).current;
 
   if (!authed) return <Login onLogin={handleLogin} />;
