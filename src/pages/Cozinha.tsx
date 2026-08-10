@@ -392,8 +392,14 @@ export function Cozinha() {
         </div>
       )}
 
+      {/* Indicador leitor físico ativo */}
+      <div className="flex items-center justify-center gap-1.5 py-2 border-t border-gray-100 bg-gray-50">
+        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <p className="text-[11px] text-gray-400">Leitor de crachá ativo — bipe para registrar almoço</p>
+      </div>
+
       {/* Rodapé */}
-      <div className="text-center py-3 border-t border-gray-200">
+      <div className="text-center py-2 border-t border-gray-200">
         <p className="text-[9px] text-gray-300 leading-tight">Desenvolvido por</p>
         <p className="text-[11px] font-bold text-gray-400 leading-tight">H8 Publicis</p>
       </div>
