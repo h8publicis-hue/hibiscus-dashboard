@@ -69,17 +69,30 @@ async function paytourGet(path: string, attempt = 1): Promise<any> {
     signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();
+  const snippet = text.slice(0, 120).replace(/\n/g, ' ');
   if (text.trim().startsWith('<')) {
-    console.error(`[orders] HTML (attempt ${attempt}) status=${res.status} path=${path.slice(0, 60)}`);
+    console.error(`[orders] HTML attempt=${attempt} status=${res.status} snippet=${snippet}`);
     if (attempt < 3) {
-      // Token expirado ou rate-limit — força re-auth e tenta de novo
       ptToken = '';
       await sleep(800 * attempt);
       return paytourGet(path, attempt + 1);
     }
-    throw new Error(`Paytour retornou HTML (status ${res.status}) — rate limit`);
+    throw new Error(`Paytour retornou HTML (status ${res.status})`);
   }
-  return JSON.parse(text);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    console.error(`[orders] JSON.parse falhou attempt=${attempt} status=${res.status} snippet=${snippet}`);
+    if (attempt < 3) { ptToken = ''; await sleep(800 * attempt); return paytourGet(path, attempt + 1); }
+    throw new Error(`JSON inválido (status ${res.status})`);
+  }
+  if (!parsed?.itens && attempt === 1) {
+    // Resposta sem campo itens — pode ser erro de auth (ex: {"mensagem":"Token inválido"})
+    const keys = Object.keys(parsed ?? {}).join(',');
+    console.warn(`[orders] sem itens status=${res.status} keys=${keys} snippet=${snippet}`);
+  }
+  return parsed;
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -96,7 +109,8 @@ async function fetchOrders(since: string, until: string) {
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
     const items = data?.itens ?? [];
     if (page === 1) {
-      console.log(`[orders] pg1 total_pg=${data?.info?.total_paginas} count=${items.length} since=${since}`);
+      const keys = Object.keys(data ?? {}).join(',');
+      console.log(`[orders] pg1 total_pg=${data?.info?.total_paginas} count=${items.length} since=${since} keys=${keys} raw=${JSON.stringify(data)?.slice(0, 200)}`);
     }
     if (!items.length) break;
     let done = false;
@@ -141,7 +155,11 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
-  if (!PT_KEY || !PT_SECRET) return res.json({ orders: [] });
+  console.log(`[orders] handler KEY=${!!PT_KEY} SECRET=${!!PT_SECRET} BASE=${PT_BASE.slice(0,30)}`);
+  if (!PT_KEY || !PT_SECRET) {
+    console.error('[orders] ABORTANDO — PT_KEY ou PT_SECRET ausentes nas env vars');
+    return res.json({ orders: [] });
+  }
 
   // Paytour armazena datas em BRT (UTC-3); usamos a mesma referência
   const today   = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
