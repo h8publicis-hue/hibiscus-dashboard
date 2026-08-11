@@ -62,14 +62,23 @@ async function getPtToken() {
   return ptToken;
 }
 
-async function paytourGet(path: string) {
+async function paytourGet(path: string, attempt = 1): Promise<any> {
   const tk  = await getPtToken();
   const res = await fetch(`${PT_BASE}${path}`, {
     headers: proxyHeaders({ Authorization: `Bearer ${tk}`, Accept: 'application/json' }),
     signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();
-  if (text.trim().startsWith('<')) throw new Error(`Paytour retornou HTML (status ${res.status}) — rate limit`);
+  if (text.trim().startsWith('<')) {
+    console.error(`[orders] HTML (attempt ${attempt}) status=${res.status} path=${path.slice(0, 60)}`);
+    if (attempt < 3) {
+      // Token expirado ou rate-limit — força re-auth e tenta de novo
+      ptToken = '';
+      await sleep(800 * attempt);
+      return paytourGet(path, attempt + 1);
+    }
+    throw new Error(`Paytour retornou HTML (status ${res.status}) — rate limit`);
+  }
   return JSON.parse(text);
 }
 
@@ -86,6 +95,9 @@ async function fetchOrders(since: string, until: string) {
     if (page > 1) await sleep(PAGE_DELAY_MS);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
     const items = data?.itens ?? [];
+    if (page === 1) {
+      console.log(`[orders] pg1 total_pg=${data?.info?.total_paginas} count=${items.length} since=${since}`);
+    }
     if (!items.length) break;
     let done = false;
     for (const o of items) {
