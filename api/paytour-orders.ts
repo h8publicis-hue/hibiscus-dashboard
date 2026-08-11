@@ -174,15 +174,18 @@ export default async function handler(req: any, res: any) {
   // L1: memória (mesma instância serverless)
   const mem = memCache.get(key);
   if (mem && Date.now() - mem.ts < ttl) {
+    console.log(`[orders] L1-HIT key=${key} n=${(mem.orders as any[]).length}`);
     return res.json({ orders: mem.orders });
   }
 
   // L2: Redis (persiste entre cold starts e instâncias)
   const kv = await kvGet(key);
   if (kv && Date.now() - kv.ts < ttl) {
+    console.log(`[orders] L2-HIT key=${key} n=${(kv.orders as any[]).length} age=${Math.round((Date.now()-kv.ts)/1000)}s`);
     memCache.set(key, kv);
     return res.json({ orders: kv.orders });
   }
+  console.log(`[orders] CACHE-MISS key=${key} kv_n=${kv ? (kv.orders as any[]).length : 'null'} isToday=${isToday}`);
 
   // L3: Lock in-flight — se já existe fetch em andamento para esta chave,
   //     aguarda o mesmo resultado em vez de disparar outro request à Paytour
