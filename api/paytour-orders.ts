@@ -113,13 +113,15 @@ async function fetchOrders(since: string, until: string) {
       console.log(`[orders] pg1 total_pg=${data?.info?.total_paginas} count=${items.length} since=${since} keys=${keys} raw=${JSON.stringify(data)?.slice(0, 200)}`);
     }
     if (!items.length) break;
-    let done = false;
+    // Filtra os itens desta página que estão no intervalo
     for (const o of items) {
-      const d = (o.data_hora_pedido as string).slice(0, 10);
-      if (d < since) { done = true; break; }
-      if (d <= until) all.push(o);
+      const d = (o.data_hora_pedido as string)?.slice(0, 10);
+      if (d && d >= since && d <= until) all.push(o);
     }
-    if (done) break;
+    // Só para se o ÚLTIMO item da página for anterior a `since`
+    // (significa que todos os próximos também serão mais antigos — API sorted desc)
+    const lastDate = (items[items.length - 1]?.data_hora_pedido as string)?.slice(0, 10) ?? '';
+    if (lastDate && lastDate < since) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
   return all;
