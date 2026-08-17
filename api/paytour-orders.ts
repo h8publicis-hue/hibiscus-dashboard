@@ -87,8 +87,18 @@ async function paytourGet(path: string, attempt = 1): Promise<any> {
     if (attempt < 3) { ptToken = ''; await sleep(800 * attempt); return paytourGet(path, attempt + 1); }
     throw new Error(`JSON inválido (status ${res.status})`);
   }
+  // 401 / token inválido — força re-auth e retry
+  if (res.status === 401 || parsed?.code === 1) {
+    console.warn(`[orders] 401 attempt=${attempt} snippet=${snippet}`);
+    if (attempt < 3) {
+      ptToken = '';
+      ptTokenExpiry = 0;
+      await sleep(800 * attempt);
+      return paytourGet(path, attempt + 1);
+    }
+    throw new Error(`Paytour 401 após ${attempt} tentativas`);
+  }
   if (!parsed?.itens && attempt === 1) {
-    // Resposta sem campo itens — pode ser erro de auth (ex: {"mensagem":"Token inválido"})
     const keys = Object.keys(parsed ?? {}).join(',');
     console.warn(`[orders] sem itens status=${res.status} keys=${keys} snippet=${snippet}`);
   }
