@@ -50,7 +50,7 @@ export function useChamadas(start?: string, end?: string) {
     const s = start || todayBRT();
     const e = end   || s;
     fetchData(s, e);
-    const id = setInterval(() => fetchData(s, e), 60_000);
+    const id = setInterval(() => fetchData(s, e), 2 * 60_000);
     return () => clearInterval(id);
   }, [start, end, fetchData]);
 

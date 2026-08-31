@@ -7,8 +7,8 @@ const KV_TOKEN   = process.env.KV_REST_API_TOKEN ?? '';
 
 // Cache em memória (por instância serverless) + Redis para compartilhar entre instâncias
 // TTL curto para dados ao vivo — reduz leituras Firestore e evita quota 429
-const MEM_TTL = 60_000;  // 1 min em memória
-const KV_TTL  = 60;      // 1 min no Redis
+const MEM_TTL = 5 * 60_000;  // 5 min em memória
+const KV_TTL  = 5 * 60;      // 5 min no Redis
 
 const memCache = new Map<string, { data: unknown; ts: number }>();
 
