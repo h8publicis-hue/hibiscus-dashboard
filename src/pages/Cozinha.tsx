@@ -124,8 +124,23 @@ export function Cozinha() {
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
   const [scanFb, setScanFb]           = useState<ScanFeedback>({ kind: 'idle' });
-  const [scanLog, setScanLog]         = useState<RegistroLog[]>([]);
+  const [scanLog, setScanLog]         = useState<RegistroLog[]>(() => {
+    try {
+      const saved = localStorage.getItem('cozinha-scan-log-v1');
+      if (!saved) return [];
+      const { date, log } = JSON.parse(saved);
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' });
+      return date === today ? (log as RegistroLog[]) : [];
+    } catch { return []; }
+  });
   const { avisos }                    = useAviso();
+
+  useEffect(() => {
+    try {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' });
+      localStorage.setItem('cozinha-scan-log-v1', JSON.stringify({ date: today, log: scanLog }));
+    } catch {}
+  }, [scanLog]);
 
   const kbBuffer  = useRef('');
   const kbTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
