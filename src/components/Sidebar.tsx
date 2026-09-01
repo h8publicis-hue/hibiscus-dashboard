@@ -1,21 +1,19 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
-  occupancyAlerts: number;
   overviewAlerts:  number;
   surveyAlerts:    number;
   reviewsAlerts:   number;
 }
 
-export function Sidebar({ occupancyAlerts, overviewAlerts, surveyAlerts, reviewsAlerts }: SidebarProps) {
+export function Sidebar({ overviewAlerts, surveyAlerts, reviewsAlerts }: SidebarProps) {
   const allItems = [
     { to: '/',           icon: LayoutDashboard, label: 'Visão Geral', alerts: overviewAlerts },
     { to: '/vendas',     icon: TrendingUp,      label: 'Vendas',      alerts: 0 },
     { to: '/satisfacao', icon: Smile,           label: 'Survey',      alerts: surveyAlerts },
     { to: '/avaliacoes', icon: Star,            label: 'Avaliações',  alerts: reviewsAlerts },
-    { to: '/ocupacao',   icon: Users,           label: 'Ocupação',    alerts: occupancyAlerts },
     { to: '/fluxo',     icon: Activity,        label: 'Fluxo',       alerts: 0 },
     { to: '/chamadas',  icon: Bell,            label: 'Chamadas',    alerts: 0 },
     { to: '/relatorio', icon: FileText,        label: 'Fechamento',  alerts: 0 },

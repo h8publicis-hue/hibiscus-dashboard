@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Users, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BottomNavProps {
-  occupancyAlerts: number;
   overviewAlerts:  number;
   surveyAlerts:    number;
   reviewsAlerts:   number;
@@ -13,7 +12,6 @@ interface BottomNavProps {
 const ALL_ITEMS = [
   { to: '/',              icon: LayoutDashboard,  label: 'Visão',      primary: true  },
   { to: '/vendas',        icon: TrendingUp,       label: 'Vendas',     primary: true  },
-  { to: '/ocupacao',      icon: Users,            label: 'Ocupação',   primary: true  },
   { to: '/satisfacao',    icon: Smile,            label: 'Survey',     primary: true  },
   { to: '/avaliacoes',    icon: Star,             label: 'Avaliações', primary: false },
   { to: '/chamadas',      icon: Bell,             label: 'Chamadas',   primary: false },
@@ -25,13 +23,12 @@ const ALL_ITEMS = [
   { to: '/configuracoes', icon: Settings,         label: 'Config.',    primary: false },
 ];
 
-export function BottomNav({ occupancyAlerts, overviewAlerts, surveyAlerts, reviewsAlerts }: BottomNavProps) {
+export function BottomNav({ overviewAlerts, surveyAlerts, reviewsAlerts }: BottomNavProps) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
   const alerts: Record<string, number> = {
     '/':           overviewAlerts,
-    '/ocupacao':   occupancyAlerts,
     '/satisfacao': surveyAlerts,
     '/avaliacoes': reviewsAlerts,
   };

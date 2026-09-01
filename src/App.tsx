@@ -64,7 +64,6 @@ import { Overview } from './pages/Overview';
 import { Sales } from './pages/Sales';
 import { Satisfaction } from './pages/Satisfaction';
 import { Reviews } from './pages/Reviews';
-import { Occupancy } from './pages/Occupancy';
 import { OccupancyInput } from './pages/OccupancyInput';
 import { Rh } from './pages/Rh';
 import { Cozinha } from './pages/Cozinha';
@@ -179,7 +178,6 @@ function Dashboard() {
         <div className="flex flex-1 overflow-hidden">
           {!kdsMode && (
             <Sidebar
-              occupancyAlerts={occupancyAlerts}
               overviewAlerts={sidebarAlerts.overview}
               surveyAlerts={sidebarAlerts.survey}
               reviewsAlerts={sidebarAlerts.reviews}
@@ -199,7 +197,6 @@ function Dashboard() {
                   <Route path="/vendas"     element={<Sales />} />
                   <Route path="/satisfacao" element={<Satisfaction period={period} />} />
                   <Route path="/avaliacoes" element={<Reviews period={period} />} />
-                  <Route path="/ocupacao"   element={<Occupancy occupancy={occupancy} actions={occupancyActions} />} />
                   <Route path="/fluxo"     element={<Fluxo />} />
                   <Route path="/chamadas"       element={<Chamadas />} />
                   <Route path="/refeicao/admin"   element={<RefeicaoAdmin />} />
@@ -217,7 +214,6 @@ function Dashboard() {
 
       {!kdsMode && (
         <BottomNav
-          occupancyAlerts={occupancyAlerts}
           overviewAlerts={sidebarAlerts.overview}
           surveyAlerts={sidebarAlerts.survey}
           reviewsAlerts={sidebarAlerts.reviews}
