@@ -10,6 +10,15 @@ type ScanFeedback =
   | { kind: 'duplicada'; nome: string; horaAnterior: string }
   | { kind: 'invalido' };
 
+interface RegistroLog {
+  id:        string;
+  nome:      string;
+  categoria: string;
+  empresa?:  string;
+  hora:      string;
+  status:    'sucesso' | 'duplicada' | 'invalido';
+}
+
 function AvisoCardExp({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const first = text.split('\n').find(l => l.trim()) ?? text;
@@ -114,6 +123,7 @@ export function Cozinha() {
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
   const [scanFb, setScanFb]           = useState<ScanFeedback>({ kind: 'idle' });
+  const [scanLog, setScanLog]         = useState<RegistroLog[]>([]);
   const { avisos }                    = useAviso();
 
   const kbBuffer  = useRef('');
@@ -141,11 +151,20 @@ export function Cozinha() {
       }).then(r => r.json());
 
       if (reg.status === 'duplicada') {
+        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
         setScanFb({ kind: 'duplicada', nome: pessoa.nome, horaAnterior: reg.horaAnterior });
+        setScanLog(prev => [
+          { id: `${Date.now()}`, nome: pessoa.nome, categoria: pessoa.categoria, empresa: pessoa.empresa, hora, status: 'duplicada' as const },
+          ...prev,
+        ].slice(0, 30));
       } else {
         const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
         setScanFb({ kind: 'sucesso', pessoa, hora });
         setAlmocosHoje(n => n + 1);
+        setScanLog(prev => [
+          { id: `${Date.now()}`, nome: pessoa.nome, categoria: pessoa.categoria, empresa: pessoa.empresa, hora, status: 'sucesso' as const },
+          ...prev,
+        ].slice(0, 30));
       }
     } catch {
       setScanFb({ kind: 'invalido' });
@@ -351,6 +370,43 @@ export function Cozinha() {
                 🤝 {occ.parceiros ?? 0} parceiros
               </span>
             </div>
+
+            {/* Log de bipes */}
+            {scanLog.length > 0 && (
+              <div className="w-full mt-2 flex flex-col gap-1 max-h-56 overflow-y-auto">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider text-center mb-0.5">
+                  Últimas entradas
+                </p>
+                {scanLog.map((r, i) => (
+                  <div
+                    key={r.id}
+                    className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all ${
+                      i === 0 ? 'ring-1 ring-offset-0' : ''
+                    } ${
+                      r.status === 'sucesso'
+                        ? `bg-green-50 ${i === 0 ? 'ring-green-400' : ''}`
+                        : `bg-amber-50 ${i === 0 ? 'ring-amber-400' : ''}`
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${r.status === 'sucesso' ? 'bg-green-500' : 'bg-amber-400'}`} />
+                    <span className="font-semibold text-gray-800 flex-1 truncate">{r.nome}</span>
+                    {r.empresa && (
+                      <span className="text-gray-400 text-[10px] shrink-0 hidden sm:block">{r.empresa}</span>
+                    )}
+                    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      r.status === 'sucesso' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {r.status === 'sucesso' ? '✓' : '2×'}
+                    </span>
+                    <span className="text-gray-400 text-[10px] shrink-0 tabular-nums">{r.hora}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {scanLog.length === 0 && (
+              <p className="text-[11px] text-gray-300 mt-2 text-center">Aguardando bipes...</p>
+            )}
           </div>
         </div>
       )}
