@@ -11,12 +11,13 @@ type ScanFeedback =
   | { kind: 'invalido' };
 
 interface RegistroLog {
-  id:        string;
-  nome:      string;
-  categoria: string;
-  empresa?:  string;
-  hora:      string;
-  status:    'sucesso' | 'duplicada' | 'invalido';
+  id:         string;
+  nome:       string;
+  categoria:  string;
+  empresa?:   string;
+  hora:       string;
+  status:     'sucesso' | 'duplicada' | 'invalido';
+  tentativas: number;
 }
 
 function AvisoCardExp({ text }: { text: string }) {
@@ -153,16 +154,22 @@ export function Cozinha() {
       if (reg.status === 'duplicada') {
         const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
         setScanFb({ kind: 'duplicada', nome: pessoa.nome, horaAnterior: reg.horaAnterior });
-        setScanLog(prev => [
-          { id: `${Date.now()}`, nome: pessoa.nome, categoria: pessoa.categoria, empresa: pessoa.empresa, hora, status: 'duplicada' as const },
-          ...prev,
-        ].slice(0, 30));
+        setScanLog(prev => {
+          const top = prev[0];
+          if (top && top.nome === pessoa.nome && top.status === 'duplicada') {
+            return [{ ...top, tentativas: top.tentativas + 1, hora }, ...prev.slice(1)];
+          }
+          return [
+            { id: `${Date.now()}`, nome: pessoa.nome, categoria: pessoa.categoria, empresa: pessoa.empresa, hora, status: 'duplicada' as const, tentativas: 1 },
+            ...prev,
+          ].slice(0, 30);
+        });
       } else {
         const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
         setScanFb({ kind: 'sucesso', pessoa, hora });
         setAlmocosHoje(n => n + 1);
         setScanLog(prev => [
-          { id: `${Date.now()}`, nome: pessoa.nome, categoria: pessoa.categoria, empresa: pessoa.empresa, hora, status: 'sucesso' as const },
+          { id: `${Date.now()}`, nome: pessoa.nome, categoria: pessoa.categoria, empresa: pessoa.empresa, hora, status: 'sucesso' as const, tentativas: 1 },
           ...prev,
         ].slice(0, 30));
       }
@@ -396,7 +403,7 @@ export function Cozinha() {
                     <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                       r.status === 'sucesso' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                     }`}>
-                      {r.status === 'sucesso' ? '✓' : '2×'}
+                      {r.status === 'sucesso' ? '✓' : `${r.tentativas}×`}
                     </span>
                     <span className="text-gray-400 text-[10px] shrink-0 tabular-nums">{r.hora}</span>
                   </div>
