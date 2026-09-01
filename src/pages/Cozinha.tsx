@@ -124,23 +124,8 @@ export function Cozinha() {
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
   const [scanFb, setScanFb]           = useState<ScanFeedback>({ kind: 'idle' });
-  const [scanLog, setScanLog]         = useState<RegistroLog[]>(() => {
-    try {
-      const saved = localStorage.getItem('cozinha-scan-log-v1');
-      if (!saved) return [];
-      const { date, log } = JSON.parse(saved);
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' });
-      return date === today ? (log as RegistroLog[]) : [];
-    } catch { return []; }
-  });
+  const [scanLog, setScanLog]         = useState<RegistroLog[]>([]);
   const { avisos }                    = useAviso();
-
-  useEffect(() => {
-    try {
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' });
-      localStorage.setItem('cozinha-scan-log-v1', JSON.stringify({ date: today, log: scanLog }));
-    } catch {}
-  }, [scanLog]);
 
   const kbBuffer  = useRef('');
   const kbTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -228,7 +213,27 @@ export function Cozinha() {
     const loadAlmocos = () =>
       fetch('/api/refeicoes')
         .then(r => r.json())
-        .then(j => setAlmocosHoje(j?.porTipo?.almoco ?? 0))
+        .then(j => {
+          setAlmocosHoje(j?.porTipo?.almoco ?? 0);
+          const registros: any[] = j?.refeicoes ?? [];
+          const log: RegistroLog[] = registros
+            .filter((r: any) => r.status === 'registrada' && r.tipoRefeicao === 'almoco')
+            .sort((a: any, b: any) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+            .slice(0, 30)
+            .map((r: any) => ({
+              id:         r.id,
+              nome:       r.nome,
+              categoria:  r.categoria ?? '',
+              empresa:    r.empresa   ?? '',
+              hora:       r.hora,
+              status:     'sucesso' as const,
+              tentativas: 1,
+            }));
+          setScanLog(prev => {
+            const duplicadas = prev.filter(r => r.status === 'duplicada');
+            return [...duplicadas, ...log].slice(0, 30);
+          });
+        })
         .catch(() => {});
     loadAlmocos();
     const id = setInterval(loadAlmocos, 30_000);
