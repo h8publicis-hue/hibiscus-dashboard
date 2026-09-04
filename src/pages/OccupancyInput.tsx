@@ -1006,8 +1006,14 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
     if (!isReserva && (info?.ctz     ?? 0) > 0) badges.push(`CTZ: ${info!.ctz}`);
     const obsRaw   = [src?.obs || '', ...badges].filter(Boolean).join('  |  ');
     doc.setFontSize(7.5);
-    const obsLines = doc.splitTextToSize(obsRaw, obsW) as string[];
-    const rowH     = Math.max(lineH + padV * 2, obsLines.length * lineH + padV * 2);
+    const obsLines  = doc.splitTextToSize(obsRaw, obsW) as string[];
+    // sub-linhas do Nome: telefone, parceiro, Transf. Beach
+    const nomeSubLines: string[] = [];
+    if (src?.telefone) nomeSubLines.push(src.telefone);
+    if (src?.parceiro) nomeSubLines.push(`Parceiro: ${src.parceiro}`);
+    if (!isReserva && info?.transferido) nomeSubLines.push('Transf. Beach');
+    const nomeRowLines = 1 + nomeSubLines.length;
+    const rowH  = Math.max(nomeRowLines * lineH + padV * 2, obsLines.length * lineH + padV * 2);
 
     if (y + rowH > PH - 14) { doc.addPage(); y = 14; }
 
@@ -1025,24 +1031,35 @@ async function gerarPDF(occ: OccupancyState, reservas: LoungeReserva[], dataRef?
     doc.setFont('helvetica', 'bold');
     doc.text(String(num), cx2 + 2, midY); cx2 += tCols[0].w;
 
-    // col 1 — Pax
+    // col 1 — Pax (somente o número)
     doc.setFont('helvetica', 'normal');
     if (isReserva) doc.setTextColor(...hex('#1d4ed8')); else doc.setTextColor(...hex('#111827'));
     doc.text(isReserva ? 'Reserva' : `${pax} pax`, cx2 + 2, midY);
-    if (!isReserva && info?.transferido) {
-      doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(...hex('#ea580c'));
-      doc.text('Transf. Beach', cx2 + 2, midY + lineH);
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-    }
     cx2 += tCols[1].w;
 
-    // col 2-4 — Nome, Canal, Veículo (truncado ao width)
+    // col 2 — Nome + sub-linhas (telefone, parceiro, Transf. Beach)
     doc.setTextColor(...hex('#111827'));
-    [src?.nome || '', src?.canal || '', src?.veiculo || ''].forEach((val, ci) => {
-      const colW  = tCols[ci + 2].w - 3;
+    const nomeColW = tCols[2].w - 3;
+    const nomeLines2 = doc.splitTextToSize(src?.nome || '', nomeColW) as string[];
+    doc.setFont('helvetica', 'normal');
+    doc.text(nomeLines2[0] || '', cx2 + 2, midY);
+    nomeSubLines.forEach((sub, si) => {
+      const isTransf = sub === 'Transf. Beach';
+      doc.setFontSize(6);
+      doc.setFont('helvetica', isTransf ? 'bold' : 'normal');
+      doc.setTextColor(...hex(isTransf ? '#ea580c' : '#6b7280'));
+      const subLines = doc.splitTextToSize(sub, nomeColW) as string[];
+      doc.text(subLines[0], cx2 + 2, midY + (si + 1) * lineH);
+    });
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...hex('#111827'));
+    cx2 += tCols[2].w;
+
+    // col 3-4 — Canal, Veículo (truncado ao width)
+    [src?.canal || '', src?.veiculo || ''].forEach((val, ci) => {
+      const colW  = tCols[ci + 3].w - 3;
       const lines = doc.splitTextToSize(val, colW) as string[];
       doc.text(lines[0] || '', cx2 + 2, midY);
-      cx2 += tCols[ci + 2].w;
+      cx2 += tCols[ci + 3].w;
     });
 
     // col 5 — Obs (multi-linha, roxa se badge)

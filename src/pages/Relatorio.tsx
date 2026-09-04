@@ -343,13 +343,15 @@ export function Relatorio() {
   const loungesOcupados = useMemo(() =>
     occ.lounges
       .map((pax, i) => ({
-        num:      LOUNGE_START + i,
+        num:         LOUNGE_START + i,
         pax,
-        nome:     occ.loungeData?.[i]?.nome     ?? '',
-        canal:    occ.loungeData?.[i]?.canal    ?? '',
-        veiculo:  occ.loungeData?.[i]?.veiculo  ?? '',
-        parceiro: occ.loungeData?.[i]?.parceiro ?? '',
-        obs:      occ.loungeData?.[i]?.obs      ?? '',
+        nome:        occ.loungeData?.[i]?.nome        ?? '',
+        telefone:    occ.loungeData?.[i]?.telefone    ?? '',
+        canal:       occ.loungeData?.[i]?.canal       ?? '',
+        veiculo:     occ.loungeData?.[i]?.veiculo     ?? '',
+        parceiro:    occ.loungeData?.[i]?.parceiro    ?? '',
+        obs:         occ.loungeData?.[i]?.obs         ?? '',
+        transferido: occ.loungeData?.[i]?.transferido ?? false,
       }))
       .filter(l => l.pax > 0),
   [occ]);
@@ -513,17 +515,25 @@ export function Relatorio() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  {['Lounge','Pax','Nome','Canal','Veículo','Parceiro','Obs'].map(h => (
+                  {['Lounge','Pax','Nome / Telefone','Canal','Veículo','Parceiro','Obs'].map(h => (
                     <th key={h} className="text-left pb-2 pr-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                {loungesOcupados.map(({ num, pax, nome, canal, veiculo, parceiro, obs }) => (
+                {loungesOcupados.map(({ num, pax, nome, telefone, canal, veiculo, parceiro, obs, transferido }) => (
                   <tr key={num} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                     <td className="py-2 pr-3 font-semibold text-brand-600 dark:text-brand-400">{num}</td>
-                    <td className="py-2 pr-3 font-semibold">{pax}</td>
-                    <td className="py-2 pr-3 text-gray-700 dark:text-gray-300 max-w-[140px] truncate">{nome || '—'}</td>
+                    <td className="py-2 pr-3">
+                      <span className="font-semibold">{pax} pax</span>
+                      {transferido && (
+                        <span className="block text-[10px] font-bold text-orange-500 mt-0.5">🔄 Transf. Beach</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 max-w-[140px]">
+                      <p className="text-gray-700 dark:text-gray-300 truncate">{nome || '—'}</p>
+                      {telefone && <p className="text-[10px] text-gray-400 truncate">{telefone}</p>}
+                    </td>
                     <td className="py-2 pr-3 text-gray-500 dark:text-gray-400">{canal || '—'}</td>
                     <td className="py-2 pr-3 text-gray-500 dark:text-gray-400">{veiculo || '—'}</td>
                     <td className="py-2 pr-3 text-gray-500 dark:text-gray-400">{parceiro || '—'}</td>
