@@ -67,7 +67,7 @@ function proxyHeaders(extra: Record<string, string> = {}) {
 
 let ptTokenCache: { token: string; exp: number } | null = null;
 
-async function getPtToken(): Promise<string> {
+async function getPtToken(attempt = 1): Promise<string> {
   if (ptTokenCache && Date.now() < ptTokenCache.exp - 30_000) return ptTokenCache.token;
   const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
   const r = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
@@ -75,14 +75,24 @@ async function getPtToken(): Promise<string> {
     headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
     signal: AbortSignal.timeout(10_000),
   });
-  const j = await r.json() as any;
+  const text = await r.text();
+  if (text.trim().startsWith('<') || r.status === 403) {
+    console.warn(`[checkin] getPtToken HTML/403 attempt=${attempt} status=${r.status}`);
+    if (attempt < 3) {
+      ptTokenCache = null;
+      await new Promise(res => setTimeout(res, 1000 * attempt));
+      return getPtToken(attempt + 1);
+    }
+    throw new Error(`[checkin] Paytour auth retornou HTML (status ${r.status})`);
+  }
+  const j = JSON.parse(text) as any;
   const token = j.access_token ?? '';
   if (!token) throw new Error('getPtToken: sem access_token');
   ptTokenCache = { token, exp: Date.now() + (j.expires_in ?? 1800) * 1000 };
   return token;
 }
 
-async function getPaytourReservados(): Promise<number> {
+async function getPaytourReservados(attempt = 1): Promise<number> {
   const today = todayBRT();
   const token = await getPtToken();
   const url = `${PT_BASE}/v2/pedidos?status=aprovado&disponibilidade_data_de=${today}&disponibilidade_data_ate=${today}&por_pagina=1&pagina=1`;
@@ -90,6 +100,15 @@ async function getPaytourReservados(): Promise<number> {
     headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
     signal: AbortSignal.timeout(10_000),
   });
+  if (r.status === 401 || r.status === 403) {
+    console.warn(`[checkin] getPaytourReservados ${r.status} attempt=${attempt}`);
+    if (attempt < 3) {
+      ptTokenCache = null;
+      await new Promise(res => setTimeout(res, 800 * attempt));
+      return getPaytourReservados(attempt + 1);
+    }
+    throw new Error(`getPaytourReservados: ${r.status}`);
+  }
   if (!r.ok) throw new Error(`getPaytourReservados: ${r.status}`);
   const j = await r.json() as any;
   return Number(j?.info?.total ?? j?.itens?.length ?? 0);

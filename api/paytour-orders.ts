@@ -46,7 +46,7 @@ function proxyHeaders(extra: Record<string, string> = {}) {
   return { 'x-proxy-secret': PROXY_SECRET, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', ...extra };
 }
 
-async function getPtToken() {
+async function getPtToken(attempt = 1): Promise<string> {
   if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
   const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
   const res   = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
@@ -54,7 +54,11 @@ async function getPtToken() {
     headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
   });
   const text = await res.text();
-  if (text.trim().startsWith('<')) throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
+  if (text.trim().startsWith('<') || res.status === 403) {
+    console.warn(`[orders] getPtToken HTML/403 attempt=${attempt} status=${res.status}`);
+    if (attempt < 3) { await sleep(1000 * attempt); return getPtToken(attempt + 1); }
+    throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
+  }
   const j = JSON.parse(text) as any;
   if (!j.access_token) throw new Error(`Paytour auth failed`);
   ptToken       = j.access_token;
@@ -87,8 +91,8 @@ async function paytourGet(path: string, attempt = 1): Promise<any> {
     if (attempt < 3) { ptToken = ''; await sleep(800 * attempt); return paytourGet(path, attempt + 1); }
     throw new Error(`JSON inválido (status ${res.status})`);
   }
-  // 401 / token inválido — força re-auth e retry
-  if (res.status === 401 || parsed?.code === 1) {
+  // 401 / 403 / token inválido — força re-auth e retry
+  if (res.status === 401 || res.status === 403 || parsed?.code === 1) {
     console.warn(`[orders] 401 attempt=${attempt} snippet=${snippet}`);
     if (attempt < 3) {
       ptToken = '';
