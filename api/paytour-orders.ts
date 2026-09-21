@@ -183,6 +183,21 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // POST ?_inject_token=BEARER — injeta token manualmente quando Cloudflare bloqueia auth automático.
+  // Protegido pelo PROXY_SECRET (mesmo segredo do Worker).
+  // Uso: copiar token Bearer do DevTools do Paytour e postar aqui.
+  if (req.method === 'POST' && req.query?._inject_token) {
+    if (req.headers['x-proxy-secret'] !== PROXY_SECRET) return res.status(401).json({ ok: false });
+    const token = String(req.query._inject_token).trim();
+    if (!token || token.length < 20) return res.status(400).json({ ok: false, error: 'token inválido' });
+    const exp = Date.now() + 55 * 60 * 1000; // 55 min
+    ptToken = token; ptTokenExpiry = exp;
+    await kvSet(KV_TOKEN_KEY, { token, exp }, 55 * 60);
+    return res.json({ ok: true, expires: new Date(exp).toISOString() });
+  }
+
   if (!PT_KEY || !PT_SECRET) return res.json({ orders: [] });
 
   // Paytour armazena datas em BRT (UTC-3); usamos a mesma referência
