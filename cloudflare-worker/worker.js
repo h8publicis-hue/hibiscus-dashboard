@@ -23,8 +23,22 @@ export default {
     const path    = isLoja ? url.pathname.replace(/^\/loja/, '') || '/' : url.pathname;
     const targetUrl = target + path + url.search;
 
-    const headers = new Headers(request.headers);
-    headers.delete('x-proxy-secret');
+    const headers = new Headers();
+    // Copia apenas headers relevantes — exclui headers de proxy/CDN que
+    // revelam a origem real (Vercel/AWS) e ativam o Bot Fight Mode do Paytour.
+    for (const [k, v] of request.headers.entries()) {
+      const lower = k.toLowerCase();
+      if (
+        lower === 'x-proxy-secret' ||
+        lower.startsWith('x-forwarded') ||
+        lower.startsWith('x-vercel') ||
+        lower.startsWith('cf-') ||
+        lower === 'x-real-ip' ||
+        lower === 'true-client-ip' ||
+        lower === 'forwarded'
+      ) continue;
+      headers.set(k, v);
+    }
     headers.set('host', isLoja ? 'loja.hibiscusbeachclub.com.br' : 'api-ha.paytour.com.br');
 
     const proxied = new Request(targetUrl, {

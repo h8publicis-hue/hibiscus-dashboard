@@ -8,6 +8,7 @@ const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
 
 let ptToken = '';
 let ptTokenExpiry = 0;
+const KV_TOKEN_KEY = 'pt:auth-token';
 const memCache = new Map<string, { orders: unknown[]; ts: number }>();
 const fetchLock = new Map<string, Promise<unknown[]>>();   // in-flight lock
 
@@ -48,21 +49,33 @@ function proxyHeaders(extra: Record<string, string> = {}) {
 
 async function getPtToken(attempt = 1): Promise<string> {
   if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
+
+  // L2: tenta reusar token do KV para evitar excesso de chamadas de auth ao Paytour
+  const cached = await kvGet(KV_TOKEN_KEY) as { token: string; exp: number } | null;
+  if (cached?.token && Date.now() < cached.exp - 30_000) {
+    ptToken = cached.token;
+    ptTokenExpiry = cached.exp;
+    return ptToken;
+  }
+
   const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
   const res   = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
     method: 'POST',
     headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
+    signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
   if (text.trim().startsWith('<') || res.status === 403) {
-    console.warn(`[orders] getPtToken HTML/403 attempt=${attempt} status=${res.status}`);
-    if (attempt < 3) { await sleep(1000 * attempt); return getPtToken(attempt + 1); }
+    console.warn(`[orders] getPtToken HTML/403 attempt=${attempt} status=${res.status} snippet=${text.slice(0,80).replace(/\n/g,' ')}`);
+    if (attempt < 3) { ptToken = ''; ptTokenExpiry = 0; await sleep(2000 * attempt); return getPtToken(attempt + 1); }
     throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
   }
   const j = JSON.parse(text) as any;
   if (!j.access_token) throw new Error(`Paytour auth failed`);
   ptToken       = j.access_token;
   ptTokenExpiry = Date.now() + (j.expires_in ?? 3600) * 1000 - 60_000;
+  // Persiste token no KV para reusar em cold starts e outras instâncias
+  kvSet(KV_TOKEN_KEY, { token: ptToken, exp: ptTokenExpiry }, Math.floor(((j.expires_in ?? 3600) - 120)));
   return ptToken;
 }
 
@@ -122,9 +135,8 @@ async function fetchOrders(since: string, until: string) {
     if (page > 1) await sleep(PAGE_DELAY_MS);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
     const items = data?.itens ?? [];
-    if (page === 1) {
-      const keys = Object.keys(data ?? {}).join(',');
-      console.log(`[orders] pg1 total_pg=${data?.info?.total_paginas} count=${items.length} since=${since} keys=${keys} raw=${JSON.stringify(data)?.slice(0, 200)}`);
+    if (page === 1 && !items.length) {
+      console.warn(`[orders] pg1 sem itens since=${since}`);
     }
     if (!items.length) break;
     // Filtra os itens desta página que estão no intervalo
@@ -171,11 +183,7 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
-  console.log(`[orders] handler KEY=${!!PT_KEY} SECRET=${!!PT_SECRET} BASE=${PT_BASE.slice(0,30)}`);
-  if (!PT_KEY || !PT_SECRET) {
-    console.error('[orders] ABORTANDO — PT_KEY ou PT_SECRET ausentes nas env vars');
-    return res.json({ orders: [] });
-  }
+  if (!PT_KEY || !PT_SECRET) return res.json({ orders: [] });
 
   // Paytour armazena datas em BRT (UTC-3); usamos a mesma referência
   const today   = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -190,18 +198,15 @@ export default async function handler(req: any, res: any) {
   // L1: memória (mesma instância serverless)
   const mem = memCache.get(key);
   if (mem && Date.now() - mem.ts < ttl) {
-    console.log(`[orders] L1-HIT key=${key} n=${(mem.orders as any[]).length}`);
     return res.json({ orders: mem.orders });
   }
 
   // L2: Redis (persiste entre cold starts e instâncias)
   const kv = await kvGet(key);
   if (kv && Date.now() - kv.ts < ttl) {
-    console.log(`[orders] L2-HIT key=${key} n=${(kv.orders as any[]).length} age=${Math.round((Date.now()-kv.ts)/1000)}s`);
     memCache.set(key, kv);
     return res.json({ orders: kv.orders });
   }
-  console.log(`[orders] CACHE-MISS key=${key} kv_n=${kv ? (kv.orders as any[]).length : 'null'} isToday=${isToday}`);
 
   // L3: Lock in-flight — se já existe fetch em andamento para esta chave,
   //     aguarda o mesmo resultado em vez de disparar outro request à Paytour
@@ -216,6 +221,9 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Chave de fallback "último resultado válido" — TTL longo para sobreviver instabilidades
+  const fallbackKey = `pt6:last:${filter}:${since}_${until}`;
+
   const fn      = filter === 'visita' ? fetchOrdersByVisitDate : fetchOrders;
   const promise = fn(since, until)
     .then((orders) => {
@@ -226,6 +234,8 @@ export default async function handler(req: any, res: any) {
         memCache.set(key, entry);
         kvSet(key, entry, ttlSec).catch(() => {});
       }
+      // Guarda último resultado válido com TTL longo (4h) como fallback de instabilidade
+      if (orders.length > 0) kvSet(fallbackKey, entry, 4 * 60 * 60).catch(() => {});
       fetchLock.delete(key);
       return orders;
     })
@@ -241,8 +251,13 @@ export default async function handler(req: any, res: any) {
     return res.json({ orders });
   } catch (err: any) {
     if (kv) return res.json({ orders: kv.orders, stale: true });
+    // Tenta fallback de longa duração antes de retornar vazio
+    const fallback = await kvGet(fallbackKey);
+    if (fallback) {
+      console.warn(`[orders] API indisponível — usando fallback (${Math.round((Date.now()-fallback.ts)/60000)}min atrás) key=${key}`);
+      return res.json({ orders: fallback.orders, stale: true });
+    }
     console.error('[paytour]', err.message);
-    // Sem cache e API indisponível — retorna vazio em vez de 500 para não quebrar a dash
     return res.json({ orders: [], error: err.message, unavailable: true });
   }
 }

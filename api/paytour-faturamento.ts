@@ -19,10 +19,13 @@ const XLS_JUNE_TOTAL  = 46298.00;
 const XLS_JUNE_MAX_ID = 4085703;
 
 // Snapshot julho/2026 verificado no Resumo Financeiro Paytour em 22/07/2026.
-// Representa pedidos de 01/07 até JULY_SEED_CUTOFF (inclusive).
-// O acumulador v2 só captura pedidos a partir de JULY_SEED_CUTOFF+1 para evitar dupla contagem.
 const JULY_2026_SEED        = 91474.00;
-const JULY_2026_SEED_CUTOFF = '2026-07-22'; // seed cobre até esta data (inclusive)
+const JULY_2026_SEED_CUTOFF = '2026-07-22';
+
+// Snapshot setembro/2026 verificado no Resumo Financeiro Paytour em 21/09/2026.
+// Cobre 01/09 até 21/09 inclusive. Acumulador captura pedidos aprovados após 21/09.
+const SEPT_2026_SEED        = 109249.00;
+const SEPT_2026_SEED_CUTOFF = '2026-09-21';
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -52,7 +55,7 @@ function proxyHeaders(extra: Record<string, string> = {}) {
   return { 'x-proxy-secret': PROXY_SECRET, 'User-Agent': 'Mozilla/5.0', Origin: 'https://app.paytour.com.br', ...extra };
 }
 
-async function getPtToken() {
+async function getPtToken(attempt = 1): Promise<string> {
   if (ptToken && Date.now() < ptTokenExpiry) return ptToken;
   const creds = Buffer.from(`${PT_KEY}:${PT_SECRET}`).toString('base64');
   const res = await fetch(`${PT_BASE}/v2/lojas/login?grant_type=application`, {
@@ -60,7 +63,15 @@ async function getPtToken() {
     headers: proxyHeaders({ Authorization: `Basic ${creds}`, 'Content-Length': '0' }),
   });
   const text = await res.text();
-  if (text.trim().startsWith('<')) throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
+  if (text.trim().startsWith('<') || res.status === 403) {
+    console.warn(`[fat] getPtToken HTML/403 attempt=${attempt} status=${res.status}`);
+    if (attempt < 3) {
+      ptToken = ''; ptTokenExpiry = 0;
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+      return getPtToken(attempt + 1);
+    }
+    throw new Error(`Paytour auth retornou HTML (status ${res.status})`);
+  }
   const j = JSON.parse(text) as any;
   if (!j.access_token) throw new Error('Paytour auth failed');
   ptToken = j.access_token;
@@ -106,11 +117,12 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v3:${month}`;
+  const accKey = `ptf-acc-v4:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; cutoff: string }> = {
     '2026-07': { amount: JULY_2026_SEED, cutoff: JULY_2026_SEED_CUTOFF },
+    '2026-09': { amount: SEPT_2026_SEED, cutoff: SEPT_2026_SEED_CUTOFF },
   };
   const seedCfg  = seeds[month];
   const seedAmt  = seedCfg?.amount  ?? 0;
@@ -163,7 +175,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v21:${since}_${until}`;
+  const key   = `ptf-v22:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
