@@ -8,7 +8,7 @@
 
 const PT_KEY      = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
 const PT_SECRET   = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
-const PT_BASE     = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
+const PT_BASE     = 'https://api-ha.paytour.com.br';
 const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET ?? '';
 const KV_URL    = process.env.KV_REST_API_URL   ?? '';
 const KV_TOKEN  = process.env.KV_REST_API_TOKEN ?? '';
