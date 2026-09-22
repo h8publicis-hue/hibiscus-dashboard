@@ -189,6 +189,19 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
 
+  // GET ?_reset_auth — força re-auth sem KV (para diagnóstico)
+  if (req.method === 'GET' && req.query?._reset_auth !== undefined) {
+    if (req.headers['x-proxy-secret'] !== PROXY_SECRET) return res.status(401).json({ ok: false });
+    ptToken = ''; ptTokenExpiry = 0;
+    await kvSet(KV_TOKEN_KEY, { token: '', exp: 0 }, 1);
+    try {
+      const tk = await getPtToken();
+      return res.json({ ok: true, tokenLength: tk.length, exp: new Date(ptTokenExpiry).toISOString() });
+    } catch (e: any) {
+      return res.json({ ok: false, error: e.message });
+    }
+  }
+
   // GET ?_auth_creds — retorna credenciais para o browser fazer auth diretamente no Paytour.
   // Protegido pelo PROXY_SECRET. Browser autentica e injeta o token de volta via _inject_token.
   if (req.method === 'GET' && req.query?._auth_creds !== undefined) {
