@@ -30,11 +30,19 @@ export function usePaytour(period: string): UsePaytourResult {
 
     let cancelled = false;
 
-    fetchPaytourData(period)
-      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
-      .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
+    const doFetch = () =>
+      fetchPaytourData(period)
+        .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
+        .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
 
-    return () => { cancelled = true; };
+    doFetch();
+
+    // Ao Vivo (today): re-busca a cada 5 min para capturar novos pedidos
+    const interval = period === 'today'
+      ? setInterval(() => { if (!cancelled) doFetch(); }, 5 * 60 * 1000)
+      : null;
+
+    return () => { cancelled = true; if (interval) clearInterval(interval); };
   }, [period, isMock]);
 
   return { data, loading, error };

@@ -22,10 +22,10 @@ const XLS_JUNE_MAX_ID = 4085703;
 const JULY_2026_SEED        = 91474.00;
 const JULY_2026_SEED_CUTOFF = '2026-07-22';
 
-// Snapshot setembro/2026 verificado no Resumo Financeiro Paytour em 21/09/2026.
-// Cobre 01/09 até 21/09 inclusive. Acumulador captura pedidos aprovados após 21/09.
-const SEPT_2026_SEED        = 109249.00;
-const SEPT_2026_SEED_CUTOFF = '2026-09-21';
+// Snapshot setembro/2026 verificado via loja admin em 22/09/2026 (377 pedidos, todos aprovados).
+// Cobre 01/09 até 22/09 inclusive. Acumulador v5 captura pedidos aprovados após 22/09.
+const SEPT_2026_SEED        = 118282.00;
+const SEPT_2026_SEED_CUTOFF = '2026-09-22';
 
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
@@ -117,7 +117,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v4:${month}`;
+  const accKey = `ptf-acc-v5:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; cutoff: string }> = {
