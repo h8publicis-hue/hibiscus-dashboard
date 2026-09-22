@@ -189,6 +189,22 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
 
+  // POST ?_push_loja — recebe pedidos coletados pelo browser via loja admin (bypass Cloudflare)
+  // Chrome está logado na loja, faz fetch same-origin e envia resultado aqui.
+  if (req.method === 'POST' && req.query?._push_loja !== undefined) {
+    if (req.headers['x-proxy-secret'] !== PROXY_SECRET) return res.status(401).json({ ok: false });
+    const { orders, since, until } = req.body ?? {};
+    if (!Array.isArray(orders) || !since || !until) return res.status(400).json({ ok: false, error: 'payload inválido' });
+    const key = `pt6:order:${since}_${until}`;
+    const fallbackKey = `pt6:last:order:${since}_${until}`;
+    const entry = { orders, ts: Date.now() };
+    const isToday = since === until && since === new Date(Date.now() - 3*60*60*1000).toISOString().slice(0,10);
+    await kvSet(key, entry, isToday ? TTL_TODAY / 1000 : TTL_OTHER / 1000);
+    if (orders.length > 0) await kvSet(fallbackKey, entry, 4 * 60 * 60);
+    memCache.set(key, entry);
+    return res.json({ ok: true, count: orders.length, since, until });
+  }
+
   // GET ?_reset_auth — força re-auth sem KV (para diagnóstico)
   if (req.method === 'GET' && req.query?._reset_auth !== undefined) {
     if (req.headers['x-proxy-secret'] !== PROXY_SECRET) return res.status(401).json({ ok: false });
