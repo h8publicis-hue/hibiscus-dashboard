@@ -492,6 +492,41 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     return () => { cancelled = true; clearTimeout(delay); };
   }, []);
 
+  // ── Reconectar Paytour via browser (bypass Cloudflare) ───────────────────
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectMsg, setReconnectMsg] = useState<string | null>(null);
+
+  async function reconnectPaytour() {
+    setReconnecting(true);
+    setReconnectMsg(null);
+    try {
+      const PROXY_SECRET = 'hbc-16690e52666d921f1dceb35a';
+      const credsRes = await fetch('/api/paytour-orders?_auth_creds', {
+        headers: { 'x-proxy-secret': PROXY_SECRET },
+      });
+      const creds = await credsRes.json() as { ok: boolean; key: string; secret: string; base: string };
+      if (!creds.ok) throw new Error('Falha ao obter credenciais');
+      const b64 = btoa(`${creds.key}:${creds.secret}`);
+      const authRes = await fetch(`${creds.base}/v2/lojas/login?grant_type=application`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${b64}`, 'Content-Length': '0' },
+      });
+      const authJson = await authRes.json() as { access_token?: string };
+      if (!authJson.access_token) throw new Error('Paytour não retornou token');
+      const injectRes = await fetch(`/api/paytour-orders?_inject_token=${encodeURIComponent(authJson.access_token)}`, {
+        method: 'POST',
+        headers: { 'x-proxy-secret': PROXY_SECRET },
+      });
+      const injectJson = await injectRes.json() as { ok: boolean; expires?: string };
+      if (!injectJson.ok) throw new Error('Falha ao injetar token');
+      setReconnectMsg('✓ Reconectado! Atualize a página.');
+    } catch (e: any) {
+      setReconnectMsg(`✗ ${e.message}`);
+    } finally {
+      setReconnecting(false);
+    }
+  }
+
   // ── Bloco: Ao Vivo ────────────────────────────────────────────────────────
   const todayRevenue = paytour?.todayRevenue ?? 0;
   const blocoAoVivo = (
@@ -500,7 +535,19 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
         <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Paytour — Ao Vivo</h2>
         {ptL && <span className="text-[10px] opacity-60 animate-pulse ml-auto">Carregando...</span>}
+        {!ptL && (
+          <button
+            onClick={reconnectPaytour}
+            disabled={reconnecting}
+            className="ml-auto text-[10px] px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+          >
+            {reconnecting ? '...' : '🔄'}
+          </button>
+        )}
       </div>
+      {reconnectMsg && (
+        <p className="text-[10px] mb-2 opacity-80">{reconnectMsg}</p>
+      )}
       {ptL
         ? <div className="space-y-2"><div className="h-6 w-32 bg-white/20 rounded animate-pulse" /><div className="h-3 w-24 bg-white/10 rounded animate-pulse" /></div>
         : (

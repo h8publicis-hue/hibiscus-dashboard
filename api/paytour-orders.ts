@@ -189,6 +189,13 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
 
+  // GET ?_auth_creds — retorna credenciais para o browser fazer auth diretamente no Paytour.
+  // Protegido pelo PROXY_SECRET. Browser autentica e injeta o token de volta via _inject_token.
+  if (req.method === 'GET' && req.query?._auth_creds !== undefined) {
+    if (req.headers['x-proxy-secret'] !== PROXY_SECRET) return res.status(401).json({ ok: false });
+    return res.json({ ok: true, key: PT_KEY, secret: PT_SECRET, base: 'https://api-ha.paytour.com.br' });
+  }
+
   // POST ?_inject_token=BEARER — injeta token manualmente quando Cloudflare bloqueia auth automático.
   // Protegido pelo PROXY_SECRET (mesmo segredo do Worker).
   // Uso: copiar token Bearer do DevTools do Paytour e postar aqui.
