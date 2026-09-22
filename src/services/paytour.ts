@@ -102,7 +102,9 @@ function mapOrders(orders: RawOrder[], since: string, until: string): PaytourDat
   const byProduct: Record<string, { sales: number; revenue: number }> = {};
   active.forEach((o) => {
     (o.itens ?? []).forEach((item) => {
+      if (!item) return;
       const name = item.nome_produto ?? item.produto_id;
+      if (!name) return;
       if (!byProduct[name]) byProduct[name] = { sales: 0, revenue: 0 };
       byProduct[name].sales++;
       byProduct[name].revenue += parseFloat(item.valor || '0');
