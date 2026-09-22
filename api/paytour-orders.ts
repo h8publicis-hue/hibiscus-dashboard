@@ -184,6 +184,10 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'x-proxy-secret, content-type');
+
+  if (req.method === 'OPTIONS') return res.status(204).end();
 
   // POST ?_inject_token=BEARER — injeta token manualmente quando Cloudflare bloqueia auth automático.
   // Protegido pelo PROXY_SECRET (mesmo segredo do Worker).
