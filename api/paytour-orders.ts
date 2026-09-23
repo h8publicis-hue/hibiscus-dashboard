@@ -12,7 +12,7 @@ const KV_TOKEN_KEY = 'pt:auth-token';
 const memCache = new Map<string, { orders: unknown[]; ts: number }>();
 const fetchLock = new Map<string, Promise<unknown[]>>();   // in-flight lock
 
-const TTL_TODAY = 10 * 60 * 1000;   // 10 min
+const TTL_TODAY = 3 * 60 * 1000;    // 3 min — menor que o refresh de 5 min do cliente
 const TTL_OTHER = 60 * 60 * 1000;   // 60 min
 const PAGE_SIZE = 50;                // 50 itens/página — 40% menos chamadas
 const PAGE_DELAY_MS = 150;           // pausa entre páginas
