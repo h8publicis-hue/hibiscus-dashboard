@@ -117,37 +117,49 @@ async function getPaytourReservados(attempt = 1): Promise<number> {
 }
 
 // ── Loja session + auto-login ─────────────────────────────────────────────────
+// URL direta da loja — login vai diretamente do Vercel (não pelo Worker)
+// O Worker (Cloudflare) recebe 403 da loja quando tenta logar, pois ambos são Cloudflare
+// e o WAF bloqueia tráfego entre Workers. O Vercel não tem esse problema.
+const LOJA_DIRECT = 'https://loja.hibiscusbeachclub.com.br';
+
 async function lojaAutoLogin(): Promise<string> {
   if (!LOJA_EMAIL || !LOJA_PASSWORD) throw new Error('Credenciais LOJA_ADMIN_EMAIL/PASSWORD não configuradas');
 
-  // Worker trata POST /loja/admin de forma especial: faz o login, extrai o PHPSESSID
-  // do Set-Cookie da resposta 302 da loja e devolve JSON { ok, phpsessid }.
   const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
-  const r = await fetch(`${LOJA_BASE}/admin`, {
+
+  // POST direto do Vercel para a loja (sem passar pelo Worker)
+  const r = await fetch(`${LOJA_DIRECT}/admin`, {
     method: 'POST',
     headers: {
-      'x-proxy-secret': PROXY_SECRET,
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
       Referer: 'https://loja.hibiscusbeachclub.com.br/admin',
+      Origin: 'https://loja.hibiscusbeachclub.com.br',
     },
     body,
+    redirect: 'manual',
     signal: AbortSignal.timeout(15_000),
   });
 
-  const json = await r.json() as any;
-  console.log(`[checkin] auto-login worker response: ok=${json?.ok} status=${r.status} phpsessid=${String(json?.phpsessid ?? '').slice(0, 8)}...`);
+  console.log(`[checkin] auto-login direto status=${r.status}`);
 
-  if (json?.ok && json?.phpsessid) {
-    const session = json.phpsessid as string;
+  // Node.js fetch com redirect:'manual' preserva headers do 302
+  const setCookie = r.headers.get('set-cookie') ?? '';
+  const match = setCookie.match(/PHPSESSID=([^;,\s]+)/i);
+  if (match?.[1]) {
+    const session = match[1];
     activeSession = session;
     await kvSet(SESSION_KV, session, 23 * 60 * 60);
     console.log(`[checkin] auto-login OK — sessão ${session.slice(0, 8)}...`);
     return session;
   }
 
-  throw new Error(`Auto-login falhou — worker retornou ok=${json?.ok} status=${json?.status} setCookie="${String(json?.setCookie ?? '').slice(0, 80)}"`);
+  // Tenta também via header Location (alguns servidores PHP enviam cookie lá)
+  const loc = r.headers.get('location') ?? '';
+  console.warn(`[checkin] auto-login sem PHPSESSID — status=${r.status} location=${loc} setCookie="${setCookie.slice(0, 120)}"`);
+  throw new Error(`Auto-login falhou (status ${r.status}) — sem PHPSESSID. Location: ${loc}`);
 }
 
 async function getSession(): Promise<string> {
@@ -285,25 +297,26 @@ export default async function handler(req: any, res: any) {
     // Teste direto do login na loja via Worker
     try {
       const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
-      const r = await fetch(`${LOJA_BASE}/admin`, {
+      const r = await fetch(`${LOJA_DIRECT}/admin`, {
         method: 'POST',
         headers: {
-          'x-proxy-secret': PROXY_SECRET,
           'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0',
-          Accept: 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,*/*',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+          Referer: 'https://loja.hibiscusbeachclub.com.br/admin',
+          Origin: 'https://loja.hibiscusbeachclub.com.br',
         },
         body,
+        redirect: 'manual',
         signal: AbortSignal.timeout(15_000),
       });
-      const workerStatus = r.status;
-      const workerText = await r.text().catch(() => '(erro ao ler body)');
-      let workerJson: any = null;
-      try { workerJson = JSON.parse(workerText); } catch {}
-      log('worker_login', { status: workerStatus, json: workerJson, rawPreview: workerText.slice(0, 300) });
+      const setCookieDirect = r.headers.get('set-cookie') ?? '';
+      const matchDirect = setCookieDirect.match(/PHPSESSID=([^;,\s]+)/i);
+      log('direct_login', { status: r.status, setCookiePreview: setCookieDirect.slice(0, 120), phpsessid: matchDirect?.[1]?.slice(0,8) ?? null, location: r.headers.get('location') });
 
-      if (workerJson?.ok && workerJson?.phpsessid) {
-        const session = workerJson.phpsessid as string;
+      if (matchDirect?.[1]) {
+        const session = matchDirect[1];
         activeSession = session;
         await kvSet(SESSION_KV, session, 23 * 60 * 60);
         log('session_saved', { sessionPreview: session.slice(0, 8) + '...' });
