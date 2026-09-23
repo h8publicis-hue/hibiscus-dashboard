@@ -781,19 +781,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     </div>
   );
 
-  // ── Bloco: Total do Dia ───────────────────────────────────────────────────
-  const blocoTotalDia = (
-    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 border border-green-400 dark:border-green-500">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Target size={14} className="text-brand-600" />
-        <h2 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Total do dia</h2>
-      </div>
-      <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
-        R$ {fmtN(Math.round(todayRevenue))}
-      </p>
-      <p className="text-[10px] text-gray-400 mt-1">Paytour + A&amp;BS (quando disponível)</p>
-    </div>
-  );
 
   // ── Bloco: Receita A&BS ───────────────────────────────────────────────────
   // blocoReceitaABS removido temporariamente (Power BI sem uso)
@@ -1589,9 +1576,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
         {blocoJaVendido}
 
-
-        {blocoTotalDia}
-
         {/* OCUPAÇÃO */}
         <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider px-1 mt-1">Ocupação</p>
 
@@ -1628,7 +1612,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoAoVivo}
             {blocoJaVendido}
-                {blocoTotalDia}
             {blocoChamadas}
           </div>
 
