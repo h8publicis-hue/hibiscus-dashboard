@@ -41,23 +41,28 @@ export default {
     }
     headers.set('host', isLoja ? 'loja.hibiscusbeachclub.com.br' : 'api-ha.paytour.com.br');
 
+    // Para chamadas de login (POST /loja/admin) usamos redirect:'manual' para
+    // capturar o Set-Cookie do 302 antes que o redirect o descarte.
+    const isLoginPost = isLoja && request.method === 'POST' && path === '/admin';
     const proxied = new Request(targetUrl, {
       method:  request.method,
       headers,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
-      redirect: 'follow',
+      redirect: isLoginPost ? 'manual' : 'follow',
     });
 
     const response = await fetch(proxied);
 
-    // Preserva Content-Type original e repassa Set-Cookie (necessário para auto-login)
+    // Repassa Set-Cookie (necessário para capturar PHPSESSID do login)
     const resHeaders = new Headers();
-    resHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
+    resHeaders.set('Content-Type', response.headers.get('Content-Type') || 'text/html');
     resHeaders.set('Access-Control-Allow-Origin', '*');
-    // Set-Cookie pode ter múltiplos valores — repassa todos
     for (const [k, v] of response.headers.entries()) {
       if (k.toLowerCase() === 'set-cookie') resHeaders.append('set-cookie', v);
     }
+    // Para redirect manual: repassa Location para que o cliente saiba o destino
+    const loc = response.headers.get('location');
+    if (loc) resHeaders.set('x-redirect-location', loc);
 
     return new Response(response.body, { status: response.status, headers: resHeaders });
   },
