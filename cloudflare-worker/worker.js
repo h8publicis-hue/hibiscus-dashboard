@@ -50,13 +50,15 @@ export default {
 
     const response = await fetch(proxied);
 
-    // Preserva Content-Type original (a loja pode retornar JSON ou HTML)
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        'Content-Type': response.headers.get('Content-Type') || 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    // Preserva Content-Type original e repassa Set-Cookie (necessário para auto-login)
+    const resHeaders = new Headers();
+    resHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
+    resHeaders.set('Access-Control-Allow-Origin', '*');
+    // Set-Cookie pode ter múltiplos valores — repassa todos
+    for (const [k, v] of response.headers.entries()) {
+      if (k.toLowerCase() === 'set-cookie') resHeaders.append('set-cookie', v);
+    }
+
+    return new Response(response.body, { status: response.status, headers: resHeaders });
   },
 };

@@ -1,13 +1,15 @@
-// Check-in: Paytour API (sempre) + loja opcional (PHPSESSID para check-ins físicos).
+// Check-in: Paytour API (sempre) + loja opcional (sessão para check-ins físicos).
+// Auto-login com LOJA_ADMIN_EMAIL + LOJA_ADMIN_PASSWORD quando sessão expira.
 
-// Loja via Worker — mesmo bypass do Bot Fight Mode usado pela API Paytour
-const LOJA_BASE    = 'https://paytour-proxy.hibiscusbeachclub.workers.dev/loja';
-const PT_BASE      = 'https://paytour-proxy.hibiscusbeachclub.workers.dev';
-const PT_KEY       = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
-const PT_SECRET    = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
-const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET    ?? '';
-const KV_URL       = process.env.KV_REST_API_URL         ?? '';
-const KV_TOKEN     = process.env.KV_REST_API_TOKEN       ?? '';
+const LOJA_BASE       = 'https://paytour-proxy.hibiscusbeachclub.workers.dev/loja';
+const PT_BASE         = 'https://api.paytour.com.br';
+const PT_KEY          = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET       = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+const PROXY_SECRET    = process.env.PAYTOUR_PROXY_SECRET    ?? '';
+const KV_URL          = process.env.KV_REST_API_URL         ?? '';
+const KV_TOKEN        = process.env.KV_REST_API_TOKEN       ?? '';
+const LOJA_EMAIL      = process.env.LOJA_ADMIN_EMAIL        ?? '';
+const LOJA_PASSWORD   = process.env.LOJA_ADMIN_PASSWORD     ?? '';
 const CACHE_TTL    = 30 * 60 * 1000;
 const KV_TTL_SEC   = 30 * 60;
 const SESSION_KV   = 'checkin:session';
@@ -114,11 +116,70 @@ async function getPaytourReservados(attempt = 1): Promise<number> {
   return Number(j?.info?.total ?? j?.itens?.length ?? 0);
 }
 
-// ── Loja session ──────────────────────────────────────────────────────────────
+// ── Loja session + auto-login ─────────────────────────────────────────────────
+async function lojaAutoLogin(): Promise<string> {
+  if (!LOJA_EMAIL || !LOJA_PASSWORD) throw new Error('Credenciais LOJA_ADMIN_EMAIL/PASSWORD não configuradas');
+
+  // Endpoints conhecidos da loja Paytour (tenta em ordem)
+  const attempts = [
+    { path: '/admin/auth/login',    body: JSON.stringify({ email: LOJA_EMAIL, password: LOJA_PASSWORD }), ct: 'application/json' },
+    { path: '/admin/auth/login',    body: JSON.stringify({ email: LOJA_EMAIL, senha: LOJA_PASSWORD }),    ct: 'application/json' },
+    { path: '/admin/login',         body: `email=${encodeURIComponent(LOJA_EMAIL)}&password=${encodeURIComponent(LOJA_PASSWORD)}`, ct: 'application/x-www-form-urlencoded' },
+    { path: '/admin/usuarios/login',body: JSON.stringify({ email: LOJA_EMAIL, password: LOJA_PASSWORD }), ct: 'application/json' },
+  ];
+
+  for (const ep of attempts) {
+    let r: Response;
+    try {
+      r = await fetch(`${LOJA_BASE}${ep.path}`, {
+        method: 'POST',
+        headers: {
+          'x-proxy-secret': PROXY_SECRET,
+          'Content-Type': ep.ct,
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          Accept: 'application/json, text/html, */*',
+        },
+        body: ep.body,
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch { continue; }
+
+    // PHPSESSID no Set-Cookie
+    const setCookie = r.headers.get('set-cookie') ?? '';
+    const match = setCookie.match(/PHPSESSID=([^;,\s]+)/i);
+    if (match?.[1]) {
+      const session = match[1];
+      activeSession = session;
+      await kvSet(SESSION_KV, session, 23 * 60 * 60);
+      console.log(`[checkin] auto-login OK via ${ep.path} (status ${r.status})`);
+      return session;
+    }
+
+    // Fallback: PHPSESSID no corpo (alguns setups retornam no JSON)
+    const text = await r.text().catch(() => '');
+    const bodyMatch = text.match(/PHPSESSID[=:][\s"']*([a-zA-Z0-9]+)/i);
+    if (bodyMatch?.[1]) {
+      const session = bodyMatch[1];
+      activeSession = session;
+      await kvSet(SESSION_KV, session, 23 * 60 * 60);
+      console.log(`[checkin] auto-login body OK via ${ep.path}`);
+      return session;
+    }
+
+    console.warn(`[checkin] auto-login ${ep.path} status=${r.status} setCookie="${setCookie.slice(0,80)}"`);
+  }
+
+  throw new Error('Auto-login falhou — nenhum endpoint retornou PHPSESSID');
+}
+
 async function getSession(): Promise<string> {
   if (activeSession) return activeSession;
   const kv = await kvGet(SESSION_KV) as string | null;
   if (kv) { activeSession = kv; return kv; }
+  // Sem sessão salva — tenta auto-login
+  if (LOJA_EMAIL && LOJA_PASSWORD) {
+    try { return await lojaAutoLogin(); } catch (e: any) { console.warn('[checkin] auto-login inicial falhou:', e.message); }
+  }
   return '';
 }
 
@@ -164,7 +225,35 @@ async function fetchCheckin(): Promise<CheckinData> {
   if (isSessionExpired(rawText, calRes.status)) {
     activeSession = '';
     await kvSet(SESSION_KV, '', 1);
-    // Retorna dado parcial — sem crash
+    // Tenta auto-login e refaz a chamada uma vez
+    if (LOJA_EMAIL && LOJA_PASSWORD) {
+      try {
+        const newSession = await lojaAutoLogin();
+        const retryRes  = await lojaFetch(
+          `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
+          newSession,
+        );
+        const retryText = await retryRes.text();
+        if (!isSessionExpired(retryText, retryRes.status)) {
+          // Continua com retryText — reassina variáveis locais
+          const retryItems = JSON.parse(retryText) as any[];
+          if (Array.isArray(retryItems)) {
+            const dayuse2 = retryItems.find((i: any) => i.type === 'faixa') ?? retryItems[0];
+            if (dayuse2) {
+              const total2       = Number(dayuse2.total      ?? 0);
+              const lojaRes2     = Number(dayuse2.reservados ?? 0);
+              const vRes2 = await lojaFetch(`/admin/checkin/vouchers-by-availability/${dayuse2.id}`, newSession);
+              let checkins2 = 0;
+              if (vRes2.ok) {
+                const vData2 = await vRes2.json() as any;
+                checkins2 = (vData2?.vouchers ?? []).filter((v: any) => v.utilizado === true).length;
+              }
+              return { reservados: lojaRes2, sessionActive: true, disponiveis: total2 - lojaRes2, checkins: checkins2, pendentes: lojaRes2 - checkins2, total: total2, ts: Date.now() };
+            }
+          }
+        }
+      } catch (e: any) { console.warn('[checkin] auto-login pós-expiração falhou:', e.message); }
+    }
     return { reservados, sessionActive: false, ts: Date.now() };
   }
 
