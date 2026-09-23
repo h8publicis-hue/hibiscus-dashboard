@@ -269,6 +269,63 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  // GET ?debug=1 → diagnóstico completo, bypassa todos os caches
+  if (req.method === 'GET' && req.query?.debug === '1') {
+    const steps: any[] = [];
+    const log = (label: string, data: any) => steps.push({ label, data });
+
+    log('env', {
+      hasEmail: !!LOJA_EMAIL,
+      emailPreview: LOJA_EMAIL ? LOJA_EMAIL.slice(0, 4) + '***' : '',
+      hasPassword: !!LOJA_PASSWORD,
+      hasProxySecret: !!PROXY_SECRET,
+      lojaBase: LOJA_BASE,
+    });
+
+    // Teste direto do login na loja via Worker
+    try {
+      const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
+      const r = await fetch(`${LOJA_BASE}/admin`, {
+        method: 'POST',
+        headers: {
+          'x-proxy-secret': PROXY_SECRET,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0',
+          Accept: 'application/json',
+        },
+        body,
+        signal: AbortSignal.timeout(15_000),
+      });
+      const workerStatus = r.status;
+      const workerText = await r.text().catch(() => '(erro ao ler body)');
+      let workerJson: any = null;
+      try { workerJson = JSON.parse(workerText); } catch {}
+      log('worker_login', { status: workerStatus, json: workerJson, rawPreview: workerText.slice(0, 300) });
+
+      if (workerJson?.ok && workerJson?.phpsessid) {
+        const session = workerJson.phpsessid as string;
+        activeSession = session;
+        await kvSet(SESSION_KV, session, 23 * 60 * 60);
+        log('session_saved', { sessionPreview: session.slice(0, 8) + '...' });
+
+        // Testa calendário com a nova sessão
+        const today = todayBRT();
+        const start = `${today}T00:00:00.000-03:00`;
+        const end   = `${today}T23:59:59.000-03:00`;
+        const calR = await lojaFetch(
+          `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
+          session,
+        );
+        const calText = await calR.text();
+        log('calendario', { status: calR.status, isExpired: isSessionExpired(calText, calR.status), bodyPreview: calText.slice(0, 400) });
+      }
+    } catch (e: any) {
+      log('login_error', { message: e.message });
+    }
+
+    return res.json({ ok: true, steps });
+  }
+
   // GET ?action=keepalive → ping para renovar sessão (chamado pelo cron)
   if (req.method === 'GET' && req.query?.action === 'keepalive') {
     const session = await getSession();
