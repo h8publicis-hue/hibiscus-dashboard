@@ -282,7 +282,7 @@ export default async function handler(req: any, res: any) {
       const text = await r.text();
       const alive = !isSessionExpired(text, r.status);
       if (alive) {
-        await kvSet(`checkin:${today}`, '', 1); // invalida cache para dados frescos
+        await kvSet(`checkin-v2:${today}`, '', 1); // invalida cache para dados frescos
       }
       await kvSet('checkin:keepalive', { ok: alive, ts: Date.now() });
       return res.json({ ok: alive, ts: new Date().toISOString(), message: alive ? 'Sessão ativa' : 'Sessão expirada' });
@@ -317,10 +317,10 @@ export default async function handler(req: any, res: any) {
       await kvSet(SESSION_KV, session, 23 * 60 * 60);
       memCache = null;
       // Invalida cache do dia e busca dados frescos imediatamente
-      await kvSet(`checkin:${todayBRT()}`, '', 1);
+      await kvSet(`checkin-v2:${todayBRT()}`, '', 1);
       const freshData = await fetchCheckin();
       memCache = { data: freshData, ts: freshData.ts };
-      kvSet(`checkin:${todayBRT()}`, freshData);
+      kvSet(`checkin-v2:${todayBRT()}`, freshData);
       return res.json({ ok: true, session: session.slice(0, 8) + '...', data: freshData });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e.message });
@@ -335,7 +335,7 @@ export default async function handler(req: any, res: any) {
     return res.json({ ok: true });
   }
 
-  const cacheKey = `checkin:${todayBRT()}`;
+  const cacheKey = `checkin-v2:${todayBRT()}`;
 
   if (memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
 
