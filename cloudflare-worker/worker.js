@@ -41,28 +41,49 @@ export default {
     }
     headers.set('host', isLoja ? 'loja.hibiscusbeachclub.com.br' : 'api-ha.paytour.com.br');
 
-    // Para chamadas de login (POST /loja/admin) usamos redirect:'manual' para
-    // capturar o Set-Cookie do 302 antes que o redirect o descarte.
+    // Login especial: POST /loja/admin — faz login na loja, extrai PHPSESSID e
+    // devolve JSON { ok, phpsessid } para que o Vercel não precise lidar com
+    // redirect/Set-Cookie (que podem ser perdidos em fetch do Node.js).
     const isLoginPost = isLoja && request.method === 'POST' && path === '/admin';
+    if (isLoginPost) {
+      const loginRes = await fetch(targetUrl, {
+        method: 'POST',
+        headers,
+        body: request.body,
+        redirect: 'manual', // captura o 302 com Set-Cookie sem seguir
+      });
+      const setCookie = loginRes.headers.get('set-cookie') ?? '';
+      const match = setCookie.match(/PHPSESSID=([^;,\s]+)/i);
+      if (match?.[1]) {
+        return new Response(JSON.stringify({ ok: true, phpsessid: match[1] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+      // Login falhou: retorna body/status original para diagnóstico
+      const body = await loginRes.text().catch(() => '');
+      return new Response(JSON.stringify({ ok: false, status: loginRes.status, setCookie, body: body.slice(0, 200) }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+
     const proxied = new Request(targetUrl, {
       method:  request.method,
       headers,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
-      redirect: isLoginPost ? 'manual' : 'follow',
+      redirect: 'follow',
     });
 
     const response = await fetch(proxied);
 
-    // Repassa Set-Cookie (necessário para capturar PHPSESSID do login)
+    // Repassa Content-Type e Set-Cookie
     const resHeaders = new Headers();
-    resHeaders.set('Content-Type', response.headers.get('Content-Type') || 'text/html');
+    resHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
     resHeaders.set('Access-Control-Allow-Origin', '*');
     for (const [k, v] of response.headers.entries()) {
       if (k.toLowerCase() === 'set-cookie') resHeaders.append('set-cookie', v);
     }
-    // Para redirect manual: repassa Location para que o cliente saiba o destino
-    const loc = response.headers.get('location');
-    if (loc) resHeaders.set('x-redirect-location', loc);
 
     return new Response(response.body, { status: response.status, headers: resHeaders });
   },

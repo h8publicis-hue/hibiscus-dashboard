@@ -120,8 +120,8 @@ async function getPaytourReservados(attempt = 1): Promise<number> {
 async function lojaAutoLogin(): Promise<string> {
   if (!LOJA_EMAIL || !LOJA_PASSWORD) throw new Error('Credenciais LOJA_ADMIN_EMAIL/PASSWORD não configuradas');
 
-  // Loja Paytour: formulário POST /admin com campos "login" e "senha"
-  // Usa redirect:'manual' para capturar Set-Cookie da resposta 302
+  // Worker trata POST /loja/admin de forma especial: faz o login, extrai o PHPSESSID
+  // do Set-Cookie da resposta 302 da loja e devolve JSON { ok, phpsessid }.
   const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
   const r = await fetch(`${LOJA_BASE}/admin`, {
     method: 'POST',
@@ -129,30 +129,25 @@ async function lojaAutoLogin(): Promise<string> {
       'x-proxy-secret': PROXY_SECRET,
       'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'text/html,application/xhtml+xml,*/*',
+      Accept: 'application/json',
       Referer: 'https://loja.hibiscusbeachclub.com.br/admin',
     },
     body,
-    redirect: 'manual',
     signal: AbortSignal.timeout(15_000),
   });
 
-  const setCookie = r.headers.get('set-cookie') ?? '';
-  console.log(`[checkin] auto-login status=${r.status} setCookie="${setCookie.slice(0, 120)}"`);
+  const json = await r.json() as any;
+  console.log(`[checkin] auto-login worker response: ok=${json?.ok} status=${r.status} phpsessid=${String(json?.phpsessid ?? '').slice(0, 8)}...`);
 
-  const match = setCookie.match(/PHPSESSID=([^;,\s]+)/i);
-  if (match?.[1]) {
-    const session = match[1];
+  if (json?.ok && json?.phpsessid) {
+    const session = json.phpsessid as string;
     activeSession = session;
     await kvSet(SESSION_KV, session, 23 * 60 * 60);
     console.log(`[checkin] auto-login OK — sessão ${session.slice(0, 8)}...`);
     return session;
   }
 
-  // Se não veio Set-Cookie, loga body parcial para diagnóstico
-  const text = await r.text().catch(() => '');
-  console.warn(`[checkin] auto-login sem PHPSESSID status=${r.status} body[:120]=${text.slice(0, 120).replace(/\n/g, ' ')}`);
-  throw new Error(`Auto-login falhou (status ${r.status}) — sem PHPSESSID no Set-Cookie`);
+  throw new Error(`Auto-login falhou — worker retornou ok=${json?.ok} status=${json?.status} setCookie="${String(json?.setCookie ?? '').slice(0, 80)}"`);
 }
 
 async function getSession(): Promise<string> {
