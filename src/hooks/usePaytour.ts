@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PaytourData } from '../types';
-import { fetchPaytourData } from '../services/paytour';
+import { fetchPaytourData, invalidatePaytourCache } from '../services/paytour';
 import { useMockMode } from './useMockMode';
 import { mockPaytourData } from '../mocks/mockData';
 
@@ -39,7 +39,7 @@ export function usePaytour(period: string): UsePaytourResult {
 
     // Ao Vivo (today): re-busca a cada 5 min para capturar novos pedidos
     const interval = period === 'today'
-      ? setInterval(() => { if (!cancelled) doFetch(); }, 5 * 60 * 1000)
+      ? setInterval(() => { if (!cancelled) { invalidatePaytourCache(); doFetch(); } }, 5 * 60 * 1000)
       : null;
 
     return () => { cancelled = true; if (interval) clearInterval(interval); };
