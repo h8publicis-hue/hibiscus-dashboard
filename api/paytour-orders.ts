@@ -108,8 +108,9 @@ async function paytourGet(path: string, attempt = 1): Promise<any> {
   if (res.status === 401 || res.status === 403 || parsed?.code === 1) {
     console.warn(`[orders] 401 attempt=${attempt} snippet=${snippet}`);
     if (attempt < 3) {
-      ptToken = '';
-      ptTokenExpiry = 0;
+      ptToken = ''; ptTokenExpiry = 0;
+      // Invalida token no Redis para forçar re-auth real no próximo getPtToken
+      await kvSet(KV_TOKEN_KEY, { token: '', exp: 0 }, 1);
       await sleep(800 * attempt);
       return paytourGet(path, attempt + 1);
     }
