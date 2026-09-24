@@ -173,8 +173,11 @@ async function getSession(): Promise<string> {
   return '';
 }
 
+// Token enviado em todos os requests à loja — o Cloudflare WAF libera requests com este header.
+// Regra Cloudflare: Security > WAF > Custom Rules > se x-hbc-token = CHECKIN_BYPASS_TOKEN → Skip WAF
+const CHECKIN_BYPASS_TOKEN = process.env.CHECKIN_BYPASS_TOKEN ?? '';
+
 function lojaFetch(path: string, session: string) {
-  // Direto do Vercel para a loja — Worker recebe 403 da loja (Cloudflare-to-Cloudflare bloqueado)
   return fetch(`${LOJA_DIRECT}${path}`, {
     headers: {
       Cookie: `PHPSESSID=${session}`,
@@ -184,6 +187,7 @@ function lojaFetch(path: string, session: string) {
       'X-Requested-With': 'XMLHttpRequest',
       Referer: 'https://loja.hibiscusbeachclub.com.br/admin/checkin',
       Origin: 'https://loja.hibiscusbeachclub.com.br',
+      ...(CHECKIN_BYPASS_TOKEN ? { 'x-hbc-token': CHECKIN_BYPASS_TOKEN } : {}),
     },
     signal: AbortSignal.timeout(10_000),
   });
