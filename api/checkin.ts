@@ -174,14 +174,16 @@ async function getSession(): Promise<string> {
 }
 
 function lojaFetch(path: string, session: string) {
-  return fetch(`${LOJA_BASE}${path}`, {
+  // Direto do Vercel para a loja — Worker recebe 403 da loja (Cloudflare-to-Cloudflare bloqueado)
+  return fetch(`${LOJA_DIRECT}${path}`, {
     headers: {
-      'x-proxy-secret': PROXY_SECRET,
       Cookie: `PHPSESSID=${session}`,
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Accept: 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
       'X-Requested-With': 'XMLHttpRequest',
       Referer: 'https://loja.hibiscusbeachclub.com.br/admin/checkin',
+      Origin: 'https://loja.hibiscusbeachclub.com.br',
     },
     signal: AbortSignal.timeout(10_000),
   });
