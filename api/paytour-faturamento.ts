@@ -98,7 +98,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     let extraTotal = 0;
     let extraCount = 0;
     try {
-      const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+      const page = await paytourGet('/v2/pedidos?por_pagina=200&pagina=1') as any;
       for (const o of page?.itens ?? []) {
         const id = Number(o.id);
         if (id <= XLS_JUNE_MAX_ID) continue;
@@ -132,7 +132,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
   const CANCELLED = new Set(['cancelado', 'estornado', 'reembolsado', 'cancelado_pelo_cliente', 'cancelado_pelo_lojista']);
 
   try {
-    const page = await paytourGet('/v2/pedidos?por_pagina=50&pagina=1') as any;
+    const page = await paytourGet('/v2/pedidos?por_pagina=200&pagina=1') as any;
     let added = 0; let removed = 0; let updated = 0;
     for (const o of page?.itens ?? []) {
       const d = (o.data_hora_pedido as string)?.slice(0, 10) ?? '';
