@@ -7,7 +7,7 @@ import { usePaytour } from '../hooks/usePaytour';
 
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
-import { useCheckin, checkinManualLogin } from '../hooks/useCheckin';
+// useCheckin desabilitado — loja Paytour bloqueia acesso externo
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso, AvisoList, AvisoArea, AVISO_AREAS, AvisoLayout } from '../hooks/useAviso';
@@ -474,8 +474,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { validacao: escalaValidacao, garconsDia, totalHoje: totalGarcons, totalLounge: totalGarconsLounge, totalBeach: totalGarconsBeach, totalEscala, totalAtivos } = useEscalaHoje();
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
-  const { data: checkinData, loading: checkinL, refresh: checkinRefresh, setData: setCheckinData } = useCheckin();
-  const [loginForm, setLoginForm] = useState({ login: '', senha: '', error: '', sending: false });
 
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
@@ -706,82 +704,28 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       <div className="flex items-center gap-1.5 mb-3">
         <Users size={14} className="text-brand-500" />
         <h2 className="text-xs font-semibold text-gray-800 dark:text-white uppercase tracking-wider">Check-in Online</h2>
-        {checkinData?.sessionActive && (
-          <span className="ml-auto text-[9px] text-green-600 dark:text-green-400 font-medium">● loja ativa</span>
-        )}
       </div>
-      {checkinL ? (
-        <div className="h-16 w-full bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Reservados',  val: checkinData?.reservados  ?? '—', color: 'text-purple-600 dark:text-purple-400' },
-              { label: 'Disponíveis', val: checkinData?.disponiveis ?? '—', color: 'text-amber-500 dark:text-amber-400' },
-              { label: 'Checkins',    val: checkinData?.checkins    ?? '—', color: 'text-green-600 dark:text-green-400' },
-              { label: 'Pendentes',   val: checkinData?.pendentes   ?? '—', color: 'text-red-500 dark:text-red-400' },
-            ].map(({ label, val, color }) => (
-              <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                <p className={`text-lg font-black ${color}`}>{val}</p>
-                <p className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider">{label}</p>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-2 opacity-30 pointer-events-none select-none">
+        {['Reservados', 'Disponíveis', 'Checkins', 'Pendentes'].map(label => (
+          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+            <p className="text-lg font-black text-gray-300 dark:text-gray-600">—</p>
+            <p className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider">{label}</p>
           </div>
-          {checkinData?.sessionActive && (
-            <>
-              <div className="mt-3 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 rounded-full transition-all duration-500"
-                  style={{ width: (checkinData.reservados ?? 0) > 0 ? `${Math.round(((checkinData.checkins ?? 0) / checkinData.reservados) * 100)}%` : '0%' }}
-                />
-              </div>
-              <p className="text-[9px] text-gray-400 mt-1 text-center">
-                {(checkinData.reservados ?? 0) > 0 ? Math.round(((checkinData.checkins ?? 0) / checkinData.reservados) * 100) : 0}% check-ins concluídos
-              </p>
-            </>
-          )}
-          {!checkinData?.sessionActive && (
-            <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-              <p className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
-                Como conectar:
-              </p>
-              <ol className="text-[9px] text-gray-500 dark:text-gray-400 space-y-0.5 mb-2 list-decimal list-inside">
-                <li>Abra a <a href="https://loja.hibiscusbeachclub.com.br/admin" target="_blank" rel="noopener noreferrer" className="text-brand-600 dark:text-brand-400 underline font-semibold">loja Paytour</a> (já logado)</li>
-                <li>Pressione <kbd className="bg-gray-100 dark:bg-gray-700 rounded px-1 text-[9px]">F12</kbd> → aba <strong>Application</strong> → <strong>Cookies</strong></li>
-                <li>Clique em <strong>loja.hibiscusbeachclub.com.br</strong></li>
-                <li>Copie o valor de <strong>PHPSESSID</strong> e cole abaixo</li>
-              </ol>
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  placeholder="Cole o PHPSESSID aqui"
-                  value={loginForm.login}
-                  onChange={e => setLoginForm(f => ({ ...f, login: e.target.value.trim(), error: '' }))}
-                  className="text-xs font-mono border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 dark:text-white flex-1 min-w-0"
-                />
-                <button
-                  disabled={loginForm.sending || !loginForm.login}
-                  onClick={async () => {
-                    setLoginForm(f => ({ ...f, sending: true, error: '' }));
-                    const res = await checkinManualLogin('__phpsessid__', loginForm.login);
-                    if (res.ok) {
-                      setLoginForm({ login: '', senha: '', error: '', sending: false });
-                      if (res.data) setCheckinData(res.data);
-                      else checkinRefresh();
-                    } else {
-                      setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Sessão inválida' }));
-                    }
-                  }}
-                  className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded px-2 py-1 whitespace-nowrap"
-                >
-                  {loginForm.sending ? '…' : 'Ativar'}
-                </button>
-              </div>
-              {loginForm.error && <p className="text-[10px] text-red-500 mt-1">{loginForm.error}</p>}
-            </div>
-          )}
-        </>
-      )}
+        ))}
+      </div>
+      <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3 text-center">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
+          Indisponível — a loja Paytour bloqueia acesso externo.<br />
+          <a
+            href="https://loja.hibiscusbeachclub.com.br/admin/checkin"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-600 dark:text-brand-400 underline font-semibold"
+          >
+            Abrir check-in na loja →
+          </a>
+        </p>
+      </div>
     </div>
   );
 
