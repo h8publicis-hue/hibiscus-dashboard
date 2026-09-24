@@ -741,61 +741,43 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             </>
           )}
           {!checkinData?.sessionActive && (
-            <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-2">
-              {/* Passo 1: bookmarklet */}
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded p-2">
-                <p className="text-[10px] font-semibold text-amber-800 dark:text-amber-300 mb-1">
-                  🔖 Como ativar (1 clique):
-                </p>
-                <p className="text-[9px] text-amber-700 dark:text-amber-400 mb-1.5">
-                  1. Arraste o botão abaixo para a barra de favoritos do seu navegador.
-                  <br />2. Acesse <a href="https://loja.hibiscusbeachclub.com.br/admin" target="_blank" rel="noopener noreferrer" className="underline font-semibold">loja Paytour</a> (já logado).
-                  <br />3. Clique no favorito — check-in conecta automaticamente.
-                </p>
-                {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                <a
-                  href={`javascript:(async()=>{const s=document.cookie.match(/PHPSESSID=([^;]+)/)?.[1];if(!s){alert('Faça login na loja primeiro');return;}const r=await fetch('https://hibiscus-dashboard.vercel.app/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:'__phpsessid__',senha:s})});const j=await r.json();alert(j.ok?'Check-in conectado!':'Erro: '+(j.error||'Tente novamente'))})()`}
-                  className="inline-block text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white rounded px-3 py-1 cursor-grab select-none"
-                  onClick={e => e.preventDefault()}
-                  draggable
+            <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+              <p className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                Como conectar:
+              </p>
+              <ol className="text-[9px] text-gray-500 dark:text-gray-400 space-y-0.5 mb-2 list-decimal list-inside">
+                <li>Abra a <a href="https://loja.hibiscusbeachclub.com.br/admin" target="_blank" rel="noopener noreferrer" className="text-brand-600 dark:text-brand-400 underline font-semibold">loja Paytour</a> (já logado)</li>
+                <li>Pressione <kbd className="bg-gray-100 dark:bg-gray-700 rounded px-1 text-[9px]">F12</kbd> → aba <strong>Application</strong> → <strong>Cookies</strong></li>
+                <li>Clique em <strong>loja.hibiscusbeachclub.com.br</strong></li>
+                <li>Copie o valor de <strong>PHPSESSID</strong> e cole abaixo</li>
+              </ol>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Cole o PHPSESSID aqui"
+                  value={loginForm.login}
+                  onChange={e => setLoginForm(f => ({ ...f, login: e.target.value.trim(), error: '' }))}
+                  className="text-xs font-mono border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 dark:text-white flex-1 min-w-0"
+                />
+                <button
+                  disabled={loginForm.sending || !loginForm.login}
+                  onClick={async () => {
+                    setLoginForm(f => ({ ...f, sending: true, error: '' }));
+                    const res = await checkinManualLogin('__phpsessid__', loginForm.login);
+                    if (res.ok) {
+                      setLoginForm({ login: '', senha: '', error: '', sending: false });
+                      if (res.data) setCheckinData(res.data);
+                      else checkinRefresh();
+                    } else {
+                      setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Sessão inválida' }));
+                    }
+                  }}
+                  className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded px-2 py-1 whitespace-nowrap"
                 >
-                  📋 Conectar Check-in
-                </a>
+                  {loginForm.sending ? '…' : 'Ativar'}
+                </button>
               </div>
-
-              {/* Passo alternativo: colar PHPSESSID manualmente */}
-              <details className="group">
-                <summary className="text-[9px] text-gray-400 cursor-pointer select-none hover:text-gray-600">
-                  Ou cole o PHPSESSID manualmente ▸
-                </summary>
-                <div className="flex gap-1.5 mt-1.5">
-                  <input
-                    type="text"
-                    placeholder="PHPSESSID"
-                    value={loginForm.login}
-                    onChange={e => setLoginForm(f => ({ ...f, login: e.target.value.trim(), error: '' }))}
-                    className="text-xs font-mono border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 dark:text-white flex-1 min-w-0"
-                  />
-                  <button
-                    disabled={loginForm.sending || !loginForm.login}
-                    onClick={async () => {
-                      setLoginForm(f => ({ ...f, sending: true, error: '' }));
-                      const res = await checkinManualLogin('__phpsessid__', loginForm.login);
-                      if (res.ok) {
-                        setLoginForm({ login: '', senha: '', error: '', sending: false });
-                        if (res.data) setCheckinData(res.data);
-                        else checkinRefresh();
-                      } else {
-                        setLoginForm(f => ({ ...f, sending: false, error: res.error ?? 'Sessão inválida' }));
-                      }
-                    }}
-                    className="text-xs font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded px-2 py-1 whitespace-nowrap"
-                  >
-                    {loginForm.sending ? '…' : 'Ativar'}
-                  </button>
-                </div>
-                {loginForm.error && <p className="text-[10px] text-red-500 mt-1">{loginForm.error}</p>}
-              </details>
+              {loginForm.error && <p className="text-[10px] text-red-500 mt-1">{loginForm.error}</p>}
             </div>
           )}
         </>
