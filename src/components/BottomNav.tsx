@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BottomNavProps {
@@ -11,7 +11,6 @@ interface BottomNavProps {
 
 const ALL_ITEMS = [
   { to: '/',              icon: LayoutDashboard,  label: 'Visão',      primary: true  },
-  { to: '/vendas',        icon: TrendingUp,       label: 'Vendas',     primary: true  },
   { to: '/satisfacao',    icon: Smile,            label: 'Survey',     primary: true  },
   { to: '/avaliacoes',    icon: Star,             label: 'Avaliações', primary: false },
   { to: '/chamadas',      icon: Bell,             label: 'Chamadas',   primary: false },

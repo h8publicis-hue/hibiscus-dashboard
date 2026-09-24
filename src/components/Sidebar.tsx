@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
@@ -11,7 +11,6 @@ interface SidebarProps {
 export function Sidebar({ overviewAlerts, surveyAlerts, reviewsAlerts }: SidebarProps) {
   const allItems = [
     { to: '/',           icon: LayoutDashboard, label: 'Visão Geral', alerts: overviewAlerts },
-    { to: '/vendas',     icon: TrendingUp,      label: 'Vendas',      alerts: 0 },
     { to: '/satisfacao', icon: Smile,           label: 'Survey',      alerts: surveyAlerts },
     { to: '/avaliacoes', icon: Star,            label: 'Avaliações',  alerts: reviewsAlerts },
     { to: '/fluxo',     icon: Activity,        label: 'Fluxo',       alerts: 0 },

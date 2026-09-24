@@ -138,20 +138,10 @@ export interface Alert {
   timestamp: string;
 }
 
-// Vendas diárias manuais
-export interface DailyVendasEntry {
-  date:    string;  // 'YYYY-MM-DD'
-  revenue: number;  // R$
-  pax:     number;  // pessoas no dia
-  orders:  number;  // reservas/pedidos
-  notes?:  string;
-}
-
 // Goals / Metas
 export interface Goals {
   receitaTotal: number;       // R$/mês
   atividadesMes: number;      // atividades vendidas/mês
-  numeroVendas: number;       // pedidos/mês
   npsScore: number;           // pontos
   notaGoogle: number;         // estrelas (1–5)
   taxaSatisfacao: number;     // % promotores
@@ -160,7 +150,6 @@ export interface Goals {
 export const DEFAULT_GOALS: Goals = {
   receitaTotal:  33361,
   atividadesMes: 2000,
-  numeroVendas:  1400,
   npsScore:      65,
   notaGoogle:    4.7,
   taxaSatisfacao: 75,

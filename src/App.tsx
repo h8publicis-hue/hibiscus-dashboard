@@ -61,7 +61,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Overview } from './pages/Overview';
-import { Sales } from './pages/Sales';
 import { Satisfaction } from './pages/Satisfaction';
 import { Reviews } from './pages/Reviews';
 import { OccupancyInput } from './pages/OccupancyInput';
@@ -194,7 +193,6 @@ function Dashboard() {
               : (
                 <Routes>
                   <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
-                  <Route path="/vendas"     element={<Sales />} />
                   <Route path="/satisfacao" element={<Satisfaction period={period} />} />
                   <Route path="/avaliacoes" element={<Reviews period={period} />} />
                   <Route path="/fluxo"     element={<Fluxo />} />
