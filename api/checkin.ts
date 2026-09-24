@@ -283,20 +283,36 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  // GET ?debug=1 → diagnóstico completo, bypassa todos os caches
+  // GET ?debug=1[&session=PHPSESSID] → diagnóstico completo
   if (req.method === 'GET' && req.query?.debug === '1') {
     const steps: any[] = [];
     const log = (label: string, data: any) => steps.push({ label, data });
+    const today = todayBRT();
+    const start = `${today}T00:00:00.000-03:00`;
+    const end   = `${today}T23:59:59.000-03:00`;
 
-    log('env', {
-      hasEmail: !!LOJA_EMAIL,
-      emailPreview: LOJA_EMAIL ? LOJA_EMAIL.slice(0, 4) + '***' : '',
-      hasPassword: !!LOJA_PASSWORD,
-      hasProxySecret: !!PROXY_SECRET,
-      lojaBase: LOJA_BASE,
-    });
+    // Se passou ?session=..., testa esse PHPSESSID direto no calendário
+    const testSession = (req.query?.session as string) ?? '';
+    if (testSession) {
+      try {
+        const calR = await lojaFetch(
+          `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
+          testSession,
+        );
+        const calText = await calR.text();
+        log('calendario_direto', {
+          status: calR.status,
+          isExpired: isSessionExpired(calText, calR.status),
+          bodyPreview: calText.slice(0, 500),
+        });
+      } catch (e: any) {
+        log('calendario_erro', { message: e.message });
+      }
+      return res.json({ ok: true, steps });
+    }
 
-    // Teste direto do login na loja via Worker
+    // Sem session: testa login direto
+    log('env', { hasEmail: !!LOJA_EMAIL, hasPassword: !!LOJA_PASSWORD, lojaBase: LOJA_BASE });
     try {
       const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
       const r = await fetch(`${LOJA_DIRECT}/admin`, {
@@ -315,25 +331,7 @@ export default async function handler(req: any, res: any) {
       });
       const setCookieDirect = r.headers.get('set-cookie') ?? '';
       const matchDirect = setCookieDirect.match(/PHPSESSID=([^;,\s]+)/i);
-      log('direct_login', { status: r.status, setCookiePreview: setCookieDirect.slice(0, 120), phpsessid: matchDirect?.[1]?.slice(0,8) ?? null, location: r.headers.get('location') });
-
-      if (matchDirect?.[1]) {
-        const session = matchDirect[1];
-        activeSession = session;
-        await kvSet(SESSION_KV, session, 23 * 60 * 60);
-        log('session_saved', { sessionPreview: session.slice(0, 8) + '...' });
-
-        // Testa calendário com a nova sessão
-        const today = todayBRT();
-        const start = `${today}T00:00:00.000-03:00`;
-        const end   = `${today}T23:59:59.000-03:00`;
-        const calR = await lojaFetch(
-          `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
-          session,
-        );
-        const calText = await calR.text();
-        log('calendario', { status: calR.status, isExpired: isSessionExpired(calText, calR.status), bodyPreview: calText.slice(0, 400) });
-      }
+      log('direct_login', { status: r.status, setCookiePreview: setCookieDirect.slice(0, 120), phpsessid: matchDirect?.[1]?.slice(0,8) ?? null });
     } catch (e: any) {
       log('login_error', { message: e.message });
     }
