@@ -43,11 +43,12 @@ async function buildSnapshot(date: string) {
 
   const portaria    = Number(portariaRaw ?? 0) || 0;
   const beach       = Number(ocupacaoRaw?.beach ?? 0);
+  const condominio  = Number(ocupacaoRaw?.beachCondo ?? 0);
   const loungeTotal = (ocupacaoRaw?.lounges as number[] | undefined)
     ?.reduce((a: number, b: number) => a + b, 0) ?? 0;
-  const gap = portaria - (beach + loungeTotal);
+  const gap = portaria - (beach + loungeTotal + condominio);
 
-  return { date, portaria, beach, lounge: loungeTotal, condominio: 0, total: portaria, gap };
+  return { date, portaria, beach, lounge: loungeTotal, condominio, total: portaria, gap };
 }
 
 export default async function handler(req: any, res: any) {
@@ -77,6 +78,10 @@ export default async function handler(req: any, res: any) {
         colaboradores: Number(ocupacaoAtual.colaboradores ?? 0),
         loungeObs: Array(19).fill(''),
         loungeData: Array(19).fill(null).map(emptyInfo),
+        beachCondo: 0,
+        beachChdFree: 0,
+        beachCtz: 0,
+        beachAlmoco: 0,
       };
       await kvSet('ocupacao', ocupacaoZerada);
 
