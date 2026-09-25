@@ -62,7 +62,7 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
           <div key={i} className={clsx(
             'w-4 h-4 rounded-full border-2 transition-all duration-150',
             pin.length > i
-              ? erro ? 'bg-red-400 border-red-400' : 'bg-brand-500 border-brand-500'
+              ? erro ? 'bg-red-400 border-red-400' : 'bg-emerald-500 border-emerald-500'
               : 'bg-transparent border-gray-300',
           )} />
         ))}
@@ -224,6 +224,14 @@ function GarcomApp() {
   const [filtro, setFiltro] = useState<'todas' | 'livres' | 'ocupadas'>('todas');
   const [busca, setBusca]   = useState('');
   const [modal, setModal]   = useState<string | null>(null);
+  const [irMesa, setIrMesa] = useState('');
+
+  const handleIrMesa = useCallback(() => {
+    const n = irMesa.trim().replace(/^0+/, '');
+    if (!n) return;
+    const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
+    if (found) { setModal(found.numero); setIrMesa(''); }
+  }, [irMesa, tables]);
 
   // Se vier ?mesa=042, abre direto
   useEffect(() => {
@@ -271,15 +279,34 @@ function GarcomApp() {
         </button>
       </header>
 
+      {/* Ir para mesa */}
+      <div className="px-4 pt-3 pb-1 flex gap-2">
+        <input
+          type="text"
+          value={irMesa}
+          onChange={e => setIrMesa(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
+          placeholder="Nº da mesa"
+          inputMode="numeric"
+          className="flex-1 text-sm px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        />
+        <button
+          onClick={handleIrMesa}
+          className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold active:bg-emerald-600 transition-colors"
+        >
+          Ir
+        </button>
+      </div>
+
       {/* Filtros + busca */}
-      <div className="px-4 pt-3 pb-2 flex gap-2 sticky top-[57px] bg-gray-50 z-10">
+      <div className="px-4 pt-2 pb-2 flex gap-2 sticky top-[57px] bg-gray-50 z-10">
         <input
           type="text"
           value={busca}
           onChange={e => setBusca(e.target.value)}
-          placeholder="Mesa…"
+          placeholder="Buscar…"
           inputMode="numeric"
-          className="w-20 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
+          className="w-20 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         />
         <div className="flex flex-1 items-center gap-1 bg-white rounded-xl border border-gray-200 p-1">
           {(['todas', 'livres', 'ocupadas'] as const).map(f => (
