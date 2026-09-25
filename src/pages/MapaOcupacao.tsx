@@ -2,7 +2,24 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado } from '../hooks/useBeachTables';
+import { useOccupancy } from '../hooks/useOccupancy';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
+
+// ── Portaria polling ──────────────────────────────────────────────────────────
+function usePortaria() {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch('/api/portaria').then(r => r.json())
+        .then((j: any) => { if (!cancelled) setCount(Number(j.count ?? 0)); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  return count;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -354,12 +371,15 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
 
 export function MapaOcupacao() {
   const { tables, estado, loading, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes } = useBeachTables();
+  const [occupancy] = useOccupancy();
+  const portaria    = usePortaria();
 
   const [zoom, setZoom]     = useState(1);
   const [pan, setPan]       = useState({ x: 0, y: 0 });
   const [draggingMap, setDraggingMap] = useState(false);
   const [panStart, setPanStart]       = useState({ mx: 0, my: 0, px: 0, py: 0 });
   const [panMoved, setPanMoved]       = useState(false);
+  const [imgAspect, setImgAspect]     = useState<number | null>(null);
 
   const [editMode, setEditMode]     = useState(false);
   const [draftTables, setDraft]     = useState<MesaConfig[]>([]);
@@ -494,7 +514,26 @@ export function MapaOcupacao() {
       {/* ── Sidebar esquerda ── */}
       <div className="w-48 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
 
-        {/* Stats */}
+        {/* Bloco Clube */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Clube</p>
+          {[
+            { label: 'Portaria',  value: portaria ?? '—',      color: 'text-white' },
+            { label: 'Na Casa',   value: occupancy.beach + occupancy.lounges.reduce((a,b)=>a+b,0), color: 'text-blue-300',   sub: `Beach ${occupancy.beach} · Lounge ${occupancy.lounges.reduce((a,b)=>a+b,0)}` },
+            { label: '– GAP',     value: portaria !== null ? Math.max(0, portaria - (occupancy.beach + occupancy.lounges.reduce((a,b)=>a+b,0))) : '—', color: 'text-red-400' },
+            { label: 'Parceiros', value: occupancy.parceiros,  color: 'text-yellow-300' },
+          ].map(({ label, value, color, sub }) => (
+            <div key={label} className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[9px] text-white/40 leading-none truncate">{label}</p>
+                {sub && <p className="text-[8px] text-white/25 leading-none mt-0.5 truncate">{sub}</p>}
+              </div>
+              <span className={clsx('text-xl font-black tabular-nums leading-none shrink-0', color)}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Stats Mesas */}
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
           <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Mesas Beach</p>
           <StatsBar estado={estado} total={activeTables.length} />
@@ -589,7 +628,7 @@ export function MapaOcupacao() {
 
       {/* ── Mapa ── */}
       <div
-        className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing min-h-0"
+        className="flex-1 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing min-h-0"
         onMouseDown={handleMapMouseDown}
         onMouseMove={handleMapMouseMove}
         onMouseUp={handleMapMouseUp}
@@ -601,15 +640,20 @@ export function MapaOcupacao() {
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: 'center center',
             position: 'relative',
-            width: '100%',
-            height: '100%',
+            ...(imgAspect
+              ? { aspectRatio: String(imgAspect), maxWidth: '100%', maxHeight: '100%' }
+              : { width: '100%', height: '100%' }),
           }}
         >
           <img
             src={mapaImg}
             alt="Mapa Beach"
             draggable={false}
-            className="w-full h-full object-contain select-none"
+            className="w-full h-full select-none block"
+            onLoad={e => {
+              const img = e.currentTarget;
+              setImgAspect(img.naturalWidth / img.naturalHeight);
+            }}
             onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
           />
 

@@ -65,10 +65,11 @@ export function MapaKds() {
   const [occupancy]        = useOccupancy();
   const portaria           = usePortaria();
 
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan]   = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [panStart, setPanStart] = useState({ mx: 0, my: 0, px: 0, py: 0 });
+  const [zoom, setZoom]           = useState(1);
+  const [pan, setPan]             = useState({ x: 0, y: 0 });
+  const [dragging, setDragging]   = useState(false);
+  const [panStart, setPanStart]   = useState({ mx: 0, my: 0, px: 0, py: 0 });
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null!);
 
   // ── Cálculos ─────────────────────────────────────────────────────────────────
@@ -184,7 +185,7 @@ export function MapaKds() {
 
         {/* Mapa — ocupa o restante */}
         <div
-          className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
+          className="flex-1 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -195,16 +196,21 @@ export function MapaKds() {
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: 'center center',
-              width: '100%',
-              height: '100%',
               position: 'relative',
+              ...(imgAspect
+                ? { aspectRatio: String(imgAspect), maxWidth: '100%', maxHeight: '100%' }
+                : { width: '100%', height: '100%' }),
             }}
           >
             <img
               src={mapaImg}
               alt="Mapa Beach"
               draggable={false}
-              className="w-full h-full object-contain select-none"
+              className="w-full h-full select-none block"
+              onLoad={e => {
+                const img = e.currentTarget;
+                setImgAspect(img.naturalWidth / img.naturalHeight);
+              }}
               onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
             />
             {tables.map(mesa => (
