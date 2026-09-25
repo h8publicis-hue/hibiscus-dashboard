@@ -63,6 +63,7 @@ import { Sidebar } from './components/Sidebar';
 import { Overview } from './pages/Overview';
 import { Satisfaction } from './pages/Satisfaction';
 import { MapaOcupacao } from './pages/MapaOcupacao';
+import { Garcom } from './pages/Garcom';
 import { OccupancyInput } from './pages/OccupancyInput';
 import { Rh } from './pages/Rh';
 import { Cozinha } from './pages/Cozinha';
@@ -244,6 +245,7 @@ export default function App() {
         <Route path="/cozinha"  element={<Cozinha />} />
         <Route path="/portaria" element={<Portaria />} />
         <Route path="/refeicao" element={<Refeicao />} />
+        <Route path="/garcom"   element={<Garcom />} />
         <Route path="/*"        element={<ProtectedDashboard />} />
       </Routes>
     </BrowserRouter>
