@@ -62,7 +62,7 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Overview } from './pages/Overview';
 import { Satisfaction } from './pages/Satisfaction';
-import { Reviews } from './pages/Reviews';
+import { MapaOcupacao } from './pages/MapaOcupacao';
 import { OccupancyInput } from './pages/OccupancyInput';
 import { Rh } from './pages/Rh';
 import { Cozinha } from './pages/Cozinha';
@@ -83,7 +83,6 @@ import { useMockMode } from './hooks/useMockMode';
 import { useGoals } from './hooks/useGoals';
 import { useOccupancy } from './hooks/useOccupancy';
 import { useSurveyMonkey } from './hooks/useSurveyMonkey';
-import { useGoogleBusiness } from './hooks/useGoogleBusiness';
 import { usePaytour } from './hooks/usePaytour';
 import { invalidatePaytourCache } from './services/paytour';
 
@@ -101,15 +100,13 @@ function Dashboard() {
   const [occupancy, occupancyActions] = useOccupancy();
   const isMock = useMockMode();
 
-  const { loading: smL, error: smErr, data: smData }               = useSurveyMonkey(period);
-  const { loading: gL,  error: gErr, notConfigured: gNC, data: gData } = useGoogleBusiness(period);
-  const { loading: ptL, error: ptErr }                              = usePaytour('today');
+  const { loading: smL, error: smErr, data: smData } = useSurveyMonkey(period);
+  const { loading: ptL, error: ptErr }               = usePaytour('today');
 
   const apiStatus: ApiStatus = useMemo(() => ({
-    surveymonkey: smL ? 'loading' : smErr           ? 'error' : 'connected',
-    google:       gL  ? 'loading' : (gErr && !gNC) ? 'error' : 'connected',
-    paytour:      ptL ? 'loading' : ptErr           ? 'error' : 'connected',
-  }), [smL, smErr, gL, gErr, gNC, ptL, ptErr]);
+    surveymonkey: smL ? 'loading' : smErr ? 'error' : 'connected',
+    paytour:      ptL ? 'loading' : ptErr ? 'error' : 'connected',
+  }), [smL, smErr, ptL, ptErr]);
 
   const occupancyAlerts = [
     occupancy.beach / 500 >= 0.9 ? 1 : 0,
@@ -120,10 +117,9 @@ function Dashboard() {
   const sidebarAlerts = useMemo(() => {
     const periodTotal  = smData?.surveys[0]?.responses ?? 0;
     const surveyAlerts = smData ? Math.round((smData.detractors / 100) * periodTotal) : 0;
-    const reviewsAlerts = gData?.unansweredCount ?? 0;
-    const overviewAlerts = surveyAlerts + reviewsAlerts + occupancyAlerts;
-    return { overview: overviewAlerts, survey: surveyAlerts, reviews: reviewsAlerts };
-  }, [smData, gData, occupancyAlerts]);
+    const overviewAlerts = surveyAlerts + occupancyAlerts;
+    return { overview: overviewAlerts, survey: surveyAlerts };
+  }, [smData, occupancyAlerts]);
 
   const handleRefresh    = useCallback(() => { invalidatePaytourCache(); setLastSync(new Date()); }, []);
   const handleToggleDark = useCallback(() => {
@@ -179,7 +175,6 @@ function Dashboard() {
             <Sidebar
               overviewAlerts={sidebarAlerts.overview}
               surveyAlerts={sidebarAlerts.survey}
-              reviewsAlerts={sidebarAlerts.reviews}
             />
           )}
           <main className="flex-1 overflow-y-auto pb-[56px] lg:pb-0 flex flex-col">
@@ -193,9 +188,9 @@ function Dashboard() {
               : (
                 <Routes>
                   <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
-                  <Route path="/satisfacao" element={<Satisfaction period={period} />} />
-                  <Route path="/avaliacoes" element={<Reviews period={period} />} />
-                  <Route path="/fluxo"     element={<Fluxo />} />
+                  <Route path="/satisfacao"    element={<Satisfaction period={period} />} />
+                  <Route path="/mapa-ocupacao" element={<MapaOcupacao />} />
+                  <Route path="/fluxo"         element={<Fluxo />} />
                   <Route path="/chamadas"       element={<Chamadas />} />
                   <Route path="/refeicao/admin"   element={<RefeicaoAdmin />} />
                   <Route path="/configuracoes"    element={<Configuracoes />} />
@@ -214,7 +209,6 @@ function Dashboard() {
         <BottomNav
           overviewAlerts={sidebarAlerts.overview}
           surveyAlerts={sidebarAlerts.survey}
-          reviewsAlerts={sidebarAlerts.reviews}
         />
       )}
 

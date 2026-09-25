@@ -9,7 +9,6 @@ import { useOccupancy }     from '../hooks/useOccupancy';
 import { useCheckin }       from '../hooks/useCheckin';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import { useSurveyMonkey }  from '../hooks/useSurveyMonkey';
-import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { useGoals }         from '../hooks/useGoals';
 import { SPACE_CONFIGS, OccupancyState, LOUNGE_INFO_EMPTY } from '../types';
 
@@ -296,7 +295,6 @@ export function Relatorio() {
   const { data: checkin }   = useCheckin();
   const { chamadas }        = useChamadas(date, date);
   const survey    = useSurveyMonkey(period);
-  const google    = useGoogleBusiness(period);
   const [goals]   = useGoals();
 
   // ── Receita ────────────────────────────────────────────────────────
@@ -358,7 +356,6 @@ export function Relatorio() {
 
   // ── Satisfação ─────────────────────────────────────────────────────
   const sd = survey.data;
-  const gd = google.data;
 
   // ── Data label ─────────────────────────────────────────────────────
   const dateLabel = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -372,7 +369,7 @@ export function Relatorio() {
         ocupacao: { portaria: 0, beach: occ.beach, loungesTotal, parceiros: occ.parceiros, checkins: checkin?.checkins ?? 0, reservados: checkin?.reservados ?? 0, pendentes: checkin?.pendentes ?? 0 },
         lounges: loungesOcupados,
         chamadas: { total: chamadasStats.total, finalizadas: chamadasStats.finalizadas, demoradas: chamadasStats.demoradas, mediaEspera: chamadasStats.mediaEspera, topSetores: chamadasStats.topSetores, topGarcons: chamadasStats.topGarcons },
-        satisfacao: { nps: sd?.npsScore ?? null, arretados: sd?.promoters ?? 0, oxente: sd?.neutrals ?? 0, putz: sd?.detractors ?? 0, notaSurvey: sd?.avgScore ?? null, totalSurvey: sd?.totalResponses ?? 0, notaGoogle: gd?.averageRating ?? null, semResposta: gd?.unansweredCount ?? 0 },
+        satisfacao: { nps: sd?.npsScore ?? null, arretados: sd?.promoters ?? 0, oxente: sd?.neutrals ?? 0, putz: sd?.detractors ?? 0, notaSurvey: sd?.avgScore ?? null, totalSurvey: sd?.totalResponses ?? 0, notaGoogle: null, semResposta: 0 },
       });
     } finally {
       setEx(false);
@@ -488,7 +485,7 @@ export function Relatorio() {
 
       {/* 4. Satisfação */}
       <Section icon={Smile} title="Satisfação">
-        {sd || gd ? (
+        {sd ? (
           <>
             <KpiGrid items={[
               { label: 'NPS Score',    value: sd?.npsScore != null ? String(sd.npsScore) : '—', color: sd?.npsScore != null ? (sd.npsScore >= 50 ? 'text-green-600 dark:text-green-400' : sd.npsScore >= 0 ? 'text-amber-600' : 'text-red-600') : undefined },
@@ -497,9 +494,7 @@ export function Relatorio() {
               { label: 'Putz',        value: sd ? `${Math.round(sd.detractors)}%` : '—',color: 'text-red-600 dark:text-red-400' },
             ]} />
             <div className="grid grid-cols-2 gap-2.5 mt-2.5">
-              <KpiCard label="Nota Survey"    value={sd?.avgScore != null ? sd.avgScore.toFixed(1) : '—'}           sub={`${sd?.totalResponses ?? 0} respostas`} />
-              <KpiCard label="Nota Google"    value={gd?.averageRating != null ? gd.averageRating.toFixed(1) : '—'} sub={`${gd?.totalReviews ?? 0} avaliações`} />
-              <KpiCard label="Sem resposta"   value={fmt(gd?.unansweredCount)} color={(gd?.unansweredCount ?? 0) > 0 ? 'text-amber-500' : undefined} />
+              <KpiCard label="Nota Survey"    value={sd?.avgScore != null ? sd.avgScore.toFixed(1) : '—'} sub={`${sd?.totalResponses ?? 0} respostas`} />
               <KpiCard label="Respostas hoje" value={fmt(sd?.totalResponses)} />
             </div>
           </>

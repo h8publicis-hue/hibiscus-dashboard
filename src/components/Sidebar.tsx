@@ -1,25 +1,24 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Smile, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen, Map } from 'lucide-react';
 import clsx from 'clsx';
 
 interface SidebarProps {
-  overviewAlerts:  number;
-  surveyAlerts:    number;
-  reviewsAlerts:   number;
+  overviewAlerts: number;
+  surveyAlerts:   number;
 }
 
-export function Sidebar({ overviewAlerts, surveyAlerts, reviewsAlerts }: SidebarProps) {
+export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
   const allItems = [
-    { to: '/',           icon: LayoutDashboard, label: 'Visão Geral', alerts: overviewAlerts },
-    { to: '/satisfacao', icon: Smile,           label: 'Survey',      alerts: surveyAlerts },
-    { to: '/avaliacoes', icon: Star,            label: 'Avaliações',  alerts: reviewsAlerts },
-    { to: '/fluxo',     icon: Activity,        label: 'Fluxo',       alerts: 0 },
-    { to: '/chamadas',  icon: Bell,            label: 'Chamadas',    alerts: 0 },
-    { to: '/relatorio', icon: FileText,        label: 'Fechamento',  alerts: 0 },
-    { to: '/cozinha',          icon: UtensilsCrossed, label: 'Cozinha',     alerts: 0 },
-    { to: '/refeicao/admin',   icon: UtensilsCrossed, label: 'Refeitório',  alerts: 0 },
-    { to: '/ajuda',            icon: BookOpen,        label: 'Treinamento',   alerts: 0 },
-    { to: '/configuracoes',    icon: Settings,        label: 'Configurações', alerts: 0 },
+    { to: '/',               icon: LayoutDashboard, label: 'Visão Geral',    alerts: overviewAlerts },
+    { to: '/satisfacao',     icon: Smile,           label: 'Survey',         alerts: surveyAlerts },
+    { to: '/fluxo',          icon: Activity,        label: 'Fluxo',          alerts: 0 },
+    { to: '/mapa-ocupacao',  icon: Map,             label: 'Mapa Beach',     alerts: 0 },
+    { to: '/chamadas',       icon: Bell,            label: 'Chamadas',       alerts: 0 },
+    { to: '/relatorio',      icon: FileText,        label: 'Fechamento',     alerts: 0 },
+    { to: '/cozinha',        icon: UtensilsCrossed, label: 'Cozinha',        alerts: 0 },
+    { to: '/refeicao/admin', icon: UtensilsCrossed, label: 'Refeitório',     alerts: 0 },
+    { to: '/ajuda',          icon: BookOpen,        label: 'Treinamento',    alerts: 0 },
+    { to: '/configuracoes',  icon: Settings,        label: 'Configurações',  alerts: 0 },
   ];
 
   const renderLink = ({ to, icon: Icon, label, alerts }: typeof allItems[0]) => (

@@ -2,7 +2,6 @@ import { Users, Star, Target, MessageSquare, Smile, Info, Megaphone, X, Check, P
 import { ReviewsTicker } from '../components/ReviewsTicker';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
-import { useGoogleBusiness } from '../hooks/useGoogleBusiness';
 import { usePaytour } from '../hooks/usePaytour';
 
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
@@ -447,7 +446,6 @@ const NPS_PERIODS = [
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const [npsPeriod, setNpsPeriod] = useState<string>('month');
   const { data: survey,  loading: smL } = useSurveyMonkey(npsPeriod);
-  const { data: google,  loading: gL  } = useGoogleBusiness(period);
   const { data: paytour, loading: ptL } = usePaytour('today');
   const { avisos, saving: avisoSaving, save: saveAvisos } = useAviso();
   const [avisoDismissed, setAvisoDismissed] = useState(false);
@@ -684,19 +682,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
     </div>
   ) : null;
 
-  // ── Bloco: Última avaliação Google ────────────────────────────────────────
-  const blocoAvaliacao = google?.recentReviews?.[0] ? (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-1.5">
-        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">⭐ Última Avaliação</p>
-        <span className="text-[10px] text-yellow-500 font-bold">
-          {'★'.repeat(google.recentReviews[0].rating)}{'☆'.repeat(5 - google.recentReviews[0].rating)}
-        </span>
-      </div>
-      <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2 italic">"{google.recentReviews[0].text}"</p>
-      <p className="text-[10px] text-gray-400 mt-1">— {google.recentReviews[0].author}</p>
-    </div>
-  ) : null;
+  const blocoAvaliacao = null;
 
   // ── Bloco: Check-in Online ────────────────────────────────────────────────
   const blocoCheckin = (
@@ -870,15 +856,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const blocoSatisfacao = (() => {
     const surveyAvg    = survey?.avgScore ?? null;
     const surveyVol    = survey?.surveys[0]?.responses ?? 0;
-    const googleAvg    = google?.averageRating ?? null;
-    const googleVol    = google?.totalReviews ?? 0;
 
-    // Combinado: média simples das duas notas na escala 0–5
-    const combined = surveyAvg !== null && googleAvg !== null
-      ? Math.round(((surveyAvg + googleAvg) / 2) * 10) / 10
-      : surveyAvg ?? googleAvg;
+    const combined = surveyAvg;
 
-    const loading = smL || gL;
+    const loading = smL;
     const color   = combined === null ? 'gray' : combined >= 4.5 ? 'green' : combined >= 4.0 ? 'orange' : 'red';
     const label   = combined === null ? '—' : combined >= 4.5 ? 'Excelente' : combined >= 4.0 ? 'Bom' : 'Atenção';
 
@@ -915,7 +896,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nota Geral</p>
               <InfoTooltip text="Média entre a nota média da pesquisa interna e a nota do Google, ambas na escala 0–5. Ex.: Survey 4.6 + Google 4.5 → (4.6+4.5)/2 = 4.5." />
             </div>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Survey + Google · escala 0–5</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Survey interno · escala 0–5</p>
           </div>
           {loading
             ? <div className="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
@@ -940,12 +921,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <div className="grid grid-cols-2 gap-2">
           <MiniKPI icon={<Smile size={14} />} label="Survey" value={surveyAvg != null ? `${surveyAvg} ★` : '—'} sub={surveyVol > 0 ? `${surveyVol} respostas` : 'sem respostas'} color="green" loading={smL}
             info="Média das notas da pesquisa interna no período selecionado. Escala 1–5." />
-          <MiniKPI icon={<Star size={14} />} label="Google" value={googleAvg != null ? `${googleAvg} ★` : '—'} sub={googleVol > 0 ? `${fmtN(googleVol)} avaliações · acumulado` : undefined} color="orange" loading={gL}
-            info="Nota acumulada no Google Maps (escala 1–5). Não é filtrável por período — reflete todo o histórico do estabelecimento." />
           <MiniKPI icon={<Target size={14} />} label="NPS Survey" value={survey ? String(survey.npsScore) : '—'} sub="−100 a +100" color="purple" loading={smL}
             info="Net Promoter Score da pesquisa interna. Calculado como % Arretados (nota 4-5) menos % Putz (nota 1-2). Acima de 50 é Excelente." />
-          <MiniKPI icon={<MessageSquare size={14} />} label="Sem Resposta" value={google ? String(google.unansweredCount) : '—'} sub="Google" color="brand" loading={gL}
-            info="Avaliações do Google que ainda não receberam resposta da equipe." />
         </div>
       </div>
     );
@@ -1027,10 +1004,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Dados de satisfação (compartilhado entre mobile e desktop) ──────────────
   const surveyAvgShared  = survey?.avgScore ?? null;
-  const googleAvgShared  = google?.averageRating ?? null;
-  const combinedShared   = surveyAvgShared !== null && googleAvgShared !== null
-    ? Math.round(((surveyAvgShared + googleAvgShared) / 2) * 10) / 10
-    : surveyAvgShared ?? googleAvgShared;
+  const combinedShared   = surveyAvgShared;
   const satColor = combinedShared === null ? 'gray' : combinedShared >= 4.5 ? 'green' : combinedShared >= 4.0 ? 'orange' : 'red';
   const satLabel = combinedShared === null ? '—' : combinedShared >= 4.5 ? 'Excelente' : combinedShared >= 4.0 ? 'Bom' : 'Atenção';
 
@@ -1543,7 +1517,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
         {blocoNPS}
 
-        <ReviewsTicker googleData={google} surveyData={survey} />
+        <ReviewsTicker surveyData={survey} />
 
         {blocoStaffRanking}
 
@@ -1573,7 +1547,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
             {blocoSatisfacao}
             {blocoNPS}
-            <ReviewsTicker googleData={google} surveyData={survey} />
+            <ReviewsTicker surveyData={survey} />
             {blocoStaffRanking}
           </div>
 

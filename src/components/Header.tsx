@@ -288,7 +288,6 @@ export function Header({
       <div className="flex items-center gap-2 shrink-0">
         <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1 cursor-default" title="SurveyMonkey — pesquisa de satisfação"><StatusDot status={apiStatus.surveymonkey} /> SM</span>
-          <span className="flex items-center gap-1 cursor-default" title="Google Meu Negócio — avaliações do Google"><StatusDot status={apiStatus.google} /> GM</span>
           <span className="flex items-center gap-1 cursor-default" title="Paytour — vendas e reservas"><StatusDot status={apiStatus.paytour} /> PT</span>
         </div>
 

@@ -1,35 +1,33 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Smile, Star, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Smile, Activity, Bell, UtensilsCrossed, Settings, FileText, MoreHorizontal, X, BookOpen, Map } from 'lucide-react';
 import clsx from 'clsx';
 
 interface BottomNavProps {
-  overviewAlerts:  number;
-  surveyAlerts:    number;
-  reviewsAlerts:   number;
+  overviewAlerts: number;
+  surveyAlerts:   number;
 }
 
 const ALL_ITEMS = [
-  { to: '/',              icon: LayoutDashboard,  label: 'Visão',      primary: true  },
-  { to: '/satisfacao',    icon: Smile,            label: 'Survey',     primary: true  },
-  { to: '/avaliacoes',    icon: Star,             label: 'Avaliações', primary: false },
-  { to: '/chamadas',      icon: Bell,             label: 'Chamadas',   primary: false },
-  { to: '/relatorio',     icon: FileText,         label: 'Fechamento', primary: false },
-  { to: '/fluxo',         icon: Activity,         label: 'Fluxo',      primary: false },
-  { to: '/cozinha',       icon: UtensilsCrossed,  label: 'Cozinha',    primary: false },
-  { to: '/refeicao/admin',icon: UtensilsCrossed,  label: 'Refeitório', primary: false },
-  { to: '/ajuda',         icon: BookOpen,         label: 'Treino',     primary: false },
-  { to: '/configuracoes', icon: Settings,         label: 'Config.',    primary: false },
+  { to: '/',               icon: LayoutDashboard, label: 'Visão',      primary: true  },
+  { to: '/satisfacao',     icon: Smile,           label: 'Survey',     primary: true  },
+  { to: '/fluxo',          icon: Activity,        label: 'Fluxo',      primary: false },
+  { to: '/mapa-ocupacao',  icon: Map,             label: 'Mapa',       primary: false },
+  { to: '/chamadas',       icon: Bell,            label: 'Chamadas',   primary: false },
+  { to: '/relatorio',      icon: FileText,        label: 'Fechamento', primary: false },
+  { to: '/cozinha',        icon: UtensilsCrossed, label: 'Cozinha',    primary: false },
+  { to: '/refeicao/admin', icon: UtensilsCrossed, label: 'Refeitório', primary: false },
+  { to: '/ajuda',          icon: BookOpen,        label: 'Treino',     primary: false },
+  { to: '/configuracoes',  icon: Settings,        label: 'Config.',    primary: false },
 ];
 
-export function BottomNav({ overviewAlerts, surveyAlerts, reviewsAlerts }: BottomNavProps) {
+export function BottomNav({ overviewAlerts, surveyAlerts }: BottomNavProps) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
 
   const alerts: Record<string, number> = {
     '/':           overviewAlerts,
     '/satisfacao': surveyAlerts,
-    '/avaliacoes': reviewsAlerts,
   };
 
   const primaryItems = ALL_ITEMS.filter(i => i.primary);
@@ -38,12 +36,9 @@ export function BottomNav({ overviewAlerts, surveyAlerts, reviewsAlerts }: Botto
 
   return (
     <>
-      {/* Gaveta "Mais" */}
       {open && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          {/* Overlay */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          {/* Painel */}
           <div className="relative bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl px-4 pt-4 pb-6 z-10">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Mais opções</span>
@@ -77,7 +72,6 @@ export function BottomNav({ overviewAlerts, surveyAlerts, reviewsAlerts }: Botto
         </div>
       )}
 
-      {/* Barra inferior */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex flex-col">
         <div className="flex">
           {primaryItems.map(({ to, icon: Icon, label }) => {
@@ -113,7 +107,6 @@ export function BottomNav({ overviewAlerts, surveyAlerts, reviewsAlerts }: Botto
             );
           })}
 
-          {/* Botão Mais */}
           <button
             onClick={() => setOpen(v => !v)}
             className={clsx(
@@ -126,7 +119,6 @@ export function BottomNav({ overviewAlerts, surveyAlerts, reviewsAlerts }: Botto
           </button>
         </div>
 
-        {/* Rodapé discreto abaixo dos botões */}
         <div className="text-center text-[9px] text-gray-300 dark:text-gray-600 pb-1 select-none leading-tight">
           Desenvolvido por <span className="font-semibold">H8 Publicis</span>
         </div>

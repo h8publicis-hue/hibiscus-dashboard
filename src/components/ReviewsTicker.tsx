@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Star, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
-import { GoogleBusinessData, SurveyMonkeyData } from '../types';
+import { SurveyMonkeyData } from '../types';
 
 interface TickerItem {
   id:     string;
-  source: 'google' | 'survey';
+  source: 'survey';
   author: string;
   text:   string;
   score:  number;
@@ -14,8 +14,7 @@ interface TickerItem {
 }
 
 interface ReviewsTickerProps {
-  googleData?: GoogleBusinessData | null;
-  surveyData?: SurveyMonkeyData  | null;
+  surveyData?: SurveyMonkeyData | null;
   intervalMs?: number;
 }
 
@@ -23,25 +22,10 @@ const INTERVAL = 12000;
 const MAX_TEXT = 160;
 const MIN_ITEMS = 3;
 
-function Stars({ rating }: { rating: number }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <Star key={s} size={11} className={s <= Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-600'} />
-      ))}
-    </span>
-  );
-}
 
-function buildList(days: number | null, googleData?: GoogleBusinessData | null, surveyData?: SurveyMonkeyData | null): TickerItem[] {
+function buildList(days: number | null, surveyData?: SurveyMonkeyData | null): TickerItem[] {
   const list: TickerItem[] = [];
   const cutoff = days !== null ? new Date(Date.now() - days * 86400000) : null;
-
-  (googleData?.recentReviews ?? []).forEach((r) => {
-    if (!r.text?.trim()) return;
-    if (cutoff && r.date && new Date(r.date) < cutoff) return;
-    list.push({ id: `g-${r.id}`, source: 'google', author: r.author, text: r.text, score: r.rating, date: r.date });
-  });
 
   (surveyData?.recentResponses ?? []).forEach((r) => {
     if (!r.text?.trim()) return;
@@ -52,20 +36,19 @@ function buildList(days: number | null, googleData?: GoogleBusinessData | null, 
   return list;
 }
 
-export function ReviewsTicker({ googleData, surveyData, intervalMs = INTERVAL }: ReviewsTickerProps) {
+export function ReviewsTicker({ surveyData, intervalMs = INTERVAL }: ReviewsTickerProps) {
   const [idx,     setIdx]     = useState(0);
   const [visible, setVisible] = useState(true);
 
   const items: TickerItem[] = useMemo(() => {
-    // Tenta janelas progressivas: hoje → 7 dias → 30 dias → sem limite
     for (const days of [0, 7, 30, null]) {
-      const list = buildList(days, googleData, surveyData);
+      const list = buildList(days, surveyData);
       if (list.length >= MIN_ITEMS || days === null) {
         return list.sort(() => Math.random() - 0.5);
       }
     }
     return [];
-  }, [googleData, surveyData]);
+  }, [surveyData]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -102,22 +85,14 @@ export function ReviewsTicker({ googleData, surveyData, intervalMs = INTERVAL }:
       <div className="transition-opacity duration-300" style={{ opacity: visible ? 1 : 0 }}>
         {/* Badge + nota + data */}
         <div className="flex items-center gap-2 mb-2">
-          {item.source === 'google' ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-700 rounded-full px-2 py-0.5">
-              <Star size={9} className="fill-yellow-500" /> Google
-            </span>
-          ) : (
-            <span className={clsx('inline-flex items-center gap-1 text-[10px] font-medium border rounded-full px-2 py-0.5',
-              item.sentiment === 'positive' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700'
-              : item.sentiment === 'negative' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700'
-              : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700'
-            )}>
-              <MessageSquare size={9} /> Survey
-            </span>
-          )}
-          {item.source === 'google' ? <Stars rating={item.score} /> : (
-            <span className={clsx('text-[10px] font-bold', sentimentColor)}>{Math.round((item.score / 5) * 10)}/10</span>
-          )}
+          <span className={clsx('inline-flex items-center gap-1 text-[10px] font-medium border rounded-full px-2 py-0.5',
+            item.sentiment === 'positive' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700'
+            : item.sentiment === 'negative' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700'
+            : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700'
+          )}>
+            <MessageSquare size={9} /> Survey
+          </span>
+          <span className={clsx('text-[10px] font-bold', sentimentColor)}>{Math.round((item.score / 5) * 10)}/10</span>
           <span className="text-[10px] text-gray-400 ml-auto">
             {item.date ? new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}
           </span>
