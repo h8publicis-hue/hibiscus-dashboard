@@ -118,12 +118,73 @@ export function MapaKds() {
         <span className="text-[9px] text-white/30">atualiza a cada 30s</span>
       </header>
 
-      {/* Área principal: mapa + painel lateral */}
-      <div className="flex-1 relative overflow-hidden min-h-0">
+      {/* Área principal: painel fixo + mapa lado a lado */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
 
-        {/* Mapa — ocupa tudo */}
+        {/* Painel lateral fixo */}
+        <div className="w-48 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
+
+          {/* Bloco clube */}
+          <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
+            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Clube</p>
+            {[
+              { label: 'Portaria',  value: portaria ?? '—', color: 'text-white' },
+              { label: 'Na Casa',   value: naCasa,          color: 'text-blue-300', sub: `Beach ${occupancy.beach} · Lounge ${loungesTotal}` },
+              { label: '– GAP',     value: gap ?? '—',      color: gap && gap > 0 ? 'text-red-400' : 'text-white/30' },
+              { label: 'Parceiros', value: occupancy.parceiros, color: 'text-yellow-300' },
+            ].map(({ label, value, color, sub }) => (
+              <div key={label} className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[9px] text-white/40 leading-none truncate">{label}</p>
+                  {sub && <p className="text-[8px] text-white/25 leading-none mt-0.5 truncate">{sub}</p>}
+                </div>
+                <span className={clsx('text-xl font-black tabular-nums leading-none shrink-0', color)}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Bloco mesas */}
+          <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
+            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Mesas Beach</p>
+            {[
+              { label: 'Ocupadas', value: ocupadas,   color: 'text-red-400' },
+              { label: 'Livres',   value: livres,     color: 'text-green-400' },
+              { label: 'Clientes', value: clientes,   color: 'text-blue-300' },
+              { label: 'Taxa',     value: `${taxa}%`, color: taxa >= 80 ? 'text-red-400' : taxa >= 50 ? 'text-yellow-300' : 'text-green-400' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex items-center justify-between gap-2">
+                <p className="text-[9px] text-white/40 leading-none">{label}</p>
+                <span className={clsx('text-xl font-black tabular-nums leading-none', color)}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Legenda + zoom */}
+          <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
+            </div>
+            <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
+            </div>
+            <div className="flex gap-1 mt-1">
+              {[
+                { icon: <ZoomOut size={11} />, fn: () => handleZoom(-0.2) },
+                { icon: <ZoomIn  size={11} />, fn: () => handleZoom(0.2)  },
+                { icon: <RotateCcw size={11} />, fn: handleReset          },
+              ].map((b, i) => (
+                <button key={i} onClick={b.fn}
+                  className="flex-1 h-6 rounded-lg bg-white/10 text-white/60 flex items-center justify-center hover:bg-white/20 transition-colors">
+                  {b.icon}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Mapa — ocupa o restante */}
         <div
-          className="absolute inset-0 cursor-grab active:cursor-grabbing"
+          className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -149,67 +210,6 @@ export function MapaKds() {
             {tables.map(mesa => (
               <TableDot key={mesa.numero} mesa={mesa} estado={estado[mesa.numero]} />
             ))}
-          </div>
-        </div>
-
-        {/* Painel overlay — lateral esquerda */}
-        <div className="absolute left-3 top-3 bottom-3 w-44 flex flex-col gap-2 pointer-events-none">
-
-          {/* Bloco clube */}
-          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-3 flex flex-col gap-2">
-            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Clube</p>
-            {[
-              { label: 'Portaria',  value: portaria ?? '—', color: 'text-white' },
-              { label: 'Na Casa',   value: naCasa,          color: 'text-blue-300', sub: `Beach ${occupancy.beach} · Lounge ${loungesTotal}` },
-              { label: '– GAP',     value: gap ?? '—',      color: gap && gap > 0 ? 'text-red-400' : 'text-white/40' },
-              { label: 'Parceiros', value: occupancy.parceiros, color: 'text-yellow-300' },
-            ].map(({ label, value, color, sub }) => (
-              <div key={label} className="flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] text-white/40 leading-none">{label}</p>
-                  {sub && <p className="text-[8px] text-white/25 leading-none mt-0.5">{sub}</p>}
-                </div>
-                <span className={clsx('text-lg font-black tabular-nums leading-none', color)}>{value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Bloco mesas */}
-          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-3 flex flex-col gap-2">
-            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Mesas Beach</p>
-            {[
-              { label: 'Ocupadas', value: ocupadas, color: 'text-red-400' },
-              { label: 'Livres',   value: livres,   color: 'text-green-400' },
-              { label: 'Clientes', value: clientes, color: 'text-blue-300' },
-              { label: `Taxa`,     value: `${taxa}%`, color: taxa >= 80 ? 'text-red-400' : taxa >= 50 ? 'text-yellow-300' : 'text-green-400' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center justify-between">
-                <p className="text-[9px] text-white/40 leading-none">{label}</p>
-                <span className={clsx('text-lg font-black tabular-nums leading-none', color)}>{value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Legenda + zoom */}
-          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-2.5 flex flex-col gap-1.5 pointer-events-auto">
-            <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
-            </div>
-            <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
-            </div>
-            <div className="flex gap-1 mt-1">
-              {[
-                { icon: <ZoomOut size={11} />, fn: () => handleZoom(-0.2) },
-                { icon: <ZoomIn  size={11} />, fn: () => handleZoom(0.2)  },
-                { icon: <RotateCcw size={11} />, fn: handleReset          },
-              ].map((b, i) => (
-                <button key={i} onClick={b.fn}
-                  className="flex-1 h-6 rounded-lg bg-white/10 text-white/60 flex items-center justify-center hover:bg-white/20 transition-colors">
-                  {b.icon}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </div>
