@@ -16,6 +16,7 @@ export interface MesaEstado {
 interface BeachTablesState {
   tables: MesaConfig[];
   estado: Record<string, MesaEstado>;
+  markerSize: number;
   loading: boolean;
   error: string | null;
 }
@@ -24,7 +25,7 @@ const POLL_MS = 30_000;
 
 export function useBeachTables() {
   const [state, setState] = useState<BeachTablesState>({
-    tables: [], estado: {}, loading: true, error: null,
+    tables: [], estado: {}, markerSize: 24, loading: true, error: null,
   });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -33,7 +34,7 @@ export function useBeachTables() {
       const r = await fetch('/api/mesas');
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
-      setState(s => ({ ...s, tables: data.tables ?? [], estado: data.estado ?? {}, loading: false, error: null }));
+      setState(s => ({ ...s, tables: data.tables ?? [], estado: data.estado ?? {}, markerSize: data.markerSize ?? 24, loading: false, error: null }));
     } catch (e: any) {
       setState(s => ({ ...s, loading: false, error: e.message }));
     }
@@ -101,6 +102,15 @@ export function useBeachTables() {
     });
   }, []);
 
+  const salvarMarkerSize = useCallback(async (size: number) => {
+    setState(s => ({ ...s, markerSize: size }));
+    await fetch('/api/mesas?action=config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markerSize: size }),
+    });
+  }, []);
+
   return {
     ...state,
     refresh: fetch_,
@@ -108,5 +118,6 @@ export function useBeachTables() {
     liberarMesa,
     atualizarClientes,
     salvarPosicoes,
+    salvarMarkerSize,
   };
 }

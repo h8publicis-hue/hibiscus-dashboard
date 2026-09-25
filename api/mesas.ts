@@ -92,7 +92,7 @@ export default async function handler(req: any, res: any) {
       await kvSet('mesas:estado', estado);
     }
 
-    return res.json({ tables: config.tables, estado });
+    return res.json({ tables: config.tables, estado, markerSize: config.markerSize ?? 24 });
   }
 
   if (req.method === 'POST') {
@@ -110,9 +110,13 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'config') {
-      const { tables } = req.body ?? {};
-      if (!tables) return res.status(400).json({ error: 'tables required' });
-      await kvSet('mesas:config', { tables });
+      const { tables, markerSize } = req.body ?? {};
+      if (!tables && markerSize === undefined) return res.status(400).json({ error: 'tables or markerSize required' });
+      const existing = (await kvGet('mesas:config')) ?? {};
+      const next: Record<string, unknown> = { ...existing };
+      if (tables) next.tables = tables;
+      if (markerSize !== undefined) next.markerSize = markerSize;
+      await kvSet('mesas:config', next);
       return res.json({ ok: true });
     }
 

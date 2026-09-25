@@ -372,7 +372,7 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
 // ── MapaOcupacao ──────────────────────────────────────────────────────────────
 
 export function MapaOcupacao() {
-  const { tables, estado, loading, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes } = useBeachTables();
+  const { tables, estado, loading, markerSize: remoteMarkerSize, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes, salvarMarkerSize } = useBeachTables();
   const [occupancy] = useOccupancy();
   const portaria    = usePortaria();
 
@@ -387,6 +387,19 @@ export function MapaOcupacao() {
   const [draftTables, setDraft]     = useState<MesaConfig[]>([]);
   const [editNumero, setEditNumero] = useState<string | null>(null); // modal renomear
   const [markerSize, setMarkerSize] = useState(24);
+  const markerSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sincroniza tamanho inicial vindo do servidor (só na primeira carga)
+  const markerSizeLoaded = useRef(false);
+  useEffect(() => {
+    if (!markerSizeLoaded.current && remoteMarkerSize !== 24) {
+      setMarkerSize(remoteMarkerSize);
+      markerSizeLoaded.current = true;
+    } else if (!markerSizeLoaded.current && tables.length > 0) {
+      setMarkerSize(remoteMarkerSize);
+      markerSizeLoaded.current = true;
+    }
+  }, [remoteMarkerSize, tables]);
 
   const [busca, setBusca]   = useState('');
   const [filtro, setFiltro] = useState<'todas' | 'livres' | 'ocupadas'>('todas');
@@ -588,12 +601,22 @@ export function MapaOcupacao() {
           <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Marcadores</p>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setMarkerSize(s => Math.max(14, s - 2))}
+              onClick={() => {
+                const next = Math.max(14, markerSize - 2);
+                setMarkerSize(next);
+                if (markerSaveTimer.current) clearTimeout(markerSaveTimer.current);
+                markerSaveTimer.current = setTimeout(() => salvarMarkerSize(next), 800);
+              }}
               className="w-8 h-7 rounded-lg bg-white/10 text-white/70 text-base font-bold flex items-center justify-center hover:bg-white/20 transition-colors"
             >−</button>
             <span className="flex-1 text-center text-xs text-white/60 tabular-nums">{markerSize}px</span>
             <button
-              onClick={() => setMarkerSize(s => Math.min(48, s + 2))}
+              onClick={() => {
+                const next = Math.min(48, markerSize + 2);
+                setMarkerSize(next);
+                if (markerSaveTimer.current) clearTimeout(markerSaveTimer.current);
+                markerSaveTimer.current = setTimeout(() => salvarMarkerSize(next), 800);
+              }}
               className="w-8 h-7 rounded-lg bg-white/10 text-white/70 text-base font-bold flex items-center justify-center hover:bg-white/20 transition-colors"
             >+</button>
           </div>

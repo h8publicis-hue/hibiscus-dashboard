@@ -39,19 +39,20 @@ function Box({ label, value, sub, color = 'text-gray-800', border = 'border-gray
 
 // ── Marcador de mesa (readonly) ───────────────────────────────────────────────
 
-function TableDot({ mesa, estado }: { mesa: MesaConfig; estado: MesaEstado | undefined }) {
+function TableDot({ mesa, estado, size }: { mesa: MesaConfig; estado: MesaEstado | undefined; size: number }) {
   const status = estado?.status ?? 'livre';
   return (
     <div
       style={{ left: `${mesa.x}%`, top: `${mesa.y}%` }}
       className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none"
     >
-      <div className={clsx(
-        'rounded-full flex items-center justify-center font-bold text-white text-[7px] leading-none w-5 h-5 shadow',
-        status === 'ocupada'
-          ? 'bg-red-500'
-          : 'bg-green-500',
-      )}>
+      <div
+        style={{ width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.38)) }}
+        className={clsx(
+          'rounded-full flex items-center justify-center font-bold text-white leading-none shadow',
+          status === 'ocupada' ? 'bg-red-500' : 'bg-green-500',
+        )}
+      >
         {mesa.numero.replace(/^0+/, '')}
       </div>
     </div>
@@ -61,7 +62,7 @@ function TableDot({ mesa, estado }: { mesa: MesaConfig; estado: MesaEstado | und
 // ── MapaKds ───────────────────────────────────────────────────────────────────
 
 export function MapaKds() {
-  const { tables, estado } = useBeachTables();
+  const { tables, estado, markerSize } = useBeachTables();
   const [occupancy]        = useOccupancy();
   const portaria           = usePortaria();
 
@@ -214,7 +215,7 @@ export function MapaKds() {
               onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
             />
             {tables.map(mesa => (
-              <TableDot key={mesa.numero} mesa={mesa} estado={estado[mesa.numero]} />
+              <TableDot key={mesa.numero} mesa={mesa} estado={estado[mesa.numero]} size={markerSize} />
             ))}
           </div>
         </div>
