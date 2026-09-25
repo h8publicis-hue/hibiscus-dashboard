@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, MapPin, X, LogOut } from 'lucide-react';
+import { MapPin, X, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaEstado } from '../hooks/useBeachTables';
 
@@ -102,8 +102,7 @@ interface ModalProps {
   onAtualizarClientes: (n: string, delta: number) => void;
 }
 
-function MesaModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarClientes }: ModalProps) {
-  const [clientes, setClientes] = useState(1);
+function MesaModal({ numero, estado, onClose, onOcupar, onLiberar }: ModalProps) {
   const [confirmLiberar, setConfirmLiberar] = useState(false);
   const status = estado?.status ?? 'livre';
 
@@ -133,25 +132,6 @@ function MesaModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarCl
 
         {status === 'ocupada' ? (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-base text-gray-600 flex items-center gap-2">
-                <Users size={16} /> Clientes
-              </span>
-              <div className="flex items-center gap-3">
-                <button onClick={() => onAtualizarClientes(numero, -1)}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">
-                  −
-                </button>
-                <span className="text-2xl font-black w-10 text-center tabular-nums">
-                  {estado?.quantidadeClientes ?? 0}
-                </span>
-                <button onClick={() => onAtualizarClientes(numero, 1)}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">
-                  +
-                </button>
-              </div>
-            </div>
-
             {estado?.horaOcupacao && (
               <div className="bg-gray-50 rounded-xl p-3 mb-5 text-sm space-y-1">
                 <div className="flex justify-between text-gray-500">
@@ -187,28 +167,10 @@ function MesaModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarCl
             )}
           </>
         ) : (
-          <>
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-base text-gray-600 flex items-center gap-2">
-                <Users size={16} /> Quantos clientes?
-              </span>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setClientes(c => Math.max(1, c - 1))}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">
-                  −
-                </button>
-                <span className="text-2xl font-black w-10 text-center tabular-nums">{clientes}</span>
-                <button onClick={() => setClientes(c => c + 1)}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 font-bold text-lg flex items-center justify-center active:bg-gray-200">
-                  +
-                </button>
-              </div>
-            </div>
-            <button onClick={() => { onOcupar(numero, clientes); onClose(); }}
-              className="w-full py-3.5 rounded-2xl bg-green-500 text-white text-base font-bold active:bg-green-600 transition-colors">
-              Ocupar mesa
-            </button>
-          </>
+          <button onClick={() => { onOcupar(numero, 0); onClose(); }}
+            className="w-full py-3.5 rounded-2xl bg-green-500 text-white text-base font-bold active:bg-green-600 transition-colors">
+            Ocupar mesa
+          </button>
         )}
       </div>
     </div>
