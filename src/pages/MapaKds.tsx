@@ -102,130 +102,115 @@ export function MapaKds() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col overflow-hidden" style={{ userSelect: 'none' }}>
+    <div className="h-screen bg-gray-900 flex flex-col overflow-hidden" style={{ userSelect: 'none' }}>
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-sm font-black text-gray-900 tracking-tight">Mapa de Ocupação · Beach</h1>
-          <p className="text-[9px] text-gray-400">Tempo real · atualiza a cada 30s</p>
+      {/* Header compacto */}
+      <header className="shrink-0 bg-gray-900 px-4 py-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo.png"
+            alt="Hibiscus"
+            className="h-6 w-auto object-contain brightness-0 invert opacity-80"
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+          <span className="text-xs font-bold text-white/70 tracking-wide">Mapa de Ocupação · Beach</span>
         </div>
-        <img
-          src="/logo.png"
-          alt="Hibiscus"
-          className="h-8 w-auto object-contain"
-          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        />
+        <span className="text-[9px] text-white/30">atualiza a cada 30s</span>
       </header>
 
-      {/* Boxes superiores */}
-      <div className="px-4 pt-2 pb-1 grid grid-cols-4 gap-2 shrink-0">
-        {/* Linha 1 — Ocupação do clube */}
-        <div className="col-span-4 grid grid-cols-4 gap-2">
-          <Box
-            label="Portaria"
-            value={portaria ?? '—'}
-            border="border-gray-300"
-            color="text-gray-800"
-          />
-          <Box
-            label="Na Casa"
-            value={naCasa}
-            sub={`Beach ${occupancy.beach} · Lounge ${loungesTotal}`}
-            border="border-blue-300"
-            color="text-blue-700"
-          />
-          <Box
-            label="– GAP"
-            value={gap ?? '—'}
-            border="border-red-300"
-            color={gap && gap > 0 ? 'text-red-600' : 'text-gray-400'}
-          />
-          <Box
-            label="Parceiros"
-            value={occupancy.parceiros}
-            border="border-yellow-300"
-            color="text-yellow-600"
-          />
-        </div>
+      {/* Área principal: mapa + painel lateral */}
+      <div className="flex-1 relative overflow-hidden min-h-0">
 
-        {/* Linha 2 — Mesas Beach */}
-        <div className="col-span-4 grid grid-cols-4 gap-2">
-          <Box
-            label="Mesas Ocupadas"
-            value={ocupadas}
-            border="border-red-200"
-            color="text-red-600"
-          />
-          <Box
-            label="Mesas Livres"
-            value={livres}
-            border="border-green-200"
-            color="text-green-600"
-          />
-          <Box
-            label="Clientes Beach"
-            value={clientes}
-            border="border-brand-200"
-            color="text-brand-600"
-          />
-          <Box
-            label="Taxa Ocupação"
-            value={`${taxa}%`}
-            border={taxa >= 80 ? 'border-red-300' : taxa >= 50 ? 'border-yellow-300' : 'border-green-300'}
-            color={taxa >= 80 ? 'text-red-600' : taxa >= 50 ? 'text-yellow-600' : 'text-green-600'}
-          />
-        </div>
-      </div>
-
-      {/* Controles do mapa */}
-      <div className="px-4 pb-1 flex items-center gap-2 shrink-0">
-        <div className="flex items-center gap-1">
-          {[
-            { icon: <ZoomOut size={14} />, fn: () => handleZoom(-0.2) },
-            { icon: <ZoomIn  size={14} />, fn: () => handleZoom(0.2)  },
-            { icon: <RotateCcw size={14} />, fn: handleReset           },
-          ].map((b, i) => (
-            <button key={i} onClick={b.fn}
-              className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 shadow-sm">
-              {b.icon}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-3 ml-3 text-[10px] text-gray-400">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Livre</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Ocupada</span>
-        </div>
-      </div>
-
-      {/* Mapa */}
-      <div
-        className="flex-1 mx-4 mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-sky-100 cursor-grab active:cursor-grabbing shadow-inner"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
+        {/* Mapa — ocupa tudo */}
         <div
-          ref={containerRef}
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: 'center center',
-            position: 'relative',
-            width: '100%',
-            height: '100%',
-          }}
+          className="absolute inset-0 cursor-grab active:cursor-grabbing"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
         >
-          <img
-            src={mapaImg}
-            alt="Mapa Beach"
-            draggable={false}
-            className="w-full h-full object-cover select-none"
-            onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
-          />
-          {tables.map(mesa => (
-            <TableDot key={mesa.numero} mesa={mesa} estado={estado[mesa.numero]} />
-          ))}
+          <div
+            ref={containerRef}
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              width: '100%',
+              height: '100%',
+              position: 'relative',
+            }}
+          >
+            <img
+              src={mapaImg}
+              alt="Mapa Beach"
+              draggable={false}
+              className="w-full h-full object-contain select-none"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
+            />
+            {tables.map(mesa => (
+              <TableDot key={mesa.numero} mesa={mesa} estado={estado[mesa.numero]} />
+            ))}
+          </div>
+        </div>
+
+        {/* Painel overlay — lateral esquerda */}
+        <div className="absolute left-3 top-3 bottom-3 w-44 flex flex-col gap-2 pointer-events-none">
+
+          {/* Bloco clube */}
+          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-3 flex flex-col gap-2">
+            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Clube</p>
+            {[
+              { label: 'Portaria',  value: portaria ?? '—', color: 'text-white' },
+              { label: 'Na Casa',   value: naCasa,          color: 'text-blue-300', sub: `Beach ${occupancy.beach} · Lounge ${loungesTotal}` },
+              { label: '– GAP',     value: gap ?? '—',      color: gap && gap > 0 ? 'text-red-400' : 'text-white/40' },
+              { label: 'Parceiros', value: occupancy.parceiros, color: 'text-yellow-300' },
+            ].map(({ label, value, color, sub }) => (
+              <div key={label} className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] text-white/40 leading-none">{label}</p>
+                  {sub && <p className="text-[8px] text-white/25 leading-none mt-0.5">{sub}</p>}
+                </div>
+                <span className={clsx('text-lg font-black tabular-nums leading-none', color)}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Bloco mesas */}
+          <div className="bg-black/60 backdrop-blur-md rounded-2xl p-3 flex flex-col gap-2">
+            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Mesas Beach</p>
+            {[
+              { label: 'Ocupadas', value: ocupadas, color: 'text-red-400' },
+              { label: 'Livres',   value: livres,   color: 'text-green-400' },
+              { label: 'Clientes', value: clientes, color: 'text-blue-300' },
+              { label: `Taxa`,     value: `${taxa}%`, color: taxa >= 80 ? 'text-red-400' : taxa >= 50 ? 'text-yellow-300' : 'text-green-400' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex items-center justify-between">
+                <p className="text-[9px] text-white/40 leading-none">{label}</p>
+                <span className={clsx('text-lg font-black tabular-nums leading-none', color)}>{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Legenda + zoom */}
+          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-2.5 flex flex-col gap-1.5 pointer-events-auto">
+            <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
+            </div>
+            <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
+            </div>
+            <div className="flex gap-1 mt-1">
+              {[
+                { icon: <ZoomOut size={11} />, fn: () => handleZoom(-0.2) },
+                { icon: <ZoomIn  size={11} />, fn: () => handleZoom(0.2)  },
+                { icon: <RotateCcw size={11} />, fn: handleReset          },
+              ].map((b, i) => (
+                <button key={i} onClick={b.fn}
+                  className="flex-1 h-6 rounded-lg bg-white/10 text-white/60 flex items-center justify-center hover:bg-white/20 transition-colors">
+                  {b.icon}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
