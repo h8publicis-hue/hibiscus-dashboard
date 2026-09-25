@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado } from '../hooks/useBeachTables';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
@@ -21,22 +21,20 @@ function fmtHora(horaOcupacao: string | null): string {
 // ── StatsBar ──────────────────────────────────────────────────────────────────
 
 function StatsBar({ estado, total }: { estado: Record<string, MesaEstado>; total: number }) {
-  const ocupadas  = Object.values(estado).filter(e => e.status === 'ocupada').length;
-  const livres    = total - ocupadas;
-  const clientes  = Object.values(estado).reduce((s, e) => s + (e.quantidadeClientes ?? 0), 0);
-  const taxa      = total > 0 ? Math.round((ocupadas / total) * 100) : 0;
-
-  const cards = [
-    { label: 'Total',     value: total,    color: 'text-gray-700 dark:text-gray-200' },
-    { label: 'Ocupadas',  value: ocupadas, color: 'text-red-600 dark:text-red-400' },
-    { label: 'Livres',    value: livres,   color: 'text-green-600 dark:text-green-400' },
-    { label: 'Clientes',  value: clientes, color: 'text-brand-600 dark:text-brand-400' },
-    { label: 'Ocupação',  value: `${taxa}%`, color: taxa >= 80 ? 'text-red-600' : taxa >= 50 ? 'text-yellow-600' : 'text-green-600' },
-  ];
+  const ocupadas = Object.values(estado).filter(e => e.status === 'ocupada').length;
+  const livres   = total - ocupadas;
+  const clientes = Object.values(estado).reduce((s, e) => s + (e.quantidadeClientes ?? 0), 0);
+  const taxa     = total > 0 ? Math.round((ocupadas / total) * 100) : 0;
 
   return (
     <div className="grid grid-cols-5 gap-2 mb-3">
-      {cards.map(({ label, value, color }) => (
+      {[
+        { label: 'Total',    value: total,      color: 'text-gray-700 dark:text-gray-200' },
+        { label: 'Ocupadas', value: ocupadas,   color: 'text-red-600 dark:text-red-400' },
+        { label: 'Livres',   value: livres,     color: 'text-green-600 dark:text-green-400' },
+        { label: 'Clientes', value: clientes,   color: 'text-brand-600 dark:text-brand-400' },
+        { label: 'Ocupação', value: `${taxa}%`, color: taxa >= 80 ? 'text-red-600' : taxa >= 50 ? 'text-yellow-600' : 'text-green-600' },
+      ].map(({ label, value, color }) => (
         <div key={label} className="bg-white dark:bg-gray-800 rounded-xl p-2.5 text-center shadow border border-gray-200 dark:border-gray-700">
           <p className={clsx('text-lg font-black tabular-nums', color)}>{value}</p>
           <p className="text-[9px] text-gray-400 uppercase tracking-wider mt-0.5">{label}</p>
@@ -49,21 +47,21 @@ function StatsBar({ estado, total }: { estado: Record<string, MesaEstado>; total
 // ── TableMarker ───────────────────────────────────────────────────────────────
 
 interface TableMarkerProps {
-  mesa: MesaConfig;
-  estado: MesaEstado | undefined;
-  highlight: boolean;
-  dimmed: boolean;
-  editMode: boolean;
-  onClickMesa: (numero: string) => void;
-  onDrag: (numero: string, x: number, y: number) => void;
+  mesa:         MesaConfig;
+  estado:       MesaEstado | undefined;
+  highlight:    boolean;
+  dimmed:       boolean;
+  editMode:     boolean;
+  onClickMesa:  (numero: string) => void;
+  onDrag:       (numero: string, x: number, y: number) => void;
+  onRemove:     (numero: string) => void;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
-function TableMarker({ mesa, estado, highlight, dimmed, editMode, onClickMesa, onDrag, containerRef }: TableMarkerProps) {
+function TableMarker({ mesa, estado, highlight, dimmed, editMode, onClickMesa, onDrag, onRemove, containerRef }: TableMarkerProps) {
   const status    = estado?.status ?? 'livre';
   const dragging  = useRef(false);
   const moved     = useRef(false);
-  const startPos  = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!editMode) return;
@@ -71,19 +69,18 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, onClickMesa, o
     e.stopPropagation();
     dragging.current = true;
     moved.current = false;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    startPos.current = { mx: e.clientX, my: e.clientY, ox: mesa.x, oy: mesa.y };
+    const startMx = e.clientX, startMy = e.clientY;
+    const startOx = mesa.x,    startOy = mesa.y;
 
     const onMove = (ev: MouseEvent) => {
       if (!dragging.current || !containerRef.current) return;
       const r = containerRef.current.getBoundingClientRect();
-      const dx = ev.clientX - startPos.current.mx;
-      const dy = ev.clientY - startPos.current.my;
+      const dx = ev.clientX - startMx, dy = ev.clientY - startMy;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved.current = true;
-      const newX = Math.max(1, Math.min(99, startPos.current.ox + (dx / r.width) * 100));
-      const newY = Math.max(1, Math.min(99, startPos.current.oy + (dy / r.height) * 100));
-      onDrag(mesa.numero, newX, newY);
+      onDrag(mesa.numero,
+        Math.max(1, Math.min(99, startOx + (dx / r.width)  * 100)),
+        Math.max(1, Math.min(99, startOy + (dy / r.height) * 100)),
+      );
     };
     const onUp = () => {
       dragging.current = false;
@@ -101,35 +98,108 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, onClickMesa, o
   }, [editMode, onClickMesa, mesa.numero]);
 
   return (
-    <button
-      onMouseDown={handleMouseDown}
-      onClick={handleClick}
+    <div
       style={{ left: `${mesa.x}%`, top: `${mesa.y}%` }}
-      className={clsx(
-        'absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center font-bold transition-all',
-        'text-white text-[8px] leading-none select-none',
-        editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer hover:scale-125',
-        status === 'ocupada'
-          ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-200 dark:shadow-red-900/40'
-          : 'bg-green-500 hover:bg-green-600 shadow-md shadow-green-200 dark:shadow-green-900/40',
-        highlight && 'ring-2 ring-white ring-offset-1 ring-offset-transparent scale-125 animate-pulse',
-        dimmed && 'opacity-30',
-        'w-6 h-6',
-      )}
+      className="absolute -translate-x-1/2 -translate-y-1/2"
     >
-      {mesa.numero.replace(/^0+/, '')}
-    </button>
+      <button
+        onMouseDown={handleMouseDown}
+        onClick={handleClick}
+        className={clsx(
+          'rounded-full flex items-center justify-center font-bold text-white text-[8px] leading-none select-none transition-all w-6 h-6',
+          editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer hover:scale-125',
+          status === 'ocupada'
+            ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-200 dark:shadow-red-900/40'
+            : 'bg-green-500 hover:bg-green-600 shadow-md shadow-green-200 dark:shadow-green-900/40',
+          highlight && 'ring-2 ring-white ring-offset-1 scale-125 animate-pulse',
+          dimmed && 'opacity-30',
+        )}
+      >
+        {mesa.numero.replace(/^0+/, '')}
+      </button>
+
+      {/* Botão remover — só em edit mode */}
+      {editMode && (
+        <button
+          onClick={e => { e.stopPropagation(); onRemove(mesa.numero); }}
+          className="absolute -top-2 -right-2 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center shadow hover:bg-red-700 z-10"
+        >
+          <X size={8} />
+        </button>
+      )}
+    </div>
   );
 }
 
-// ── TableModal ────────────────────────────────────────────────────────────────
+// ── Modal: editar número da mesa ──────────────────────────────────────────────
+
+function EditMesaModal({
+  numero,
+  todosNumeros,
+  onSave,
+  onClose,
+}: {
+  numero:       string;
+  todosNumeros: string[];
+  onSave:       (antigo: string, novo: string) => void;
+  onClose:      () => void;
+}) {
+  const [val, setVal] = useState(numero.replace(/^0+/, ''));
+  const [erro, setErro] = useState('');
+
+  const handleSave = () => {
+    const trimmed = val.trim();
+    if (!trimmed || isNaN(Number(trimmed)) || Number(trimmed) < 1) {
+      setErro('Número inválido'); return;
+    }
+    const novo = String(Number(trimmed)).padStart(3, '0');
+    if (novo !== numero && todosNumeros.includes(novo)) {
+      setErro(`Mesa ${novo} já existe`); return;
+    }
+    onSave(numero, novo);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xs p-5 z-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white">Editar Mesa {numero.replace(/^0+/, '')}</h2>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
+            <X size={16} />
+          </button>
+        </div>
+        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Número da mesa</label>
+        <input
+          type="number"
+          min={1}
+          value={val}
+          onChange={e => { setVal(e.target.value); setErro(''); }}
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 mb-1"
+          autoFocus
+        />
+        {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
+        <button
+          onClick={handleSave}
+          className="w-full mt-3 py-2 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors"
+        >
+          Salvar número
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal da mesa (ocupar/liberar) ────────────────────────────────────────────
 
 interface TableModalProps {
-  numero: string;
-  estado: MesaEstado | undefined;
-  onClose: () => void;
-  onOcupar: (n: string, c: number) => void;
-  onLiberar: (n: string) => void;
+  numero:              string;
+  estado:              MesaEstado | undefined;
+  onClose:             () => void;
+  onOcupar:            (n: string, c: number) => void;
+  onLiberar:           (n: string) => void;
   onAtualizarClientes: (n: string, delta: number) => void;
 }
 
@@ -142,18 +212,16 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xs p-5 z-10">
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <MapPin size={18} className="text-brand-500" />
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">Mesa {numero}</h2>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">Mesa {numero.replace(/^0+/, '')}</h2>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
             <X size={18} />
           </button>
         </div>
 
-        {/* Status pill */}
         <div className={clsx(
           'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-4',
           status === 'ocupada'
@@ -166,7 +234,6 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
 
         {status === 'ocupada' ? (
           <>
-            {/* Clientes */}
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
                 <Users size={14} /> Clientes
@@ -185,8 +252,6 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
                 </button>
               </div>
             </div>
-
-            {/* Horário */}
             {estado?.horaOcupacao && (
               <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3 mb-4 text-sm">
                 <div className="flex justify-between text-gray-500 dark:text-gray-400">
@@ -199,8 +264,6 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
                 </div>
               </div>
             )}
-
-            {/* Liberar */}
             {!confirmLiberar ? (
               <button onClick={() => setConfirmLiberar(true)}
                 className="w-full py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors">
@@ -224,7 +287,6 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
           </>
         ) : (
           <>
-            {/* Ocupar */}
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
                 <Users size={14} /> Clientes
@@ -252,30 +314,32 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
   );
 }
 
-// ── MapaOcupacao (main) ───────────────────────────────────────────────────────
+// ── MapaOcupacao ──────────────────────────────────────────────────────────────
 
 export function MapaOcupacao() {
   const { tables, estado, loading, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes } = useBeachTables();
 
-  const [zoom, setZoom]           = useState(1);
-  const [pan, setPan]             = useState({ x: 0, y: 0 });
-  const [draggingMap, setDragging] = useState(false);
-  const [panStart, setPanStart]   = useState({ mx: 0, my: 0, px: 0, py: 0 });
-  const [panMoved, setPanMoved]   = useState(false);
+  const [zoom, setZoom]     = useState(1);
+  const [pan, setPan]       = useState({ x: 0, y: 0 });
+  const [draggingMap, setDraggingMap] = useState(false);
+  const [panStart, setPanStart]       = useState({ mx: 0, my: 0, px: 0, py: 0 });
+  const [panMoved, setPanMoved]       = useState(false);
 
-  const [editMode, setEditMode]   = useState(false);
-  const [draftTables, setDraft]   = useState<MesaConfig[]>([]);
+  const [editMode, setEditMode]     = useState(false);
+  const [draftTables, setDraft]     = useState<MesaConfig[]>([]);
+  const [editNumero, setEditNumero] = useState<string | null>(null); // modal renomear
 
-  const [busca, setBusca]         = useState('');
-  const [filtro, setFiltro]       = useState<'todas' | 'livres' | 'ocupadas'>('todas');
-  const [modal, setModal]         = useState<string | null>(null);
+  const [busca, setBusca]   = useState('');
+  const [filtro, setFiltro] = useState<'todas' | 'livres' | 'ocupadas'>('todas');
+  const [modal, setModal]   = useState<string | null>(null); // modal ocupar/liberar
 
-  const containerRef              = useRef<HTMLDivElement>(null!);
+  const containerRef = useRef<HTMLDivElement>(null!);
 
-  // Sincroniza draft quando tables chegam
   useEffect(() => { setDraft(tables); }, [tables]);
 
   const activeTables = editMode ? draftTables : tables;
+
+  // ── Zoom / pan ──────────────────────────────────────────────────────────────
 
   const handleZoom = (delta: number) =>
     setZoom(z => Math.max(0.5, Math.min(4, z + delta)));
@@ -284,34 +348,66 @@ export function MapaOcupacao() {
 
   const handleMapMouseDown = useCallback((e: React.MouseEvent) => {
     if (editMode) return;
-    setDragging(true);
+    setDraggingMap(true);
     setPanMoved(false);
     setPanStart({ mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y });
   }, [editMode, pan]);
 
   const handleMapMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggingMap) return;
-    const dx = e.clientX - panStart.mx;
-    const dy = e.clientY - panStart.my;
+    const dx = e.clientX - panStart.mx, dy = e.clientY - panStart.my;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) setPanMoved(true);
     setPan({ x: panStart.px + dx, y: panStart.py + dy });
   }, [draggingMap, panStart]);
 
-  const handleMapMouseUp = useCallback(() => { setDragging(false); }, []);
+  const handleMapMouseUp = useCallback(() => setDraggingMap(false), []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     handleZoom(e.deltaY < 0 ? 0.2 : -0.2);
   }, []);
 
+  // ── Clique em mesa ──────────────────────────────────────────────────────────
+
   const handleClickMesa = useCallback((numero: string) => {
     if (panMoved) return;
-    setModal(numero);
-  }, [panMoved]);
+    if (editMode) {
+      setEditNumero(numero); // modo edição → renomear
+    } else {
+      setModal(numero);      // modo normal → ocupar/liberar
+    }
+  }, [panMoved, editMode]);
+
+  // ── Drag de mesa ───────────────────────────────────────────────────────────
 
   const handleDrag = useCallback((numero: string, x: number, y: number) => {
     setDraft(prev => prev.map(t => t.numero === numero ? { ...t, x, y } : t));
   }, []);
+
+  // ── Adicionar mesa ─────────────────────────────────────────────────────────
+
+  const handleAddMesa = () => {
+    // Próximo número disponível
+    const existentes = new Set(draftTables.map(t => t.numero));
+    let n = 1;
+    while (existentes.has(String(n).padStart(3, '0'))) n++;
+    const novo: MesaConfig = { numero: String(n).padStart(3, '0'), x: 50, y: 50 };
+    setDraft(prev => [...prev, novo]);
+  };
+
+  // ── Remover mesa ───────────────────────────────────────────────────────────
+
+  const handleRemoveMesa = useCallback((numero: string) => {
+    setDraft(prev => prev.filter(t => t.numero !== numero));
+  }, []);
+
+  // ── Renomear mesa ──────────────────────────────────────────────────────────
+
+  const handleRenomear = (antigo: string, novo: string) => {
+    setDraft(prev => prev.map(t => t.numero === antigo ? { ...t, numero: novo } : t));
+  };
+
+  // ── Salvar edição ──────────────────────────────────────────────────────────
 
   const handleSaveEdit = async () => {
     await salvarPosicoes(draftTables);
@@ -323,9 +419,9 @@ export function MapaOcupacao() {
     setEditMode(false);
   };
 
-  const highlighted = busca.trim().length >= 3
-    ? busca.trim().replace(/^0+/, '')
-    : null;
+  // ── Filtro / highlight ─────────────────────────────────────────────────────
+
+  const buscaNum = busca.trim().replace(/^0+/, '');
 
   const isDimmed = (numero: string): boolean => {
     const e = estado[numero];
@@ -344,6 +440,8 @@ export function MapaOcupacao() {
       </div>
     );
   }
+
+  const todosNumeros = draftTables.map(t => t.numero);
 
   return (
     <div className="flex-1 flex flex-col p-3 gap-3 min-h-0">
@@ -386,15 +484,16 @@ export function MapaOcupacao() {
 
         {/* Zoom */}
         <div className="flex items-center gap-1">
-          <button onClick={() => handleZoom(-0.2)} className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50">
-            <ZoomOut size={14} />
-          </button>
-          <button onClick={() => handleZoom(0.2)} className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50">
-            <ZoomIn size={14} />
-          </button>
-          <button onClick={handleReset} className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50">
-            <RotateCcw size={14} />
-          </button>
+          {[
+            { icon: <ZoomOut size={14} />, fn: () => handleZoom(-0.2) },
+            { icon: <ZoomIn  size={14} />, fn: () => handleZoom(0.2)  },
+            { icon: <RotateCcw size={14} />, fn: handleReset          },
+          ].map((b, i) => (
+            <button key={i} onClick={b.fn}
+              className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50">
+              {b.icon}
+            </button>
+          ))}
         </div>
 
         {/* Editar / Salvar */}
@@ -405,6 +504,10 @@ export function MapaOcupacao() {
           </button>
         ) : (
           <div className="flex gap-1">
+            <button onClick={handleAddMesa}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
+              <Plus size={12} /> Mesa
+            </button>
             <button onClick={handleSaveEdit}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
               <Save size={12} /> Salvar
@@ -436,7 +539,6 @@ export function MapaOcupacao() {
             height: '100%',
           }}
         >
-          {/* Imagem de fundo */}
           <img
             src={mapaImg}
             alt="Mapa Beach"
@@ -445,9 +547,7 @@ export function MapaOcupacao() {
             onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
           />
 
-          {/* Marcadores */}
           {activeTables.map(mesa => {
-            const buscaNum = busca.trim().replace(/^0+/, '');
             const isHighlighted = buscaNum.length >= 1 && mesa.numero.replace(/^0+/, '') === buscaNum;
             return (
               <TableMarker
@@ -459,6 +559,7 @@ export function MapaOcupacao() {
                 editMode={editMode}
                 onClickMesa={handleClickMesa}
                 onDrag={handleDrag}
+                onRemove={handleRemoveMesa}
                 containerRef={containerRef}
               />
             );
@@ -470,11 +571,15 @@ export function MapaOcupacao() {
       <div className="flex items-center gap-4 text-[10px] text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Livre</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Ocupada</span>
-        {editMode && <span className="text-brand-500 font-medium">Arraste as mesas para reposicioná-las</span>}
+        {editMode && (
+          <span className="text-brand-500 font-medium flex items-center gap-1">
+            <Pencil size={10} /> Arraste · clique para renomear · <Trash2 size={10} /> para remover
+          </span>
+        )}
       </div>
 
-      {/* Modal */}
-      {modal && (
+      {/* Modal ocupar/liberar */}
+      {modal && !editMode && (
         <TableModal
           numero={modal}
           estado={estado[modal]}
@@ -482,6 +587,16 @@ export function MapaOcupacao() {
           onOcupar={ocuparMesa}
           onLiberar={liberarMesa}
           onAtualizarClientes={atualizarClientes}
+        />
+      )}
+
+      {/* Modal renomear (edit mode) */}
+      {editNumero && editMode && (
+        <EditMesaModal
+          numero={editNumero}
+          todosNumeros={todosNumeros}
+          onSave={handleRenomear}
+          onClose={() => setEditNumero(null)}
         />
       )}
     </div>
