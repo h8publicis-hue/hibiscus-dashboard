@@ -63,7 +63,7 @@ function StatsBar({ estado, total }: { estado: Record<string, MesaEstado>; total
   const taxa     = total > 0 ? Math.round((ocupadas / total) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-5 gap-2 mb-3">
+    <div className="flex items-center gap-3">
       {[
         { label: 'Total',    value: total,      color: 'text-gray-700 dark:text-gray-200' },
         { label: 'Ocupadas', value: ocupadas,   color: 'text-red-600 dark:text-red-400' },
@@ -71,9 +71,9 @@ function StatsBar({ estado, total }: { estado: Record<string, MesaEstado>; total
         { label: 'Clientes', value: clientes,   color: 'text-brand-600 dark:text-brand-400' },
         { label: 'Ocupação', value: `${taxa}%`, color: taxa >= 80 ? 'text-red-600' : taxa >= 50 ? 'text-yellow-600' : 'text-green-600' },
       ].map(({ label, value, color }) => (
-        <div key={label} className="bg-white dark:bg-gray-800 rounded-xl p-2.5 text-center shadow border border-gray-200 dark:border-gray-700">
-          <p className={clsx('text-lg font-black tabular-nums', color)}>{value}</p>
-          <p className="text-[9px] text-gray-400 uppercase tracking-wider mt-0.5">{label}</p>
+        <div key={label} className="flex items-baseline gap-1">
+          <span className={clsx('text-sm font-black tabular-nums', color)}>{value}</span>
+          <span className="text-[9px] text-gray-400 uppercase tracking-wider">{label}</span>
         </div>
       ))}
     </div>
@@ -489,29 +489,32 @@ export function MapaOcupacao() {
   const todosNumeros = draftTables.map(t => t.numero);
 
   return (
-    <div className="flex-1 flex flex-col p-3 gap-3 min-h-0">
-      {/* Título */}
-      <div>
-        <h1 className="text-sm font-bold text-gray-900 dark:text-white">Mapa de Ocupação</h1>
-        <p className="text-[10px] text-gray-400">Beach · tempo real</p>
-      </div>
+    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
 
-      {/* Stats */}
-      <StatsBar estado={estado} total={activeTables.length} />
+      {/* ── Barra de controles (altura fixa) ── */}
+      <div className="shrink-0 px-3 pt-2 pb-2 flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        {/* Título compacto */}
+        <div className="mr-1">
+          <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Mapa Beach</p>
+          <p className="text-[9px] text-gray-400 leading-tight">tempo real</p>
+        </div>
 
-      {/* Controles */}
-      <div className="flex flex-wrap items-center gap-2">
+        {/* Stats inline */}
+        <StatsBar estado={estado} total={activeTables.length} />
+
+        <div className="flex-1" />
+
         {/* Busca */}
         <input
           type="text"
           value={busca}
           onChange={e => setBusca(e.target.value)}
           placeholder="Buscar mesa…"
-          className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 w-28 focus:outline-none focus:ring-1 focus:ring-brand-400"
+          className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 w-24 focus:outline-none focus:ring-1 focus:ring-brand-400"
         />
 
         {/* Filtros */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
           {(['todas', 'livres', 'ocupadas'] as const).map(f => (
             <button key={f} onClick={() => setFiltro(f)}
               className={clsx(
@@ -525,17 +528,15 @@ export function MapaOcupacao() {
           ))}
         </div>
 
-        <div className="flex-1" />
-
         {/* Zoom */}
         <div className="flex items-center gap-1">
           {[
-            { icon: <ZoomOut size={14} />, fn: () => handleZoom(-0.2) },
-            { icon: <ZoomIn  size={14} />, fn: () => handleZoom(0.2)  },
-            { icon: <RotateCcw size={14} />, fn: handleReset          },
+            { icon: <ZoomOut size={13} />, fn: () => handleZoom(-0.2) },
+            { icon: <ZoomIn  size={13} />, fn: () => handleZoom(0.2)  },
+            { icon: <RotateCcw size={13} />, fn: handleReset          },
           ].map((b, i) => (
             <button key={i} onClick={b.fn}
-              className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50">
+              className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200">
               {b.icon}
             </button>
           ))}
@@ -545,34 +546,34 @@ export function MapaOcupacao() {
         {!editMode ? (
           <button onClick={() => setEditMode(true)}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600">
-            <Pencil size={12} /> Editar mapa
+            <Pencil size={12} /> Editar
           </button>
         ) : (
           <div className="flex gap-1">
             <button onClick={handleAddMesa}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
               <Plus size={12} /> Mesa
             </button>
             <button onClick={handleDistribuir}
-              title="Distribui todas as mesas nas 4 zonas do mapa (deck, areia, piscina, tenda)"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
+              title="Distribui todas as mesas nas 4 zonas do mapa"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
               <LayoutGrid size={12} /> Distribuir
             </button>
             <button onClick={handleSaveEdit}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
               <Save size={12} /> Salvar
             </button>
             <button onClick={handleCancelEdit}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-500">
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium hover:bg-gray-300">
               <X size={12} /> Cancelar
             </button>
           </div>
         )}
       </div>
 
-      {/* Mapa */}
+      {/* ── Mapa (ocupa todo o espaço restante) ── */}
       <div
-        className="relative flex-1 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-sky-100 dark:bg-gray-800 cursor-grab active:cursor-grabbing min-h-[300px]"
+        className="relative flex-1 overflow-hidden bg-sky-100 dark:bg-gray-800 cursor-grab active:cursor-grabbing min-h-0"
         onMouseDown={handleMapMouseDown}
         onMouseMove={handleMapMouseMove}
         onMouseUp={handleMapMouseUp}
@@ -614,17 +615,17 @@ export function MapaOcupacao() {
             );
           })}
         </div>
-      </div>
 
-      {/* Legenda */}
-      <div className="flex items-center gap-4 text-[10px] text-gray-500 dark:text-gray-400">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Livre</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Ocupada</span>
-        {editMode && (
-          <span className="text-brand-500 font-medium flex items-center gap-1">
-            <Pencil size={10} /> Arraste · clique para renomear · <Trash2 size={10} /> para remover
-          </span>
-        )}
+        {/* Legenda — overlay no canto inferior esquerdo */}
+        <div className="absolute bottom-2 left-2 flex items-center gap-3 text-[10px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-2.5 py-1.5 rounded-lg shadow pointer-events-none">
+          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-300"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Livre</span>
+          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-300"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Ocupada</span>
+          {editMode && (
+            <span className="text-brand-500 font-medium flex items-center gap-1 pointer-events-auto">
+              <Pencil size={9} /> Arraste · clique para renomear
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Modal ocupar/liberar */}
