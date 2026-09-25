@@ -573,7 +573,7 @@ export function MapaOcupacao() {
 
       {/* ── Mapa (ocupa todo o espaço restante) ── */}
       <div
-        className="relative flex-1 overflow-hidden bg-sky-100 dark:bg-gray-800 cursor-grab active:cursor-grabbing min-h-0"
+        className="relative flex-1 overflow-hidden bg-gray-900 cursor-grab active:cursor-grabbing min-h-0"
         onMouseDown={handleMapMouseDown}
         onMouseMove={handleMapMouseMove}
         onMouseUp={handleMapMouseUp}
@@ -593,7 +593,7 @@ export function MapaOcupacao() {
             src={mapaImg}
             alt="Mapa Beach"
             draggable={false}
-            className="w-full h-full object-cover select-none"
+            className="w-full h-full object-contain select-none"
             onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
           />
 
