@@ -63,17 +63,17 @@ function StatsBar({ estado, total }: { estado: Record<string, MesaEstado>; total
   const taxa     = total > 0 ? Math.round((ocupadas / total) * 100) : 0;
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-2">
       {[
-        { label: 'Total',    value: total,      color: 'text-gray-700 dark:text-gray-200' },
-        { label: 'Ocupadas', value: ocupadas,   color: 'text-red-600 dark:text-red-400' },
-        { label: 'Livres',   value: livres,     color: 'text-green-600 dark:text-green-400' },
-        { label: 'Clientes', value: clientes,   color: 'text-brand-600 dark:text-brand-400' },
-        { label: 'Ocupação', value: `${taxa}%`, color: taxa >= 80 ? 'text-red-600' : taxa >= 50 ? 'text-yellow-600' : 'text-green-600' },
+        { label: 'Total',    value: total,      color: 'text-white' },
+        { label: 'Ocupadas', value: ocupadas,   color: 'text-red-400' },
+        { label: 'Livres',   value: livres,     color: 'text-green-400' },
+        { label: 'Clientes', value: clientes,   color: 'text-blue-300' },
+        { label: 'Taxa',     value: `${taxa}%`, color: taxa >= 80 ? 'text-red-400' : taxa >= 50 ? 'text-yellow-300' : 'text-green-400' },
       ].map(({ label, value, color }) => (
-        <div key={label} className="flex items-baseline gap-1">
-          <span className={clsx('text-sm font-black tabular-nums', color)}>{value}</span>
-          <span className="text-[9px] text-gray-400 uppercase tracking-wider">{label}</span>
+        <div key={label} className="flex items-center justify-between gap-2">
+          <p className="text-[9px] text-white/40 leading-none">{label}</p>
+          <span className={clsx('text-xl font-black tabular-nums leading-none', color)}>{value}</span>
         </div>
       ))}
     </div>
@@ -489,91 +489,107 @@ export function MapaOcupacao() {
   const todosNumeros = draftTables.map(t => t.numero);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+    <div className="flex-1 flex overflow-hidden min-h-0 bg-gray-900">
 
-      {/* ── Barra de controles (altura fixa) ── */}
-      <div className="shrink-0 px-3 pt-2 pb-2 flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        {/* Título compacto */}
-        <div className="mr-1">
-          <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Mapa Beach</p>
-          <p className="text-[9px] text-gray-400 leading-tight">tempo real</p>
+      {/* ── Sidebar esquerda ── */}
+      <div className="w-48 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
+
+        {/* Stats */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Mesas Beach</p>
+          <StatsBar estado={estado} total={activeTables.length} />
         </div>
 
-        {/* Stats inline */}
-        <StatsBar estado={estado} total={activeTables.length} />
-
-        <div className="flex-1" />
-
-        {/* Busca */}
-        <input
-          type="text"
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
-          placeholder="Buscar mesa…"
-          className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 w-24 focus:outline-none focus:ring-1 focus:ring-brand-400"
-        />
-
-        {/* Filtros */}
-        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-          {(['todas', 'livres', 'ocupadas'] as const).map(f => (
-            <button key={f} onClick={() => setFiltro(f)}
-              className={clsx(
-                'px-2 py-0.5 text-[10px] font-semibold rounded-md capitalize transition-colors',
-                filtro === f
-                  ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400',
-              )}>
-              {f}
-            </button>
-          ))}
+        {/* Busca + filtros */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+          <input
+            type="text"
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="Buscar mesa…"
+            className="w-full text-xs px-2.5 py-1.5 rounded-lg bg-gray-700 text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
+          />
+          <div className="flex flex-col gap-1">
+            {(['todas', 'livres', 'ocupadas'] as const).map(f => (
+              <button key={f} onClick={() => setFiltro(f)}
+                className={clsx(
+                  'w-full py-1 text-[10px] font-semibold rounded-lg capitalize transition-colors',
+                  filtro === f
+                    ? f === 'ocupadas' ? 'bg-red-500 text-white' : f === 'livres' ? 'bg-green-600 text-white' : 'bg-white/20 text-white'
+                    : 'text-white/30 hover:text-white/60',
+                )}>
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Zoom */}
-        <div className="flex items-center gap-1">
-          {[
-            { icon: <ZoomOut size={13} />, fn: () => handleZoom(-0.2) },
-            { icon: <ZoomIn  size={13} />, fn: () => handleZoom(0.2)  },
-            { icon: <RotateCcw size={13} />, fn: handleReset          },
-          ].map((b, i) => (
-            <button key={i} onClick={b.fn}
-              className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200">
-              {b.icon}
-            </button>
-          ))}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Zoom</p>
+          <div className="flex gap-1">
+            {[
+              { icon: <ZoomOut size={12} />, fn: () => handleZoom(-0.2) },
+              { icon: <ZoomIn  size={12} />, fn: () => handleZoom(0.2)  },
+              { icon: <RotateCcw size={12} />, fn: handleReset          },
+            ].map((b, i) => (
+              <button key={i} onClick={b.fn}
+                className="flex-1 h-7 rounded-lg bg-white/10 text-white/60 flex items-center justify-center hover:bg-white/20 transition-colors">
+                {b.icon}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Editar / Salvar */}
-        {!editMode ? (
-          <button onClick={() => setEditMode(true)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600">
-            <Pencil size={12} /> Editar
-          </button>
-        ) : (
-          <div className="flex gap-1">
-            <button onClick={handleAddMesa}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
-              <Plus size={12} /> Mesa
+        {/* Editar mapa */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Admin</p>
+          {!editMode ? (
+            <button onClick={() => setEditMode(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs font-medium hover:bg-white/20 transition-colors">
+              <Pencil size={11} /> Editar mapa
             </button>
-            <button onClick={handleDistribuir}
-              title="Distribui todas as mesas nas 4 zonas do mapa"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
-              <LayoutGrid size={12} /> Distribuir
-            </button>
-            <button onClick={handleSaveEdit}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
-              <Save size={12} /> Salvar
-            </button>
-            <button onClick={handleCancelEdit}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium hover:bg-gray-300">
-              <X size={12} /> Cancelar
-            </button>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <button onClick={handleAddMesa}
+                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
+                <Plus size={11} /> Adicionar mesa
+              </button>
+              <button onClick={handleDistribuir}
+                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
+                <LayoutGrid size={11} /> Distribuir
+              </button>
+              <button onClick={handleSaveEdit}
+                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
+                <Save size={11} /> Salvar
+              </button>
+              <button onClick={handleCancelEdit}
+                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-xs font-medium hover:bg-white/20">
+                <X size={11} /> Cancelar
+              </button>
+              {editMode && (
+                <p className="text-[8px] text-white/25 text-center leading-tight mt-1">
+                  Arraste · clique para renomear · ✕ remove
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Legenda */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
           </div>
-        )}
+          <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
+          </div>
+        </div>
       </div>
 
-      {/* ── Mapa (ocupa todo o espaço restante) ── */}
+      {/* ── Mapa ── */}
       <div
-        className="relative flex-1 overflow-hidden bg-gray-900 cursor-grab active:cursor-grabbing min-h-0"
+        className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing min-h-0"
         onMouseDown={handleMapMouseDown}
         onMouseMove={handleMapMouseMove}
         onMouseUp={handleMapMouseUp}
@@ -614,17 +630,6 @@ export function MapaOcupacao() {
               />
             );
           })}
-        </div>
-
-        {/* Legenda — overlay no canto inferior esquerdo */}
-        <div className="absolute bottom-2 left-2 flex items-center gap-3 text-[10px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-2.5 py-1.5 rounded-lg shadow pointer-events-none">
-          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-300"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Livre</span>
-          <span className="flex items-center gap-1 text-gray-600 dark:text-gray-300"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Ocupada</span>
-          {editMode && (
-            <span className="text-brand-500 font-medium flex items-center gap-1 pointer-events-auto">
-              <Pencil size={9} /> Arraste · clique para renomear
-            </span>
-          )}
         </div>
       </div>
 
