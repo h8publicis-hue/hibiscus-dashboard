@@ -41,6 +41,7 @@ const LINKS_OPERACIONAIS = [
   { label: 'Leitor QR / Refeitório', path: '/refeicao',  desc: 'Scanner de QR code e código de barras (câmera ou leitor físico)' },
   { label: 'App / Líder',      path: '/lider',     desc: 'Escala e validação — líder de atendimento' },
   { label: 'App / Garçom',     path: '/garcom',    desc: 'Mapa de mesas Beach — ocupar e liberar' },
+  { label: 'Mapa Beach · KDS', path: '/mapa-kds',  desc: 'Mapa de mesas em tela cheia para TV/KDS' },
   { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
 ];
 
