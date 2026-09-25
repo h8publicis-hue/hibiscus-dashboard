@@ -362,10 +362,6 @@ export function MapaOcupacao() {
 
   const handleMapMouseUp = useCallback(() => setDraggingMap(false), []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    handleZoom(e.deltaY < 0 ? 0.2 : -0.2);
-  }, []);
 
   // ── Clique em mesa ──────────────────────────────────────────────────────────
 
@@ -527,7 +523,6 @@ export function MapaOcupacao() {
         onMouseMove={handleMapMouseMove}
         onMouseUp={handleMapMouseUp}
         onMouseLeave={handleMapMouseUp}
-        onWheel={handleWheel}
       >
         <div
           ref={containerRef}
