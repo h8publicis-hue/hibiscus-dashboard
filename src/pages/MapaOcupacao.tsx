@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid, Tv } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
@@ -625,6 +625,10 @@ export function MapaOcupacao() {
         {/* Editar mapa */}
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
           <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Admin</p>
+          <button onClick={() => window.open('/mapa-kds', '_blank')}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-medium hover:bg-indigo-600 transition-colors">
+            <Tv size={11} /> Ver KDS
+          </button>
           {!editMode ? (
             <button onClick={() => setEditMode(true)}
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs font-medium hover:bg-white/20 transition-colors">
