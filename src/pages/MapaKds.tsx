@@ -29,10 +29,10 @@ interface BoxProps { label: string; value: string | number; sub?: string; color?
 
 function Box({ label, value, sub, color = 'text-gray-800', border = 'border-gray-200' }: BoxProps) {
   return (
-    <div className={clsx('bg-white rounded-2xl border-2 px-5 py-3 flex flex-col gap-0.5 shadow-sm', border)}>
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{label}</p>
-      <p className={clsx('text-3xl font-black tabular-nums leading-none', color)}>{value}</p>
-      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+    <div className={clsx('bg-white rounded-xl border-2 px-3 py-2 flex flex-col gap-0.5 shadow-sm', border)}>
+      <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest">{label}</p>
+      <p className={clsx('text-xl font-black tabular-nums leading-none', color)}>{value}</p>
+      {sub && <p className="text-[9px] text-gray-400 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -105,10 +105,10 @@ export function MapaKds() {
     <div className="min-h-screen bg-gray-100 flex flex-col overflow-hidden" style={{ userSelect: 'none' }}>
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+      <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-base font-black text-gray-900 tracking-tight">Mapa de Ocupação · Beach</h1>
-          <p className="text-[10px] text-gray-400">Tempo real · atualiza a cada 30s</p>
+          <h1 className="text-sm font-black text-gray-900 tracking-tight">Mapa de Ocupação · Beach</h1>
+          <p className="text-[9px] text-gray-400">Tempo real · atualiza a cada 30s</p>
         </div>
         <img
           src="/logo.png"
@@ -119,9 +119,9 @@ export function MapaKds() {
       </header>
 
       {/* Boxes superiores */}
-      <div className="px-6 pt-4 pb-2 grid grid-cols-4 gap-3 shrink-0">
+      <div className="px-4 pt-2 pb-1 grid grid-cols-4 gap-2 shrink-0">
         {/* Linha 1 — Ocupação do clube */}
-        <div className="col-span-4 grid grid-cols-4 gap-3">
+        <div className="col-span-4 grid grid-cols-4 gap-2">
           <Box
             label="Portaria"
             value={portaria ?? '—'}
@@ -150,7 +150,7 @@ export function MapaKds() {
         </div>
 
         {/* Linha 2 — Mesas Beach */}
-        <div className="col-span-4 grid grid-cols-4 gap-3">
+        <div className="col-span-4 grid grid-cols-4 gap-2">
           <Box
             label="Mesas Ocupadas"
             value={ocupadas}
@@ -179,7 +179,7 @@ export function MapaKds() {
       </div>
 
       {/* Controles do mapa */}
-      <div className="px-6 pb-2 flex items-center gap-2 shrink-0">
+      <div className="px-4 pb-1 flex items-center gap-2 shrink-0">
         <div className="flex items-center gap-1">
           {[
             { icon: <ZoomOut size={14} />, fn: () => handleZoom(-0.2) },
@@ -200,7 +200,7 @@ export function MapaKds() {
 
       {/* Mapa */}
       <div
-        className="flex-1 mx-6 mb-6 rounded-2xl overflow-hidden border border-gray-200 bg-sky-100 cursor-grab active:cursor-grabbing shadow-inner"
+        className="flex-1 mx-4 mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-sky-100 cursor-grab active:cursor-grabbing shadow-inner"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
