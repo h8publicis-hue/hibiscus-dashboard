@@ -105,13 +105,14 @@ interface TableMarkerProps {
   highlight:    boolean;
   dimmed:       boolean;
   editMode:     boolean;
+  size:         number;
   onClickMesa:  (numero: string) => void;
   onDrag:       (numero: string, x: number, y: number) => void;
   onRemove:     (numero: string) => void;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
-function TableMarker({ mesa, estado, highlight, dimmed, editMode, onClickMesa, onDrag, onRemove, containerRef }: TableMarkerProps) {
+function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickMesa, onDrag, onRemove, containerRef }: TableMarkerProps) {
   const status    = estado?.status ?? 'livre';
   const dragging  = useRef(false);
   const moved     = useRef(false);
@@ -158,8 +159,9 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, onClickMesa, o
       <button
         onMouseDown={handleMouseDown}
         onClick={handleClick}
+        style={{ width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.38)) }}
         className={clsx(
-          'rounded-full flex items-center justify-center font-bold text-white text-[8px] leading-none select-none transition-all w-6 h-6',
+          'rounded-full flex items-center justify-center font-bold text-white leading-none select-none transition-all',
           editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer hover:scale-125',
           status === 'ocupada'
             ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-200 dark:shadow-red-900/40'
@@ -384,6 +386,7 @@ export function MapaOcupacao() {
   const [editMode, setEditMode]     = useState(false);
   const [draftTables, setDraft]     = useState<MesaConfig[]>([]);
   const [editNumero, setEditNumero] = useState<string | null>(null); // modal renomear
+  const [markerSize, setMarkerSize] = useState(24);
 
   const [busca, setBusca]   = useState('');
   const [filtro, setFiltro] = useState<'todas' | 'livres' | 'ocupadas'>('todas');
@@ -580,6 +583,22 @@ export function MapaOcupacao() {
           </div>
         </div>
 
+        {/* Marcadores */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Marcadores</p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setMarkerSize(s => Math.max(14, s - 2))}
+              className="w-8 h-7 rounded-lg bg-white/10 text-white/70 text-base font-bold flex items-center justify-center hover:bg-white/20 transition-colors"
+            >−</button>
+            <span className="flex-1 text-center text-xs text-white/60 tabular-nums">{markerSize}px</span>
+            <button
+              onClick={() => setMarkerSize(s => Math.min(48, s + 2))}
+              className="w-8 h-7 rounded-lg bg-white/10 text-white/70 text-base font-bold flex items-center justify-center hover:bg-white/20 transition-colors"
+            >+</button>
+          </div>
+        </div>
+
         {/* Editar mapa */}
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
           <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Admin</p>
@@ -667,6 +686,7 @@ export function MapaOcupacao() {
                 highlight={isHighlighted}
                 dimmed={isDimmed(mesa.numero)}
                 editMode={editMode}
+                size={markerSize}
                 onClickMesa={handleClickMesa}
                 onDrag={handleDrag}
                 onRemove={handleRemoveMesa}
