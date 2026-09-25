@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado } from '../hooks/useBeachTables';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
@@ -16,6 +16,42 @@ function fmtTempo(horaOcupacao: string | null): string {
 function fmtHora(horaOcupacao: string | null): string {
   if (!horaOcupacao) return '';
   return new Date(horaOcupacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Posições padrão sobre o mapa real ────────────────────────────────────────
+// Distribui N mesas em 4 zonas visíveis na imagem aérea:
+//   Z1 = deck coberto (canto superior direito)
+//   Z2 = areia / guarda-sóis (faixa direita)
+//   Z3 = entorno da piscina (centro)
+//   Z4 = área da tenda (esquerda)
+function buildDefaultPositions(count: number): MesaConfig[] {
+  const positions: [number, number][] = [];
+
+  // Z1 — Deck coberto superior direito: 6 cols × 6 linhas = 36
+  for (let row = 0; row < 6; row++)
+    for (let col = 0; col < 6; col++)
+      positions.push([56 + col * 4, 4 + row * 3]);
+
+  // Z2 — Areia / guarda-sóis direita: 6 cols × 9 linhas = 54
+  for (let row = 0; row < 9; row++)
+    for (let col = 0; col < 6; col++)
+      positions.push([57 + col * 4, 28 + row * 7]);
+
+  // Z3 — Entorno da piscina centro: 4 cols × 4 linhas = 16
+  for (let row = 0; row < 4; row++)
+    for (let col = 0; col < 4; col++)
+      positions.push([20 + col * 8, 54 + row * 8]);
+
+  // Z4 — Área da tenda esquerda: 2 cols × 4 linhas = 8
+  for (let row = 0; row < 4; row++)
+    for (let col = 0; col < 2; col++)
+      positions.push([6 + col * 7, 75 + row * 5]);
+
+  return positions.slice(0, count).map((pos, i) => ({
+    numero: String(i + 1).padStart(3, '0'),
+    x: pos[0],
+    y: pos[1],
+  }));
 }
 
 // ── StatsBar ──────────────────────────────────────────────────────────────────
@@ -335,7 +371,8 @@ export function MapaOcupacao() {
 
   const containerRef = useRef<HTMLDivElement>(null!);
 
-  useEffect(() => { setDraft(tables); }, [tables]);
+  // Só sincroniza quando NÃO está em modo edição — evita o poll sobrescrever o draft
+  useEffect(() => { if (!editMode) setDraft(tables); }, [tables, editMode]);
 
   const activeTables = editMode ? draftTables : tables;
 
@@ -401,6 +438,18 @@ export function MapaOcupacao() {
 
   const handleRenomear = (antigo: string, novo: string) => {
     setDraft(prev => prev.map(t => t.numero === antigo ? { ...t, numero: novo } : t));
+  };
+
+  // ── Distribuir mesas em posições padrão ───────────────────────────────────
+
+  const handleDistribuir = () => {
+    const defaults = buildDefaultPositions(draftTables.length);
+    // Mantém os números existentes, só troca as coordenadas
+    setDraft(prev => prev.map((t, i) => ({
+      ...t,
+      x: defaults[i]?.x ?? 50,
+      y: defaults[i]?.y ?? 50,
+    })));
   };
 
   // ── Salvar edição ──────────────────────────────────────────────────────────
@@ -503,6 +552,11 @@ export function MapaOcupacao() {
             <button onClick={handleAddMesa}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
               <Plus size={12} /> Mesa
+            </button>
+            <button onClick={handleDistribuir}
+              title="Distribui todas as mesas nas 4 zonas do mapa (deck, areia, piscina, tenda)"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
+              <LayoutGrid size={12} /> Distribuir
             </button>
             <button onClick={handleSaveEdit}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
