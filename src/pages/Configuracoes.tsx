@@ -40,6 +40,7 @@ const LINKS_OPERACIONAIS = [
   { label: 'App / Cozinha',    path: '/cozinha',   desc: 'Painel da cozinha' },
   { label: 'Leitor QR / Refeitório', path: '/refeicao',  desc: 'Scanner de QR code e código de barras (câmera ou leitor físico)' },
   { label: 'App / Líder',      path: '/lider',     desc: 'Escala e validação — líder de atendimento' },
+  { label: 'App / Garçom',     path: '/garcom',    desc: 'Mapa de mesas Beach — ocupar e liberar' },
   { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
 ];
 
