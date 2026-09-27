@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer, Megaphone, X } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer, Megaphone, X, Trash2 } from 'lucide-react';
 import { useAviso } from '../hooks/useAviso';
+import { useBeachTables } from '../hooks/useBeachTables';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
@@ -1146,6 +1147,57 @@ function AvisosBanner() {
   );
 }
 
+function BoxZerarBeach() {
+  const { zerarTudo } = useBeachTables();
+  const [confirm, setConfirm] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleZerar = async () => {
+    await zerarTudo();
+    setConfirm(false);
+    setDone(true);
+    setTimeout(() => setDone(false), 3000);
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        <Trash2 size={18} className="text-red-500" />
+        <h2 className="font-bold text-gray-900 dark:text-white text-sm">Zerar Ocupação Beach</h2>
+      </div>
+      <div className="p-4 flex flex-col gap-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          Libera <strong>todas as 110 mesas</strong> do Beach de volta para o status <em>livre</em>, zerando clientes e horários de ocupação. Use ao final do expediente ou para corrigir dados incorretos.
+        </p>
+        {done && (
+          <p className="text-xs font-semibold text-green-600 dark:text-green-400">✓ Ocupação zerada com sucesso.</p>
+        )}
+        {!confirm ? (
+          <button
+            onClick={() => setConfirm(true)}
+            className="self-start px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
+            Zerar ocupação
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">Confirmar?</span>
+            <button
+              onClick={handleZerar}
+              className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors">
+              Sim, zerar
+            </button>
+            <button
+              onClick={() => setConfirm(false)}
+              className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Lider() {
   const [authed, setAuthed] = useState(() => localStorage.getItem(LIDER_AUTH_KEY) === 'ok');
   const [aba, setAba] = useState<Aba>('hoje');
@@ -1204,6 +1256,7 @@ export function Lider() {
             <BoxEscala />
             <BoxOcupacao />
             <BoxChamadas />
+            <BoxZerarBeach />
           </>
         )}
         {aba === 'escala' && (
