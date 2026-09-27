@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
-import { useBeachTables, MesaConfig, MesaEstado } from '../hooks/useBeachTables';
+import { useBeachTables, MesaConfig, MesaEstado, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
 
@@ -160,6 +160,34 @@ export function MapaKds() {
               </div>
             ))}
           </div>
+
+          {/* Áreas */}
+          {AREAS.some(a => tables.some(t => t.area === a)) && (
+            <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+              <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Áreas</p>
+              {AREAS.map(area => {
+                const mesas = tables.filter(t => t.area === area);
+                const total = mesas.length;
+                if (total === 0) return null;
+                const ocup = mesas.filter(t => estado[t.numero]?.status === 'ocupada').length;
+                const pct  = Math.round((ocup / total) * 100);
+                return (
+                  <div key={area} className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: AREA_COLORS[area].dot }} />
+                        <p className="text-[9px] text-white/60 truncate leading-none">{area}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-white/80 tabular-nums shrink-0">{ocup}/{total}</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[area].dot }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Legenda + zoom */}
           <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">

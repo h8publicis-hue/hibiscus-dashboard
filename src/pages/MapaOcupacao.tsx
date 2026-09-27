@@ -276,7 +276,7 @@ function EditMesaModal({
 
         <button
           onClick={handleSave}
-          className="w-full mt-3 py-2 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors"
+          className="w-full mt-3 py-2 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors"
         >
           Salvar
         </button>
@@ -704,7 +704,7 @@ export function MapaOcupacao() {
           ) : (
             <div className="flex flex-col gap-1.5">
               <button onClick={handleAddMesa}
-                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600">
+                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600">
                 <Plus size={11} /> Adicionar mesa
               </button>
               <button onClick={handleDistribuir}
