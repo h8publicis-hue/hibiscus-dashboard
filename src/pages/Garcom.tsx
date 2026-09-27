@@ -192,7 +192,7 @@ function MapaDot({ mesa, estado, size, onPress }: { mesa: MesaConfig; estado: Me
       className="absolute -translate-x-1/2 -translate-y-1/2"
     >
       <div
-        style={{ width: size, height: size, fontSize: Math.max(4, Math.round(size * 0.42)) }}
+        style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
         className={clsx(
           'rounded-full flex items-center justify-center font-bold text-white leading-none shadow active:scale-110 transition-transform',
           status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500',
@@ -223,7 +223,7 @@ function GarcomApp() {
 
   const changeDotSize = (delta: number) => {
     setDotSize(prev => {
-      const next = Math.max(8, Math.min(20, prev + delta));
+      const next = Math.max(4, Math.min(20, prev + delta));
       try { localStorage.setItem('garcom-dot-size', String(next)); } catch { /* */ }
       return next;
     });
