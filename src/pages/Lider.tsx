@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer, Megaphone, X, Trash2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer, Megaphone, X, Trash2, ArrowRight } from 'lucide-react';
 import { useAviso } from '../hooks/useAviso';
 import { useBeachTables, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import type { MesaArea } from '../hooks/useBeachTables';
@@ -1262,13 +1262,11 @@ function BoxMesasBeach() {
   const ocupadas = Object.values(estado).filter(e => e.status === 'ocupada').length;
   const livres   = tables.length - ocupadas;
 
-  const handleBusca = (val: string) => {
-    setBusca(val);
-    const n = val.trim().replace(/^0+/, '');
-    if (n.length >= 1) {
-      const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
-      if (found) { setModal(found.numero); setBusca(''); inputRef.current?.blur(); }
-    }
+  const handleConfirmar = () => {
+    const n = busca.trim().replace(/^0+/, '');
+    if (!n) return;
+    const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
+    if (found) { setModal(found.numero); setBusca(''); inputRef.current?.blur(); }
   };
 
   return (
@@ -1286,15 +1284,23 @@ function BoxMesasBeach() {
         </div>
         <div className="p-4 flex flex-col gap-3">
           <p className="text-xs text-gray-500 dark:text-gray-400">Digite o número da mesa para ocupar ou liberar:</p>
-          <input
-            ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            placeholder="Ex: 42"
-            value={busca}
-            onChange={e => handleBusca(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-bold placeholder-gray-300 dark:placeholder-gray-500 focus:outline-none focus:border-brand-500 dark:focus:border-brand-400"
-          />
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              placeholder="Ex: 42"
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleConfirmar()}
+              className="min-w-0 flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-bold placeholder-gray-300 dark:placeholder-gray-500 focus:outline-none focus:border-brand-500 dark:focus:border-brand-400"
+            />
+            <button
+              onClick={handleConfirmar}
+              className="shrink-0 w-14 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 active:bg-emerald-700 transition-colors">
+              <ArrowRight size={22} />
+            </button>
+          </div>
         </div>
       </div>
 
