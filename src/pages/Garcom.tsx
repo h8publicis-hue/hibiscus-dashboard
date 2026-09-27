@@ -183,7 +183,7 @@ function MesaModal({
 
 // ── Marcador readonly no mapa ─────────────────────────────────────────────────
 
-function MapaDot({ mesa, estado, onPress }: { mesa: MesaConfig; estado: MesaEstado | undefined; onPress: () => void }) {
+function MapaDot({ mesa, estado, size, onPress }: { mesa: MesaConfig; estado: MesaEstado | undefined; size: number; onPress: () => void }) {
   const status = estado?.status ?? 'livre';
   return (
     <button
@@ -191,10 +191,13 @@ function MapaDot({ mesa, estado, onPress }: { mesa: MesaConfig; estado: MesaEsta
       style={{ left: `${mesa.x}%`, top: `${mesa.y}%` }}
       className="absolute -translate-x-1/2 -translate-y-1/2"
     >
-      <div className={clsx(
-        'w-5 h-5 rounded-full flex items-center justify-center font-bold text-white text-[7px] leading-none shadow active:scale-110 transition-transform',
-        status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500',
-      )}>
+      <div
+        style={{ width: size, height: size, fontSize: Math.max(6, Math.round(size * 0.38)) }}
+        className={clsx(
+          'rounded-full flex items-center justify-center font-bold text-white leading-none shadow active:scale-110 transition-transform',
+          status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500',
+        )}
+      >
         {mesa.numero.replace(/^0+/, '')}
       </div>
     </button>
@@ -205,7 +208,7 @@ function MapaDot({ mesa, estado, onPress }: { mesa: MesaConfig; estado: MesaEsta
 
 function GarcomApp() {
   const [searchParams] = useSearchParams();
-  const { tables, estado, ocuparMesa, liberarMesa } = useBeachTables();
+  const { tables, estado, markerSize, ocuparMesa, liberarMesa } = useBeachTables();
   const [occupancy] = useOccupancy();
   const portaria    = usePortaria();
 
@@ -304,7 +307,7 @@ function GarcomApp() {
         {/* Campo grande de mesa */}
         <div className="bg-gray-800 rounded-2xl p-4">
           <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Número da mesa</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full">
             <input
               ref={inputRef}
               type="text"
@@ -313,11 +316,11 @@ function GarcomApp() {
               onChange={e => setIrMesa(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
               placeholder="Ex: 42"
-              className="flex-1 text-3xl font-black text-white bg-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
+              className="min-w-0 flex-1 text-2xl font-black text-white bg-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
             />
             <button
               onClick={handleIrMesa}
-              className="px-4 rounded-xl bg-emerald-500 text-white font-bold active:bg-emerald-600 transition-colors flex items-center justify-center"
+              className="shrink-0 w-14 rounded-xl bg-emerald-500 text-white font-bold active:bg-emerald-600 transition-colors flex items-center justify-center"
             >
               <ArrowRight size={22} />
             </button>
@@ -352,6 +355,7 @@ function GarcomApp() {
                   key={mesa.numero}
                   mesa={mesa}
                   estado={estado[mesa.numero]}
+                  size={Math.min(markerSize, 16)}
                   onPress={() => setModal(mesa.numero)}
                 />
               ))}
