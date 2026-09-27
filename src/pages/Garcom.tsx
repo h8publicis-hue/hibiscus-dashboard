@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MapPin, X, LogOut, ArrowRight } from 'lucide-react';
+import { MapPin, X, LogOut, ArrowRight, Megaphone } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaEstado, MesaConfig, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
+import { useAviso } from '../hooks/useAviso';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
 
 const PIN_KEY     = 'hibiscus-garcom-auth';
@@ -211,6 +212,21 @@ function GarcomApp() {
   const { tables, estado, markerSize, ocuparMesa, liberarMesa } = useBeachTables();
   const [occupancy] = useOccupancy();
   const portaria    = usePortaria();
+  const { avisos }  = useAviso();
+
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos'));
+  const [ticker, setTicker] = useState(0);
+  const [fade,   setFade]   = useState(true);
+
+  useEffect(() => {
+    if (activeAvisos.length <= 1) return;
+    const id = setInterval(() => {
+      setFade(false);
+      setTimeout(() => { setTicker(t => (t + 1) % activeAvisos.length); setFade(true); }, 300);
+    }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAvisos.length]);
 
   const [modal, setModal]   = useState<string | null>(null);
   const [irMesa, setIrMesa] = useState('');
@@ -267,6 +283,24 @@ function GarcomApp() {
           <LogOut size={18} />
         </button>
       </header>
+
+      {/* Comunicados */}
+      {activeAvisos.length > 0 && (
+        <div className="mx-4 mt-3 flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 rounded-xl px-4 py-2.5">
+          <Megaphone size={14} className="text-amber-400 shrink-0" />
+          <p
+            className="flex-1 text-xs text-amber-200 font-medium leading-snug transition-opacity duration-300"
+            style={{ opacity: fade ? 1 : 0 }}
+          >
+            {activeAvisos[ticker % activeAvisos.length]?.text}
+          </p>
+          {activeAvisos.length > 1 && (
+            <span className="text-[10px] text-amber-500 shrink-0">
+              {(ticker % activeAvisos.length) + 1}/{activeAvisos.length}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 px-4 pt-4">
 
