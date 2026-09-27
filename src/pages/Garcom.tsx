@@ -192,7 +192,7 @@ function MapaDot({ mesa, estado, size, onPress }: { mesa: MesaConfig; estado: Me
       className="absolute -translate-x-1/2 -translate-y-1/2"
     >
       <div
-        style={{ width: size, height: size, fontSize: Math.max(6, Math.round(size * 0.38)) }}
+        style={{ width: size, height: size, fontSize: Math.max(4, Math.round(size * 0.42)) }}
         className={clsx(
           'rounded-full flex items-center justify-center font-bold text-white leading-none shadow active:scale-110 transition-transform',
           status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500',
