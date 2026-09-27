@@ -616,7 +616,7 @@ export function MapaOcupacao() {
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: AREA_COLORS[area].dot }} />
                     <p className="text-[9px] text-white/60 truncate leading-none">{area}</p>
                   </div>
-                  <span className="text-[10px] font-bold text-white/80 tabular-nums shrink-0">{ocup}/{total}</span>
+                  <span className="text-[10px] font-bold text-white/80 tabular-nums shrink-0">{ocup}/{total} <span className="text-white/40">{pct}%</span></span>
                 </div>
                 <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                   <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[area].dot }} />
