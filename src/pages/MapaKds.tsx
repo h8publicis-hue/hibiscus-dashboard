@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Megaphone } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
+import { useAviso } from '../hooks/useAviso';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
 
 // ── Portaria polling (igual ao Overview) ─────────────────────────────────────
@@ -65,6 +66,21 @@ export function MapaKds() {
   const { tables, estado, markerSize } = useBeachTables();
   const [occupancy]        = useOccupancy();
   const portaria           = usePortaria();
+  const { avisos }         = useAviso();
+
+  const activeAvisos = avisos.filter(a => a.active && a.text.trim() && (!a.area || a.area === 'todos'));
+  const [ticker, setTicker] = useState(0);
+  const [fade,   setFade]   = useState(true);
+
+  useEffect(() => {
+    if (activeAvisos.length <= 1) return;
+    const id = setInterval(() => {
+      setFade(false);
+      setTimeout(() => { setTicker(t => (t + 1) % activeAvisos.length); setFade(true); }, 300);
+    }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAvisos.length]);
 
   const [zoom, setZoom]           = useState(1);
   const [pan, setPan]             = useState({ x: 0, y: 0 });
@@ -119,6 +135,24 @@ export function MapaKds() {
         </div>
         <span className="text-[9px] text-white/30">atualiza a cada 30s</span>
       </header>
+
+      {/* Banner de comunicados */}
+      {activeAvisos.length > 0 && (
+        <div className="shrink-0 mx-3 mb-1 flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 rounded-xl px-4 py-2">
+          <Megaphone size={13} className="text-amber-400 shrink-0" />
+          <p
+            className="flex-1 text-xs text-amber-200 font-medium leading-snug text-center transition-opacity duration-300"
+            style={{ opacity: fade ? 1 : 0 }}
+          >
+            {activeAvisos[ticker % activeAvisos.length]?.text}
+          </p>
+          {activeAvisos.length > 1 && (
+            <span className="text-[10px] text-amber-500 shrink-0">
+              {(ticker % activeAvisos.length) + 1}/{activeAvisos.length}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Área principal: painel fixo + mapa lado a lado */}
       <div className="flex-1 flex overflow-hidden min-h-0">
