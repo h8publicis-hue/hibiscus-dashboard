@@ -150,7 +150,7 @@ function Dashboard() {
         </div>
         <footer className="text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight">
           <span className="opacity-70">Desenvolvido por</span>{' '}
-          <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Publicis</span>
+          <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Sistemas</span>
         </footer>
       </div>
     );
@@ -221,7 +221,7 @@ function Dashboard() {
       {/* Rodapé só no desktop — no mobile está dentro do BottomNav */}
       <footer className="hidden lg:block fixed bottom-2 left-0 right-0 z-40 text-center py-2 text-[10px] text-gray-400 dark:text-gray-500 select-none leading-tight">
         <span className="opacity-70">Desenvolvido por</span>{' '}
-        <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Publicis</span>
+        <span className="font-semibold text-gray-500 dark:text-gray-400">H8 Sistemas</span>
       </footer>
     </>
   );

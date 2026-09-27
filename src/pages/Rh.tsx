@@ -174,7 +174,7 @@ export function Rh() {
 
       <div className="text-center py-8">
         <p className="text-[10px] text-gray-300 leading-tight">Desenvolvido por</p>
-        <p className="text-[11px] font-bold text-gray-400 leading-tight">H8 Publicis</p>
+        <p className="text-[11px] font-bold text-gray-400 leading-tight">H8 Sistemas</p>
       </div>
     </div>
   );

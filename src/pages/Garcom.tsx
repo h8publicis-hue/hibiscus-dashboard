@@ -385,6 +385,10 @@ function GarcomApp() {
 
       </div>
 
+      <footer className="mt-4 text-center py-2 text-[10px] text-white/20 select-none">
+        Desenvolvido por <span className="font-semibold">H8 Sistemas</span>
+      </footer>
+
       {modal && (
         <MesaModal
           numero={modal}

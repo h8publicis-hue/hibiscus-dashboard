@@ -120,7 +120,7 @@ export function BottomNav({ overviewAlerts, surveyAlerts }: BottomNavProps) {
         </div>
 
         <div className="text-center text-[9px] text-gray-300 dark:text-gray-600 pb-1 select-none leading-tight">
-          Desenvolvido por <span className="font-semibold">H8 Publicis</span>
+          Desenvolvido por <span className="font-semibold">H8 Sistemas</span>
         </div>
       </nav>
     </>

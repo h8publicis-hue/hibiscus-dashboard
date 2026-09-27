@@ -261,7 +261,7 @@ export function Refeicao() {
 
       {/* Rodapé */}
       <div className="text-center py-3 border-t border-gray-700">
-        <p className="text-[9px] text-gray-600 leading-tight">Desenvolvido por H8 Publicis</p>
+        <p className="text-[9px] text-gray-600 leading-tight">Desenvolvido por H8 Sistemas</p>
       </div>
     </div>
   );
