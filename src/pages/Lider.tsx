@@ -1148,48 +1148,166 @@ function AvisosBanner() {
   );
 }
 
-function usePortaria() {
-  const [count, setCount] = useState<number | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const load = () =>
-      fetch('/api/portaria').then(r => r.json()).then((j: any) => { if (!cancelled) setCount(Number(j.count ?? 0)); }).catch(() => {});
-    load();
-    const id = setInterval(load, 30_000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-  return count;
+function fmtTempo(horaOcupacao: string | null): string {
+  if (!horaOcupacao) return '';
+  const mins = Math.floor((Date.now() - new Date(horaOcupacao).getTime()) / 60000);
+  if (mins < 60) return `${mins}min`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}min`;
 }
 
-function BoxClube() {
-  const [occupancy] = useOccupancy();
-  const portaria = usePortaria();
-  const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
-  const naCasa = occupancy.beach + loungesTotal;
-  const gap = portaria !== null ? Math.max(0, portaria - naCasa) : null;
+function fmtHora(horaOcupacao: string | null): string {
+  if (!horaOcupacao) return '';
+  return new Date(horaOcupacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 
-  const items = [
-    { label: 'Portaria',  value: portaria ?? '—', cls: 'text-gray-900 dark:text-white' },
-    { label: 'Na Casa',   value: naCasa,           cls: 'text-blue-600 dark:text-blue-400' },
-    { label: 'GAP',       value: gap ?? '—',       cls: gap && gap > 0 ? 'text-red-500' : 'text-gray-400' },
-    { label: 'Parceiros', value: occupancy.parceiros, cls: 'text-yellow-600 dark:text-yellow-400' },
-  ];
+// ── Modal de mesa (estilo Lider — light/dark) ─────────────────────────────────
+
+function MesaModalLider({
+  numero, estadoMesa, onClose, onOcupar, onLiberar,
+}: {
+  numero: string;
+  estadoMesa: import('../hooks/useBeachTables').MesaEstado | undefined;
+  onClose: () => void;
+  onOcupar: (n: string, c: number) => void;
+  onLiberar: (n: string) => void;
+}) {
+  const [confirmLiberar, setConfirmLiberar] = useState(false);
+  const [clientes, setClientes] = useState(0);
+  const status = estadoMesa?.status ?? 'livre';
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-        <Users size={18} className="text-brand-600 dark:text-brand-400" />
-        <h2 className="font-bold text-gray-900 dark:text-white text-sm">Clube</h2>
-      </div>
-      <div className="p-4 grid grid-cols-2 gap-3">
-        {items.map(({ label, value, cls }) => (
-          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
-            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{label}</p>
-            <p className={`text-2xl font-black tabular-nums leading-none ${cls}`}>{value}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm p-6 z-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-black text-gray-900 dark:text-white">Mesa {numero.replace(/^0+/, '')}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold mb-5 ${
+          status === 'ocupada' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+        }`}>
+          <span className={`w-2 h-2 rounded-full ${status === 'ocupada' ? 'bg-red-500' : 'bg-green-500'}`} />
+          {status === 'ocupada' ? 'OCUPADA' : 'LIVRE'}
+        </div>
+
+        {status === 'ocupada' ? (
+          <>
+            <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3 mb-5 text-sm space-y-1">
+              <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                <span>Ocupada desde</span>
+                <span className="font-medium text-gray-800 dark:text-gray-200">{fmtHora(estadoMesa?.horaOcupacao ?? null)}</span>
+              </div>
+              <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                <span>Tempo na mesa</span>
+                <span className="font-medium text-gray-800 dark:text-gray-200">{fmtTempo(estadoMesa?.horaOcupacao ?? null)}</span>
+              </div>
+              {(estadoMesa?.quantidadeClientes ?? 0) > 0 && (
+                <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                  <span>Clientes</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{estadoMesa?.quantidadeClientes}</span>
+                </div>
+              )}
+            </div>
+            {!confirmLiberar ? (
+              <button onClick={() => setConfirmLiberar(true)}
+                className="w-full py-3.5 rounded-2xl bg-red-500 text-white text-base font-bold hover:bg-red-600 transition-colors">
+                Liberar mesa
+              </button>
+            ) : (
+              <div className="border border-red-200 dark:border-red-800 rounded-2xl p-4 text-center space-y-3">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Confirmar liberação?</p>
+                <div className="flex gap-2">
+                  <button onClick={() => { onLiberar(numero); onClose(); }}
+                    className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600">Sim</button>
+                  <button onClick={() => setConfirmLiberar(false)}
+                    className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold">Não</button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-600 dark:text-gray-400 font-medium shrink-0">Clientes:</label>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setClientes(c => Math.max(0, c - 1))}
+                  className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-lg flex items-center justify-center">−</button>
+                <span className="w-8 text-center font-black text-lg text-gray-900 dark:text-white tabular-nums">{clientes}</span>
+                <button onClick={() => setClientes(c => c + 1)}
+                  className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-lg flex items-center justify-center">+</button>
+              </div>
+            </div>
+            <button onClick={() => { onOcupar(numero, clientes); onClose(); }}
+              className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white text-base font-bold hover:bg-emerald-600 transition-colors">
+              Ocupar mesa
+            </button>
           </div>
-        ))}
+        )}
       </div>
     </div>
+  );
+}
+
+// ── Box Mesas Beach ───────────────────────────────────────────────────────────
+
+function BoxMesasBeach() {
+  const { tables, estado, ocuparMesa, liberarMesa } = useBeachTables();
+  const [busca, setBusca] = useState('');
+  const [modal, setModal] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const ocupadas = Object.values(estado).filter(e => e.status === 'ocupada').length;
+  const livres   = tables.length - ocupadas;
+
+  const handleBusca = (val: string) => {
+    setBusca(val);
+    const n = val.trim().replace(/^0+/, '');
+    if (n.length >= 1) {
+      const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
+      if (found) { setModal(found.numero); setBusca(''); inputRef.current?.blur(); }
+    }
+  };
+
+  return (
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Waves size={18} className="text-brand-600 dark:text-brand-400" />
+            <h2 className="font-bold text-gray-900 dark:text-white text-sm">Mesas Beach</h2>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-red-500 font-bold">{ocupadas} ocup.</span>
+            <span className="text-green-600 dark:text-green-400 font-bold">{livres} livres</span>
+          </div>
+        </div>
+        <div className="p-4 flex flex-col gap-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Digite o número da mesa para ocupar ou liberar:</p>
+          <input
+            ref={inputRef}
+            type="number"
+            inputMode="numeric"
+            placeholder="Ex: 42"
+            value={busca}
+            onChange={e => handleBusca(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-bold placeholder-gray-300 dark:placeholder-gray-500 focus:outline-none focus:border-brand-500 dark:focus:border-brand-400"
+          />
+        </div>
+      </div>
+
+      {modal && (
+        <MesaModalLider
+          numero={modal}
+          estadoMesa={estado[modal]}
+          onClose={() => setModal(null)}
+          onOcupar={ocuparMesa}
+          onLiberar={liberarMesa}
+        />
+      )}
+    </>
   );
 }
 
@@ -1340,10 +1458,10 @@ export function Lider() {
         {aba === 'hoje' && (
           <>
             <BoxEscala />
-            <BoxClube />
-            <BoxAreasBeach />
             <BoxOcupacao />
             <BoxChamadas />
+            <BoxMesasBeach />
+            <BoxAreasBeach />
             <BoxZerarBeach />
           </>
         )}
