@@ -231,55 +231,62 @@ function EditMesaModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xs p-5 z-10">
-        <div className="flex items-center justify-between mb-4">
+      <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-xs z-10 flex flex-col max-h-[90vh]">
+        {/* Header fixo */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">Editar Mesa {numero.replace(/^0+/, '')}</h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
             <X size={16} />
           </button>
         </div>
 
-        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Número da mesa</label>
-        <input
-          type="number"
-          min={1}
-          value={val}
-          onChange={e => { setVal(e.target.value); setErro(''); }}
-          onKeyDown={e => e.key === 'Enter' && handleSave()}
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 mb-1"
-          autoFocus
-        />
-        {erro && <p className="text-xs text-red-500 mb-2">{erro}</p>}
+        {/* Conteúdo rolável */}
+        <div className="flex-1 overflow-y-auto px-5 pb-3">
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Número da mesa</label>
+          <input
+            type="number"
+            min={1}
+            value={val}
+            onChange={e => { setVal(e.target.value); setErro(''); }}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-1"
+            autoFocus
+          />
+          {erro && <p className="text-xs text-red-500 mb-2">{erro}</p>}
 
-        <label className="text-xs text-gray-500 dark:text-gray-400 mt-3 mb-1 block">Área</label>
-        <div className="grid grid-cols-2 gap-1.5 mb-1">
-          {AREAS.map(a => (
-            <button
-              key={a}
-              onClick={() => setArea(prev => prev === a ? undefined : a)}
-              style={area === a ? { backgroundColor: AREA_COLORS[a].dot } : {}}
-              className={clsx(
-                'py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors border',
-                area === a
-                  ? 'text-white border-transparent'
-                  : 'text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700',
-              )}
-            >{a}</button>
-          ))}
-          {area && (
-            <button
-              onClick={() => setArea(undefined)}
-              className="py-1.5 px-2 rounded-lg text-xs font-semibold text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 col-span-2"
-            >✕ Sem área</button>
-          )}
+          <label className="text-xs text-gray-500 dark:text-gray-400 mt-3 mb-1 block">Área</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {AREAS.map(a => (
+              <button
+                key={a}
+                onClick={() => setArea(prev => prev === a ? undefined : a)}
+                style={area === a ? { backgroundColor: AREA_COLORS[a].dot } : {}}
+                className={clsx(
+                  'py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors border',
+                  area === a
+                    ? 'text-white border-transparent'
+                    : 'text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700',
+                )}
+              >{a}</button>
+            ))}
+            {area && (
+              <button
+                onClick={() => setArea(undefined)}
+                className="py-1.5 px-2 rounded-lg text-xs font-semibold text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 col-span-2"
+              >✕ Sem área</button>
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={handleSave}
-          className="w-full mt-3 py-2 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors"
-        >
-          Salvar
-        </button>
+        {/* Botão fixo no fundo */}
+        <div className="px-5 pb-5 pt-3 shrink-0 border-t border-gray-100 dark:border-gray-700">
+          <button
+            onClick={handleSave}
+            className="w-full py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors"
+          >
+            Salvar
+          </button>
+        </div>
       </div>
     </div>
   );
