@@ -417,7 +417,7 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
 // ── MapaOcupacao ──────────────────────────────────────────────────────────────
 
 export function MapaOcupacao() {
-  const { tables, estado, loading, markerSize: remoteMarkerSize, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes, salvarMarkerSize } = useBeachTables();
+  const { tables, estado, loading, markerSize: remoteMarkerSize, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes, salvarMarkerSize, zerarTudo } = useBeachTables();
   const [occupancy] = useOccupancy();
   const portaria    = usePortaria();
 
@@ -433,6 +433,7 @@ export function MapaOcupacao() {
   const [editNumero, setEditNumero] = useState<string | null>(null); // modal renomear
   const [markerSize, setMarkerSize] = useState(24);
   const markerSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmZerar, setConfirmZerar] = useState(false);
 
   // Sincroniza tamanho inicial vindo do servidor (só na primeira carga)
   const markerSizeLoaded = useRef(false);
@@ -703,6 +704,29 @@ export function MapaOcupacao() {
             className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-medium hover:bg-indigo-600 transition-colors">
             <Tv size={11} /> Ver KDS
           </button>
+
+          {/* Zerar ocupação */}
+          {!confirmZerar ? (
+            <button onClick={() => setConfirmZerar(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/10 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors">
+              <Trash2 size={11} /> Zerar ocupação
+            </button>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <p className="text-[9px] text-white/40 text-center leading-tight">Zerar todas as mesas?</p>
+              <div className="flex gap-1">
+                <button
+                  onClick={async () => { await zerarTudo(); setConfirmZerar(false); }}
+                  className="flex-1 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors"
+                >Sim</button>
+                <button
+                  onClick={() => setConfirmZerar(false)}
+                  className="flex-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-xs font-medium hover:bg-white/20 transition-colors"
+                >Não</button>
+              </div>
+            </div>
+          )}
+
           {!editMode ? (
             <button onClick={() => setEditMode(true)}
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs font-medium hover:bg-white/20 transition-colors">

@@ -115,6 +115,15 @@ export function useBeachTables() {
     });
   }, []);
 
+  const zerarTudo = useCallback(async () => {
+    const estadoVazio: Record<string, MesaEstado> = {};
+    state.tables.forEach(t => {
+      estadoVazio[t.numero] = { status: 'livre', quantidadeClientes: 0, horaOcupacao: null, garcomId: null };
+    });
+    setState(s => ({ ...s, estado: estadoVazio }));
+    await fetch('/api/mesas?action=reset', { method: 'POST' });
+  }, [state.tables]);
+
   const salvarMarkerSize = useCallback(async (size: number) => {
     setState(s => ({ ...s, markerSize: size }));
     await fetch('/api/mesas?action=config', {
@@ -132,5 +141,6 @@ export function useBeachTables() {
     atualizarClientes,
     salvarPosicoes,
     salvarMarkerSize,
+    zerarTudo,
   };
 }

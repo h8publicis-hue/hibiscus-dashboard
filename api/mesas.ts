@@ -109,6 +109,12 @@ export default async function handler(req: any, res: any) {
       return res.json({ ok: true, mesa: estado[numero] });
     }
 
+    if (action === 'reset') {
+      const estado = buildInitialEstado();
+      await kvSet('mesas:estado', estado);
+      return res.json({ ok: true });
+    }
+
     if (action === 'config') {
       const { tables, markerSize } = req.body ?? {};
       if (!tables && markerSize === undefined) return res.status(400).json({ error: 'tables or markerSize required' });
