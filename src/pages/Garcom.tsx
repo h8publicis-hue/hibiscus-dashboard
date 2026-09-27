@@ -215,8 +215,19 @@ function GarcomApp() {
   const [modal, setModal]   = useState<string | null>(null);
   const [irMesa, setIrMesa] = useState('');
   const [imgAspect, setImgAspect] = useState<number | null>(null);
+  const [dotSize, setDotSize] = useState<number>(() => {
+    try { return Number(localStorage.getItem('garcom-dot-size') ?? '12') || 12; } catch { return 12; }
+  });
   const containerRef = useRef<HTMLDivElement>(null!);
   const inputRef     = useRef<HTMLInputElement>(null);
+
+  const changeDotSize = (delta: number) => {
+    setDotSize(prev => {
+      const next = Math.max(8, Math.min(20, prev + delta));
+      try { localStorage.setItem('garcom-dot-size', String(next)); } catch { /* */ }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const m = searchParams.get('mesa');
@@ -329,7 +340,16 @@ function GarcomApp() {
 
         {/* Mapa */}
         <div className="bg-gray-800 rounded-2xl overflow-hidden">
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-4 pt-3 pb-2">Mapa</p>
+          <div className="flex items-center justify-between px-4 pt-3 pb-2">
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Mapa</p>
+            <div className="flex items-center gap-1">
+              <button onClick={() => changeDotSize(-2)}
+                className="w-6 h-6 rounded-lg bg-white/10 text-white/60 text-sm font-bold flex items-center justify-center active:bg-white/20">−</button>
+              <span className="text-[9px] text-white/30 tabular-nums w-7 text-center">{dotSize}px</span>
+              <button onClick={() => changeDotSize(2)}
+                className="w-6 h-6 rounded-lg bg-white/10 text-white/60 text-sm font-bold flex items-center justify-center active:bg-white/20">+</button>
+            </div>
+          </div>
           <div className="flex items-center justify-center bg-gray-900/50 px-2 pb-3">
             <div
               ref={containerRef}
@@ -355,7 +375,7 @@ function GarcomApp() {
                   key={mesa.numero}
                   mesa={mesa}
                   estado={estado[mesa.numero]}
-                  size={Math.min(markerSize, 16)}
+                  size={dotSize}
                   onPress={() => setModal(mesa.numero)}
                 />
               ))}
