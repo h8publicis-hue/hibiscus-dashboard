@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MapPin, X, LogOut } from 'lucide-react';
+import { MapPin, X, LogOut, ArrowRight } from 'lucide-react';
 import clsx from 'clsx';
-import { useBeachTables, MesaEstado } from '../hooks/useBeachTables';
+import { useBeachTables, MesaEstado, MesaConfig, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
+import { useOccupancy } from '../hooks/useOccupancy';
+import mapaImg from '../assets/mapa-hibiscus-beach.webp';
 
-const PIN_KEY    = 'hibiscus-garcom-auth';
+const PIN_KEY     = 'hibiscus-garcom-auth';
 const CORRECT_PIN = '12345';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -21,10 +23,28 @@ function fmtHora(horaOcupacao: string | null): string {
   return new Date(horaOcupacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+// ── Portaria polling ──────────────────────────────────────────────────────────
+
+function usePortaria() {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch('/api/portaria')
+        .then(r => r.json())
+        .then((j: any) => { if (!cancelled) setCount(Number(j.count ?? 0)); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  return count;
+}
+
 // ── PIN screen ────────────────────────────────────────────────────────────────
 
 function PinScreen({ onAuth }: { onAuth: () => void }) {
-  const [pin, setPin] = useState('');
+  const [pin, setPin]   = useState('');
   const [erro, setErro] = useState(false);
 
   const handleDigit = (d: string) => {
@@ -33,55 +53,47 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
     setPin(next);
     setErro(false);
     if (next.length === 5) {
-      if (next === CORRECT_PIN) {
-        sessionStorage.setItem(PIN_KEY, '1');
-        onAuth();
-      } else {
-        setTimeout(() => { setPin(''); setErro(true); }, 300);
-      }
+      if (next === CORRECT_PIN) { sessionStorage.setItem(PIN_KEY, '1'); onAuth(); }
+      else setTimeout(() => { setPin(''); setErro(true); }, 300);
     }
   };
-
-  const handleDel = () => setPin(p => p.slice(0, -1));
 
   const digits = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-6">
       <div className="mb-8 text-center">
-        <div className="w-14 h-14 bg-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-brand-200">
+        <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-900/40">
           <MapPin size={28} className="text-white" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900">Mapa Beach</h1>
-        <p className="text-sm text-gray-400 mt-1">Digite o PIN para entrar</p>
+        <h1 className="text-xl font-bold text-white">Mapa Beach</h1>
+        <p className="text-sm text-white/40 mt-1">Digite o PIN para entrar</p>
       </div>
 
-      {/* Bolhinhas */}
       <div className="flex gap-3 mb-8">
         {[0,1,2,3,4].map(i => (
           <div key={i} className={clsx(
             'w-4 h-4 rounded-full border-2 transition-all duration-150',
             pin.length > i
               ? erro ? 'bg-red-400 border-red-400' : 'bg-emerald-500 border-emerald-500'
-              : 'bg-transparent border-gray-300',
+              : 'bg-transparent border-white/20',
           )} />
         ))}
       </div>
 
-      {erro && <p className="text-xs text-red-500 mb-4 -mt-4">PIN incorreto, tente novamente</p>}
+      {erro && <p className="text-xs text-red-400 mb-4 -mt-4">PIN incorreto, tente novamente</p>}
 
-      {/* Teclado */}
       <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
         {digits.map((d, i) => (
           d === '' ? <div key={i} /> :
           d === '⌫' ? (
-            <button key={i} onClick={handleDel}
-              className="h-14 rounded-2xl bg-gray-200 text-gray-600 text-xl font-medium flex items-center justify-center active:bg-gray-300 transition-colors">
+            <button key={i} onClick={() => setPin(p => p.slice(0, -1))}
+              className="h-14 rounded-2xl bg-white/10 text-white/60 text-xl font-medium flex items-center justify-center active:bg-white/20 transition-colors">
               ⌫
             </button>
           ) : (
             <button key={i} onClick={() => handleDigit(d)}
-              className="h-14 rounded-2xl bg-white border border-gray-200 text-gray-900 text-xl font-semibold shadow-sm active:bg-gray-100 transition-colors">
+              className="h-14 rounded-2xl bg-white/10 text-white text-xl font-semibold active:bg-white/20 transition-colors">
               {d}
             </button>
           )
@@ -93,82 +105,74 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
 
 // ── Modal da Mesa ─────────────────────────────────────────────────────────────
 
-interface ModalProps {
+function MesaModal({
+  numero, estado, onClose, onOcupar, onLiberar,
+}: {
   numero: string;
   estado: MesaEstado | undefined;
   onClose: () => void;
   onOcupar: (n: string, c: number) => void;
   onLiberar: (n: string) => void;
-  onAtualizarClientes: (n: string, delta: number) => void;
-}
-
-function MesaModal({ numero, estado, onClose, onOcupar, onLiberar }: ModalProps) {
+}) {
   const [confirmLiberar, setConfirmLiberar] = useState(false);
   const status = estado?.status ?? 'livre';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl sm:rounded-2xl shadow-xl w-full max-w-sm p-6 z-10">
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-gray-800 rounded-t-3xl shadow-xl w-full max-w-sm p-6 z-10 pb-8">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <MapPin size={20} className="text-brand-500" />
-            <h2 className="text-lg font-bold text-gray-900">Mesa {numero}</h2>
+            <MapPin size={20} className="text-emerald-400" />
+            <h2 className="text-lg font-bold text-white">Mesa {numero.replace(/^0+/, '')}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-400">
+          <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 text-white/50">
             <X size={18} />
           </button>
         </div>
 
         <div className={clsx(
           'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold mb-5',
-          status === 'ocupada'
-            ? 'bg-red-100 text-red-700'
-            : 'bg-green-100 text-green-700',
+          status === 'ocupada' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400',
         )}>
-          <span className={clsx('w-2 h-2 rounded-full', status === 'ocupada' ? 'bg-red-500' : 'bg-green-500')} />
+          <span className={clsx('w-2 h-2 rounded-full', status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500')} />
           {status === 'ocupada' ? 'OCUPADA' : 'LIVRE'}
         </div>
 
         {status === 'ocupada' ? (
           <>
             {estado?.horaOcupacao && (
-              <div className="bg-gray-50 rounded-xl p-3 mb-5 text-sm space-y-1">
-                <div className="flex justify-between text-gray-500">
+              <div className="bg-white/5 rounded-xl p-3 mb-5 text-sm space-y-1">
+                <div className="flex justify-between text-white/50">
                   <span>Ocupada desde</span>
-                  <span className="font-medium text-gray-700">{fmtHora(estado.horaOcupacao)}</span>
+                  <span className="font-medium text-white/80">{fmtHora(estado.horaOcupacao)}</span>
                 </div>
-                <div className="flex justify-between text-gray-500">
+                <div className="flex justify-between text-white/50">
                   <span>Tempo na mesa</span>
-                  <span className="font-medium text-gray-700">{fmtTempo(estado.horaOcupacao)}</span>
+                  <span className="font-medium text-white/80">{fmtTempo(estado.horaOcupacao)}</span>
                 </div>
               </div>
             )}
-
             {!confirmLiberar ? (
               <button onClick={() => setConfirmLiberar(true)}
                 className="w-full py-3.5 rounded-2xl bg-red-500 text-white text-base font-bold active:bg-red-600 transition-colors">
                 Liberar mesa
               </button>
             ) : (
-              <div className="border-2 border-red-200 rounded-2xl p-4 text-center space-y-3">
-                <p className="text-sm font-medium text-gray-700">Confirmar liberação?</p>
+              <div className="border border-red-500/30 rounded-2xl p-4 text-center space-y-3">
+                <p className="text-sm font-medium text-white/70">Confirmar liberação?</p>
                 <div className="flex gap-2">
                   <button onClick={() => { onLiberar(numero); onClose(); }}
-                    className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold active:bg-red-600">
-                    Sim
-                  </button>
+                    className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold active:bg-red-600">Sim</button>
                   <button onClick={() => setConfirmLiberar(false)}
-                    className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold active:bg-gray-200">
-                    Não
-                  </button>
+                    className="flex-1 py-3 rounded-xl bg-white/10 text-white/70 font-bold active:bg-white/20">Não</button>
                 </div>
               </div>
             )}
           </>
         ) : (
           <button onClick={() => { onOcupar(numero, 0); onClose(); }}
-            className="w-full py-3.5 rounded-2xl bg-green-500 text-white text-base font-bold active:bg-green-600 transition-colors">
+            className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white text-base font-bold active:bg-emerald-600 transition-colors">
             Ocupar mesa
           </button>
         )}
@@ -177,145 +181,184 @@ function MesaModal({ numero, estado, onClose, onOcupar, onLiberar }: ModalProps)
   );
 }
 
-// ── Garcom App ────────────────────────────────────────────────────────────────
+// ── Marcador readonly no mapa ─────────────────────────────────────────────────
+
+function MapaDot({ mesa, estado, onPress }: { mesa: MesaConfig; estado: MesaEstado | undefined; onPress: () => void }) {
+  const status = estado?.status ?? 'livre';
+  return (
+    <button
+      onClick={onPress}
+      style={{ left: `${mesa.x}%`, top: `${mesa.y}%` }}
+      className="absolute -translate-x-1/2 -translate-y-1/2"
+    >
+      <div className={clsx(
+        'w-5 h-5 rounded-full flex items-center justify-center font-bold text-white text-[7px] leading-none shadow active:scale-110 transition-transform',
+        status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500',
+      )}>
+        {mesa.numero.replace(/^0+/, '')}
+      </div>
+    </button>
+  );
+}
+
+// ── GarcomApp ─────────────────────────────────────────────────────────────────
 
 function GarcomApp() {
   const [searchParams] = useSearchParams();
-  const { tables, estado, loading, ocuparMesa, liberarMesa, atualizarClientes } = useBeachTables();
+  const { tables, estado, ocuparMesa, liberarMesa } = useBeachTables();
+  const [occupancy] = useOccupancy();
+  const portaria    = usePortaria();
 
-  const [filtro, setFiltro] = useState<'todas' | 'livres' | 'ocupadas'>('todas');
-  const [busca, setBusca]   = useState('');
   const [modal, setModal]   = useState<string | null>(null);
   const [irMesa, setIrMesa] = useState('');
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null!);
+  const inputRef     = useRef<HTMLInputElement>(null);
 
-  const handleIrMesa = useCallback(() => {
-    const n = irMesa.trim().replace(/^0+/, '');
-    if (!n) return;
-    const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
-    if (found) { setModal(found.numero); setIrMesa(''); }
-  }, [irMesa, tables]);
-
-  // Se vier ?mesa=042, abre direto
   useEffect(() => {
     const m = searchParams.get('mesa');
     if (m) setModal(m.padStart(3, '0'));
   }, [searchParams]);
 
-  const filtradas = tables.filter(t => {
-    const e = estado[t.numero];
-    if (filtro === 'livres'   && e?.status === 'ocupada') return false;
-    if (filtro === 'ocupadas' && e?.status !== 'ocupada') return false;
-    if (busca.trim()) {
-      const q = busca.trim().replace(/^0+/, '');
-      if (!t.numero.replace(/^0+/, '').startsWith(q)) return false;
-    }
-    return true;
-  });
+  const handleIrMesa = useCallback(() => {
+    const n = irMesa.trim().replace(/^0+/, '');
+    if (!n) return;
+    const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
+    if (found) { setModal(found.numero); setIrMesa(''); inputRef.current?.blur(); }
+  }, [irMesa, tables]);
 
-  const ocupadas  = Object.values(estado).filter(e => e.status === 'ocupada').length;
-  const livres    = tables.length - ocupadas;
-  const clientes  = Object.values(estado).reduce((s, e) => s + (e.quantidadeClientes ?? 0), 0);
+  const handleLogout = () => { sessionStorage.removeItem(PIN_KEY); window.location.reload(); };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem(PIN_KEY);
-    window.location.reload();
-  };
+  // Stats
+  const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
+  const naCasa       = occupancy.beach + loungesTotal;
+  const gap          = portaria !== null ? Math.max(0, portaria - naCasa) : null;
+  const ocupadas     = Object.values(estado).filter(e => e.status === 'ocupada').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-900 flex flex-col pb-6">
+
       {/* Header */}
-      <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+      <header className="bg-gray-900 px-4 py-3 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-brand-500 rounded-xl flex items-center justify-center shadow">
+          <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center shadow">
             <MapPin size={16} className="text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-900 leading-tight">Mapa Beach</p>
-            <p className="text-[10px] text-gray-400 leading-tight">
-              {ocupadas} ocupadas · {livres} livres · {clientes} clientes
-            </p>
+            <p className="text-sm font-bold text-white leading-tight">Mapa Beach</p>
+            <p className="text-[10px] text-white/40 leading-tight">{ocupadas} ocupadas · {tables.length - ocupadas} livres</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="p-2 rounded-xl text-gray-400 active:bg-gray-100">
+        <button onClick={handleLogout} className="p-2 rounded-xl text-white/40 active:bg-white/10">
           <LogOut size={18} />
         </button>
       </header>
 
-      {/* Ir para mesa */}
-      <div className="px-4 pt-3 pb-1 flex gap-2">
-        <input
-          type="text"
-          value={irMesa}
-          onChange={e => setIrMesa(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
-          placeholder="Nº da mesa"
-          inputMode="numeric"
-          className="flex-1 text-sm px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-        />
-        <button
-          onClick={handleIrMesa}
-          className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold active:bg-emerald-600 transition-colors"
-        >
-          Ir
-        </button>
-      </div>
+      <div className="flex flex-col gap-3 px-4 pt-4">
 
-      {/* Filtros + busca */}
-      <div className="px-4 pt-2 pb-2 flex gap-2 sticky top-[57px] bg-gray-50 z-10">
-        <input
-          type="text"
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
-          placeholder="Buscar…"
-          inputMode="numeric"
-          className="w-20 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-        />
-        <div className="flex flex-1 items-center gap-1 bg-white rounded-xl border border-gray-200 p-1">
-          {(['todas', 'livres', 'ocupadas'] as const).map(f => (
-            <button key={f} onClick={() => setFiltro(f)}
-              className={clsx(
-                'flex-1 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors',
-                filtro === f
-                  ? f === 'ocupadas' ? 'bg-red-500 text-white' : f === 'livres' ? 'bg-green-500 text-white' : 'bg-brand-500 text-white'
-                  : 'text-gray-500',
-              )}>
-              {f}
-            </button>
+        {/* Clube */}
+        <div className="bg-gray-800 rounded-2xl p-4 grid grid-cols-2 gap-3">
+          {[
+            { label: 'Portaria',  value: portaria ?? '—', color: 'text-white' },
+            { label: 'Na Casa',   value: naCasa,          color: 'text-blue-300' },
+            { label: 'GAP',       value: gap ?? '—',      color: gap && gap > 0 ? 'text-red-400' : 'text-white/30' },
+            { label: 'Parceiros', value: occupancy.parceiros, color: 'text-yellow-300' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <p className="text-[10px] text-white/40 uppercase tracking-wide">{label}</p>
+              <span className={clsx('text-2xl font-black tabular-nums leading-none', color)}>{value}</span>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Grade de mesas */}
-      <div className="flex-1 px-4 pb-6">
-        {loading && tables.length === 0 ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-5 gap-2">
-            {filtradas.map(mesa => {
-              const e = estado[mesa.numero];
-              const ocupada = e?.status === 'ocupada';
-              return (
-                <button
-                  key={mesa.numero}
-                  onClick={() => setModal(mesa.numero)}
-                  className={clsx(
-                    'aspect-square rounded-2xl flex flex-col items-center justify-center gap-0.5 font-bold text-white shadow-sm active:scale-95 transition-transform',
-                    ocupada
-                      ? 'bg-red-500 shadow-red-200'
-                      : 'bg-green-500 shadow-green-200',
-                  )}
-                >
-                  <span className="text-xs leading-none">{mesa.numero.replace(/^0+/, '')}</span>
-                  {ocupada && e.quantidadeClientes > 0 && (
-                    <span className="text-[8px] opacity-80 leading-none">{e.quantidadeClientes}p</span>
-                  )}
-                </button>
-              );
-            })}
+        {/* Áreas */}
+        {AREAS.some(a => tables.some(t => t.area === a)) && (
+          <div className="bg-gray-800 rounded-2xl p-4 flex flex-col gap-2.5">
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Áreas</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              {AREAS.map(area => {
+                const mesas = tables.filter(t => t.area === area);
+                const total = mesas.length;
+                if (total === 0) return null;
+                const ocup = mesas.filter(t => estado[t.numero]?.status === 'ocupada').length;
+                const pct  = Math.round((ocup / total) * 100);
+                return (
+                  <div key={area} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: AREA_COLORS[area].dot }} />
+                        <p className="text-[9px] text-white/60 truncate leading-none">{area}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-white/80 tabular-nums shrink-0">{ocup}/{total} <span className="text-white/40">{pct}%</span></span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[area].dot }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
+
+        {/* Campo grande de mesa */}
+        <div className="bg-gray-800 rounded-2xl p-4">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Número da mesa</p>
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="numeric"
+              value={irMesa}
+              onChange={e => setIrMesa(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
+              placeholder="Ex: 42"
+              className="flex-1 text-3xl font-black text-white bg-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
+            />
+            <button
+              onClick={handleIrMesa}
+              className="px-4 rounded-xl bg-emerald-500 text-white font-bold active:bg-emerald-600 transition-colors flex items-center justify-center"
+            >
+              <ArrowRight size={22} />
+            </button>
+          </div>
+        </div>
+
+        {/* Mapa */}
+        <div className="bg-gray-800 rounded-2xl overflow-hidden">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-4 pt-3 pb-2">Mapa</p>
+          <div className="flex items-center justify-center bg-gray-900/50 px-2 pb-3">
+            <div
+              ref={containerRef}
+              style={{
+                position: 'relative',
+                ...(imgAspect
+                  ? { aspectRatio: String(imgAspect), width: '100%' }
+                  : { width: '100%', paddingBottom: '66%' }),
+              }}
+            >
+              <img
+                src={mapaImg}
+                alt="Mapa Beach"
+                draggable={false}
+                className="absolute inset-0 w-full h-full object-contain select-none"
+                onLoad={e => {
+                  const img = e.currentTarget;
+                  setImgAspect(img.naturalWidth / img.naturalHeight);
+                }}
+              />
+              {tables.map(mesa => (
+                <MapaDot
+                  key={mesa.numero}
+                  mesa={mesa}
+                  estado={estado[mesa.numero]}
+                  onPress={() => setModal(mesa.numero)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {modal && (
@@ -325,7 +368,6 @@ function GarcomApp() {
           onClose={() => setModal(null)}
           onOcupar={ocuparMesa}
           onLiberar={liberarMesa}
-          onAtualizarClientes={atualizarClientes}
         />
       )}
     </div>
