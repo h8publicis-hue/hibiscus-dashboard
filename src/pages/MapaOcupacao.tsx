@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid, Tv } from 'lucide-react';
 import clsx from 'clsx';
-import { useBeachTables, MesaConfig, MesaEstado } from '../hooks/useBeachTables';
+import { useBeachTables, MesaConfig, MesaEstado, MesaArea, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
 import mapaImg from '../assets/mapa-hibiscus-beach.webp';
 
@@ -114,6 +114,7 @@ interface TableMarkerProps {
 
 function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickMesa, onDrag, onRemove, containerRef }: TableMarkerProps) {
   const status    = estado?.status ?? 'livre';
+  const areaColor = mesa.area ? AREA_COLORS[mesa.area].dot : null;
   const dragging  = useRef(false);
   const moved     = useRef(false);
 
@@ -159,13 +160,22 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickM
       <button
         onMouseDown={handleMouseDown}
         onClick={handleClick}
-        style={{ width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.38)) }}
+        style={{
+          width: size,
+          height: size,
+          fontSize: Math.max(7, Math.round(size * 0.38)),
+          ...(editMode && areaColor
+            ? { backgroundColor: areaColor }
+            : {}),
+        }}
         className={clsx(
           'rounded-full flex items-center justify-center font-bold text-white leading-none select-none transition-all',
           editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer hover:scale-125',
-          status === 'ocupada'
-            ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-200 dark:shadow-red-900/40'
-            : 'bg-green-500 hover:bg-green-600 shadow-md shadow-green-200 dark:shadow-green-900/40',
+          editMode
+            ? areaColor ? '' : 'bg-gray-500'
+            : status === 'ocupada'
+              ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-200 dark:shadow-red-900/40'
+              : 'bg-green-500 hover:bg-green-600 shadow-md shadow-green-200 dark:shadow-green-900/40',
           highlight && 'ring-2 ring-white ring-offset-1 scale-125 animate-pulse',
           dimmed && 'opacity-30',
         )}
@@ -190,16 +200,19 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickM
 
 function EditMesaModal({
   numero,
+  area: areaInicial,
   todosNumeros,
   onSave,
   onClose,
 }: {
   numero:       string;
+  area?:        MesaArea;
   todosNumeros: string[];
-  onSave:       (antigo: string, novo: string) => void;
+  onSave:       (antigo: string, novo: string, area: MesaArea | undefined) => void;
   onClose:      () => void;
 }) {
-  const [val, setVal] = useState(numero.replace(/^0+/, ''));
+  const [val, setVal]   = useState(numero.replace(/^0+/, ''));
+  const [area, setArea] = useState<MesaArea | undefined>(areaInicial);
   const [erro, setErro] = useState('');
 
   const handleSave = () => {
@@ -211,7 +224,7 @@ function EditMesaModal({
     if (novo !== numero && todosNumeros.includes(novo)) {
       setErro(`Mesa ${novo} já existe`); return;
     }
-    onSave(numero, novo);
+    onSave(numero, novo, area);
     onClose();
   };
 
@@ -225,6 +238,7 @@ function EditMesaModal({
             <X size={16} />
           </button>
         </div>
+
         <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Número da mesa</label>
         <input
           type="number"
@@ -235,12 +249,36 @@ function EditMesaModal({
           className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 mb-1"
           autoFocus
         />
-        {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
+        {erro && <p className="text-xs text-red-500 mb-2">{erro}</p>}
+
+        <label className="text-xs text-gray-500 dark:text-gray-400 mt-3 mb-1 block">Área</label>
+        <div className="grid grid-cols-2 gap-1.5 mb-1">
+          {AREAS.map(a => (
+            <button
+              key={a}
+              onClick={() => setArea(prev => prev === a ? undefined : a)}
+              style={area === a ? { backgroundColor: AREA_COLORS[a].dot } : {}}
+              className={clsx(
+                'py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors border',
+                area === a
+                  ? 'text-white border-transparent'
+                  : 'text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700',
+              )}
+            >{a}</button>
+          ))}
+          {area && (
+            <button
+              onClick={() => setArea(undefined)}
+              className="py-1.5 px-2 rounded-lg text-xs font-semibold text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 col-span-2"
+            >✕ Sem área</button>
+          )}
+        </div>
+
         <button
           onClick={handleSave}
           className="w-full mt-3 py-2 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors"
         >
-          Salvar número
+          Salvar
         </button>
       </div>
     </div>
@@ -472,8 +510,8 @@ export function MapaOcupacao() {
 
   // ── Renomear mesa ──────────────────────────────────────────────────────────
 
-  const handleRenomear = (antigo: string, novo: string) => {
-    setDraft(prev => prev.map(t => t.numero === antigo ? { ...t, numero: novo } : t));
+  const handleRenomear = (antigo: string, novo: string, area: MesaArea | undefined) => {
+    setDraft(prev => prev.map(t => t.numero === antigo ? { ...t, numero: novo, area } : t));
   };
 
   // ── Distribuir mesas em posições padrão ───────────────────────────────────
@@ -553,6 +591,35 @@ export function MapaOcupacao() {
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
           <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Mesas Beach</p>
           <StatsBar estado={estado} total={activeTables.length} />
+        </div>
+
+        {/* Áreas */}
+        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+          <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Áreas</p>
+          {AREAS.map(area => {
+            const mesas = activeTables.filter(t => t.area === area);
+            const total = mesas.length;
+            if (total === 0) return null;
+            const ocup = mesas.filter(t => estado[t.numero]?.status === 'ocupada').length;
+            const pct  = Math.round((ocup / total) * 100);
+            return (
+              <div key={area} className="flex flex-col gap-0.5">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: AREA_COLORS[area].dot }} />
+                    <p className="text-[9px] text-white/60 truncate leading-none">{area}</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/80 tabular-nums shrink-0">{ocup}/{total}</span>
+                </div>
+                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[area].dot }} />
+                </div>
+              </div>
+            );
+          })}
+          {activeTables.every(t => !t.area) && (
+            <p className="text-[9px] text-white/25 text-center py-1">Nenhuma área configurada.<br/>Edite as mesas para atribuir.</p>
+          )}
         </div>
 
         {/* Busca + filtros */}
@@ -663,12 +730,28 @@ export function MapaOcupacao() {
 
         {/* Legenda */}
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
-          </div>
-          <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
-          </div>
+          {editMode ? (
+            <>
+              {AREAS.map(a => (
+                <div key={a} className="flex items-center gap-1.5 text-[9px] text-white/50">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: AREA_COLORS[a].dot }} />
+                  {a}
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5 text-[9px] text-white/30">
+                <span className="w-2.5 h-2.5 rounded-full bg-gray-500 shrink-0" /> Sem área
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
+              </div>
+              <div className="flex items-center gap-1.5 text-[9px] text-white/50">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -740,6 +823,7 @@ export function MapaOcupacao() {
       {editNumero && editMode && (
         <EditMesaModal
           numero={editNumero}
+          area={draftTables.find(t => t.numero === editNumero)?.area}
           todosNumeros={todosNumeros}
           onSave={handleRenomear}
           onClose={() => setEditNumero(null)}

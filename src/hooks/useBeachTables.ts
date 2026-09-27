@@ -1,9 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+export type MesaArea = 'Salão' | 'Deck' | 'Pé na Areia' | 'Piscina' | 'Tenda';
+
+export const AREAS: MesaArea[] = ['Salão', 'Deck', 'Pé na Areia', 'Piscina', 'Tenda'];
+
+export const AREA_COLORS: Record<MesaArea, { bg: string; text: string; dot: string }> = {
+  'Salão':      { bg: 'bg-blue-500',   text: 'text-blue-400',   dot: '#3b82f6' },
+  'Deck':       { bg: 'bg-orange-500', text: 'text-orange-400', dot: '#f97316' },
+  'Pé na Areia':{ bg: 'bg-yellow-500', text: 'text-yellow-400', dot: '#eab308' },
+  'Piscina':    { bg: 'bg-cyan-500',   text: 'text-cyan-400',   dot: '#06b6d4' },
+  'Tenda':      { bg: 'bg-purple-500', text: 'text-purple-400', dot: '#a855f7' },
+};
+
 export interface MesaConfig {
   numero: string;
   x: number;
   y: number;
+  area?: MesaArea;
 }
 
 export interface MesaEstado {
