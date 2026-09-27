@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { CheckCircle, AlertTriangle, Users, Waves, LayoutDashboard, Bell, CalendarDays, Check, Upload, LogOut, Printer, Megaphone, X, Trash2 } from 'lucide-react';
 import { useAviso } from '../hooks/useAviso';
-import { useBeachTables } from '../hooks/useBeachTables';
+import { useBeachTables, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
+import type { MesaArea } from '../hooks/useBeachTables';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
@@ -1147,6 +1148,91 @@ function AvisosBanner() {
   );
 }
 
+function usePortaria() {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch('/api/portaria').then(r => r.json()).then((j: any) => { if (!cancelled) setCount(Number(j.count ?? 0)); }).catch(() => {});
+    load();
+    const id = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+  return count;
+}
+
+function BoxClube() {
+  const [occupancy] = useOccupancy();
+  const portaria = usePortaria();
+  const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
+  const naCasa = occupancy.beach + loungesTotal;
+  const gap = portaria !== null ? Math.max(0, portaria - naCasa) : null;
+
+  const items = [
+    { label: 'Portaria',  value: portaria ?? '—', cls: 'text-gray-900 dark:text-white' },
+    { label: 'Na Casa',   value: naCasa,           cls: 'text-blue-600 dark:text-blue-400' },
+    { label: 'GAP',       value: gap ?? '—',       cls: gap && gap > 0 ? 'text-red-500' : 'text-gray-400' },
+    { label: 'Parceiros', value: occupancy.parceiros, cls: 'text-yellow-600 dark:text-yellow-400' },
+  ];
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        <Users size={18} className="text-brand-600 dark:text-brand-400" />
+        <h2 className="font-bold text-gray-900 dark:text-white text-sm">Clube</h2>
+      </div>
+      <div className="p-4 grid grid-cols-2 gap-3">
+        {items.map(({ label, value, cls }) => (
+          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
+            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{label}</p>
+            <p className={`text-2xl font-black tabular-nums leading-none ${cls}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BoxAreasBeach() {
+  const { tables, estado } = useBeachTables();
+  const areasComMesas = (AREAS as MesaArea[]).filter(a => tables.some(t => t.area === a));
+  if (areasComMesas.length === 0) return null;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        <Waves size={18} className="text-brand-600 dark:text-brand-400" />
+        <h2 className="font-bold text-gray-900 dark:text-white text-sm">Áreas Beach</h2>
+      </div>
+      <div className="p-4 flex flex-col gap-3">
+        {areasComMesas.map(area => {
+          const mesas = tables.filter(t => t.area === area);
+          const total = mesas.length;
+          const ocup  = mesas.filter(t => estado[t.numero]?.status === 'ocupada').length;
+          const pct   = Math.round((ocup / total) * 100);
+          const color = AREA_COLORS[area];
+          return (
+            <div key={area} className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color.dot }} />
+                  <p className="text-xs text-gray-700 dark:text-gray-300 font-medium truncate">{area}</p>
+                </div>
+                <span className="text-xs font-bold text-gray-800 dark:text-gray-200 tabular-nums shrink-0">
+                  {ocup}/{total} <span className="text-gray-400 font-normal">&nbsp;{pct}%</span>
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color.dot }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function BoxZerarBeach() {
   const { zerarTudo } = useBeachTables();
   const [confirm, setConfirm] = useState(false);
@@ -1254,6 +1340,8 @@ export function Lider() {
         {aba === 'hoje' && (
           <>
             <BoxEscala />
+            <BoxClube />
+            <BoxAreasBeach />
             <BoxOcupacao />
             <BoxChamadas />
             <BoxZerarBeach />
