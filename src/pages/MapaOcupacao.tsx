@@ -108,11 +108,10 @@ interface TableMarkerProps {
   size:         number;
   onClickMesa:  (numero: string) => void;
   onDrag:       (numero: string, x: number, y: number) => void;
-  onRemove:     (numero: string) => void;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
-function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickMesa, onDrag, onRemove, containerRef }: TableMarkerProps) {
+function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickMesa, onDrag, containerRef }: TableMarkerProps) {
   const status    = estado?.status ?? 'livre';
   const areaColor = mesa.area ? AREA_COLORS[mesa.area].dot : null;
   const dragging  = useRef(false);
@@ -183,15 +182,6 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickM
         {mesa.numero.replace(/^0+/, '')}
       </button>
 
-      {/* Botão remover — só em edit mode */}
-      {editMode && (
-        <button
-          onClick={e => { e.stopPropagation(); onRemove(mesa.numero); }}
-          className="absolute -top-2 -right-2 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center shadow hover:bg-red-700 z-10"
-        >
-          <X size={8} />
-        </button>
-      )}
     </div>
   );
 }
@@ -204,16 +194,19 @@ function EditMesaModal({
   todosNumeros,
   onSave,
   onClose,
+  onRemove,
 }: {
   numero:       string;
   area?:        MesaArea;
   todosNumeros: string[];
   onSave:       (antigo: string, novo: string, area: MesaArea | undefined) => void;
   onClose:      () => void;
+  onRemove?:    (numero: string) => void;
 }) {
-  const [val, setVal]   = useState(numero.replace(/^0+/, ''));
-  const [area, setArea] = useState<MesaArea | undefined>(areaInicial);
-  const [erro, setErro] = useState('');
+  const [val, setVal]             = useState(numero.replace(/^0+/, ''));
+  const [area, setArea]           = useState<MesaArea | undefined>(areaInicial);
+  const [erro, setErro]           = useState('');
+  const [confirmRemover, setConfirmRemover] = useState(false);
 
   const handleSave = () => {
     const trimmed = val.trim();
@@ -279,13 +272,37 @@ function EditMesaModal({
         </div>
 
         {/* Botão fixo no fundo */}
-        <div className="px-5 pb-5 pt-3 shrink-0 border-t border-gray-100 dark:border-gray-700">
+        <div className="px-5 pb-5 pt-3 shrink-0 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
           <button
             onClick={handleSave}
             className="w-full py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors"
           >
             Salvar
           </button>
+          {onRemove && !confirmRemover && (
+            <button
+              onClick={() => setConfirmRemover(true)}
+              className="w-full py-2 rounded-xl text-red-500 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border border-red-200 dark:border-red-800"
+            >
+              Remover mesa
+            </button>
+          )}
+          {onRemove && confirmRemover && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => { onRemove(numero); onClose(); }}
+                className="flex-1 py-2 rounded-xl bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors"
+              >
+                Sim, remover
+              </button>
+              <button
+                onClick={() => setConfirmRemover(false)}
+                className="flex-1 py-2 rounded-xl text-gray-500 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -830,7 +847,6 @@ export function MapaOcupacao() {
                 size={markerSize}
                 onClickMesa={handleClickMesa}
                 onDrag={handleDrag}
-                onRemove={handleRemoveMesa}
                 containerRef={containerRef}
               />
             );
@@ -858,6 +874,7 @@ export function MapaOcupacao() {
           todosNumeros={todosNumeros}
           onSave={handleRenomear}
           onClose={() => setEditNumero(null)}
+          onRemove={n => { handleRemoveMesa(n); setEditNumero(null); }}
         />
       )}
     </div>
