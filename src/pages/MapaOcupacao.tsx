@@ -203,7 +203,7 @@ function EditMesaModal({
   onClose:      () => void;
   onRemove?:    (numero: string) => void;
 }) {
-  const [val, setVal]             = useState(numero.replace(/^0+/, ''));
+  const [val, setVal]             = useState(numero.startsWith('_') ? '' : numero.replace(/^0+/, ''));
   const [area, setArea]           = useState<MesaArea | undefined>(areaInicial);
   const [erro, setErro]           = useState('');
   const [confirmRemover, setConfirmRemover] = useState(false);
