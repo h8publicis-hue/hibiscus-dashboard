@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid, Tv } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid, Tv, Hash } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado, MesaArea, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
@@ -450,7 +450,8 @@ export function MapaOcupacao() {
   const [editNumero, setEditNumero] = useState<string | null>(null); // modal renomear
   const [markerSize, setMarkerSize] = useState(24);
   const markerSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [confirmZerar, setConfirmZerar] = useState(false);
+  const [confirmZerar, setConfirmZerar]           = useState(false);
+  const [confirmZerarNum, setConfirmZerarNum]     = useState(false);
 
   // Sincroniza tamanho inicial vindo do servidor (só na primeira carga)
   const markerSizeLoaded = useRef(false);
@@ -532,6 +533,12 @@ export function MapaOcupacao() {
   const handleRemoveMesa = useCallback((numero: string) => {
     setDraft(prev => prev.filter(t => t.numero !== numero));
   }, []);
+
+  // ── Zerar numeração ────────────────────────────────────────────────────────
+
+  const handleZerarNumeracao = () => {
+    setDraft(prev => prev.map((t, i) => ({ ...t, numero: `_${i + 1}` })));
+  };
 
   // ── Renomear mesa ──────────────────────────────────────────────────────────
 
@@ -759,6 +766,23 @@ export function MapaOcupacao() {
                 className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
                 <LayoutGrid size={11} /> Distribuir
               </button>
+              {!confirmZerarNum ? (
+                <button onClick={() => setConfirmZerarNum(true)}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-xs font-medium hover:bg-white/20">
+                  <Hash size={11} /> Zerar numeração
+                </button>
+              ) : (
+                <div className="flex gap-1">
+                  <button onClick={() => { handleZerarNumeracao(); setConfirmZerarNum(false); }}
+                    className="flex-1 py-1.5 rounded-lg bg-orange-500 text-white text-[10px] font-semibold hover:bg-orange-600">
+                    Sim
+                  </button>
+                  <button onClick={() => setConfirmZerarNum(false)}
+                    className="flex-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-[10px] font-medium hover:bg-white/20">
+                    Não
+                  </button>
+                </div>
+              )}
               <button onClick={handleSaveEdit}
                 className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
                 <Save size={11} /> Salvar
@@ -769,7 +793,7 @@ export function MapaOcupacao() {
               </button>
               {editMode && (
                 <p className="text-[8px] text-white/25 text-center leading-tight mt-1">
-                  Arraste · clique para renomear · ✕ remove
+                  Arraste · clique para renomear/remover
                 </p>
               )}
             </div>
