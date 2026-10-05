@@ -77,6 +77,7 @@ import { Configuracoes } from './pages/Configuracoes';
 import { Relatorio }     from './pages/Relatorio';
 import Ajuda             from './pages/Ajuda';
 import { Lider }         from './pages/Lider';
+import { EscalaPublica } from './pages/EscalaPublica';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -243,6 +244,7 @@ export default function App() {
         <Route path="/entrada"  element={<OccupancyInput />} />
         <Route path="/lider"    element={<Lider />} />
         <Route path="/rh"       element={<Rh />} />
+        <Route path="/escala"   element={<EscalaPublica />} />
         <Route path="/cozinha"  element={<Cozinha />} />
         <Route path="/portaria" element={<Portaria />} />
         <Route path="/refeicao" element={<Refeicao />} />

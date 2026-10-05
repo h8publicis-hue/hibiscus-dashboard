@@ -119,6 +119,43 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // ── Escalas de trabalho ──────────────────────────────────────────────────────
+  if (type === 'escala') {
+    const KV_ESCALAS = 'dashboard:escalas';
+
+    if (req.method === 'GET') {
+      const token = req.query?.token as string | undefined;
+      const escalas: any[] = (await kvGet(KV_ESCALAS)) ?? [];
+      if (token) {
+        const found = escalas.find((e: any) => e.token === token);
+        if (!found) return res.status(404).json({ error: 'Escala não encontrada' });
+        return res.json({ escala: found });
+      }
+      return res.json({ escalas: escalas.map((e: any) => ({ id: e.id, mes: e.mes, token: e.token, uploadedAt: e.uploadedAt, setores: (e.sheets ?? []).map((s: any) => s.setor) })) });
+    }
+
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const { mes, sheets } = body;
+      if (!mes || !Array.isArray(sheets)) return res.status(400).json({ error: 'mes e sheets obrigatórios' });
+      const id = 'e_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      const token = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+      const nova = { id, mes, token, sheets, uploadedAt: new Date().toISOString() };
+      const existentes: any[] = (await kvGet(KV_ESCALAS)) ?? [];
+      await kvSet(KV_ESCALAS, [nova, ...existentes].slice(0, 8));
+      return res.json({ ok: true, id, token });
+    }
+
+    if (req.method === 'DELETE') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const { id } = body;
+      if (!id) return res.status(400).json({ error: 'id obrigatório' });
+      const existentes: any[] = (await kvGet(KV_ESCALAS)) ?? [];
+      await kvSet(KV_ESCALAS, existentes.filter((e: any) => e.id !== id));
+      return res.json({ ok: true });
+    }
+  }
+
   // ── Metas ────────────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
     const goals = await kvGet(KV_KEY);
