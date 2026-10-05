@@ -90,23 +90,27 @@ function statusColor(v: string) {
 }
 
 function parseEscalaSheet(ws: XLSX.WorkSheet): { dias: string[]; rows: EscalaRow[] } {
-  const raw = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: '' }) as string[][];
+  const raw = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: '', raw: false }) as string[][];
 
   // Encontra linha com números 1-31 (cabeçalho de dias)
   let dayHeaderRow = -1;
   let dayColMap: { col: number; dia: string }[] = [];
+  let bestScore = 0;
 
-  for (let r = 0; r < Math.min(raw.length, 12); r++) {
+  for (let r = 0; r < Math.min(raw.length, 25); r++) {
     const row = raw[r];
     const matches: { col: number; dia: string }[] = [];
     for (let c = 0; c < row.length; c++) {
-      const v = String(row[c]).trim();
+      const v = String(row[c]).trim().replace(/^0+/, '') || '0';
       const n = Number(v);
-      if (!isNaN(n) && n >= 1 && n <= 31 && v !== '') {
+      if (!isNaN(n) && n >= 1 && n <= 31) {
         matches.push({ col: c, dia: String(n).padStart(2, '0') });
       }
     }
-    if (matches.length >= 28) { dayHeaderRow = r; dayColMap = matches; break; }
+    if (matches.length > bestScore) {
+      bestScore = matches.length;
+      if (matches.length >= 10) { dayHeaderRow = r; dayColMap = matches; }
+    }
   }
 
   if (dayHeaderRow === -1) return { dias: [], rows: [] };
@@ -115,13 +119,14 @@ function parseEscalaSheet(ws: XLSX.WorkSheet): { dias: string[]; rows: EscalaRow
   const dayCols = new Set(dayColMap.map(d => d.col));
   const STATUS  = /^[TXCFAtxcfa]/;
   const rows: EscalaRow[] = [];
+  const minFilled = Math.max(3, Math.floor(dayColMap.length * 0.25));
 
   for (let r = dayHeaderRow + 1; r < raw.length; r++) {
     const row = raw[r];
     if (!row || row.every(c => String(c).trim() === '')) continue;
 
     const filled = dayColMap.filter(({ col }) => STATUS.test(String(row[col] ?? '').trim())).length;
-    if (filled < 20) continue;
+    if (filled < minFilled) continue;
 
     const nonDay = row
       .map((v, ci) => ({ v: String(v).trim(), ci }))
