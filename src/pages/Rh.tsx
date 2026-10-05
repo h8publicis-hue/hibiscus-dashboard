@@ -89,59 +89,82 @@ function statusColor(v: string) {
   return STATUS_COLORS[v.toUpperCase()] ?? 'bg-gray-50 text-gray-400';
 }
 
-function parseEscalaSheet(ws: XLSX.WorkSheet): { dias: string[]; rows: EscalaRow[] } {
-  const raw = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: '', raw: false }) as string[][];
+function parseEscalaSheet(ws: XLSX.WorkSheet, fileNameHint?: string): { setor: string; dias: string[]; rows: EscalaRow[] } {
+  // raw: false formata datas e números como strings (ex: 10.0 → "10")
+  const raw = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1, defval: '', raw: false }) as string[][];
 
-  // Encontra linha com números 1-31 (cabeçalho de dias)
+  // Encontra a linha de números de dias (ex: "01", "02", ... "31")
+  // O formato real é: dia de semana na linha N, números na linha N+1
   let dayHeaderRow = -1;
   let dayColMap: { col: number; dia: string }[] = [];
-  let bestScore = 0;
 
-  for (let r = 0; r < Math.min(raw.length, 25); r++) {
+  for (let r = 0; r < Math.min(raw.length, 20); r++) {
     const row = raw[r];
     const matches: { col: number; dia: string }[] = [];
     for (let c = 0; c < row.length; c++) {
-      const v = String(row[c]).trim().replace(/^0+/, '') || '0';
-      const n = Number(v);
-      if (!isNaN(n) && n >= 1 && n <= 31) {
-        matches.push({ col: c, dia: String(n).padStart(2, '0') });
+      const v = String(row[c]).trim();
+      const n = parseFloat(v);
+      if (!isNaN(n) && n >= 1 && n <= 31 && String(Math.round(n)) === v.replace(/^0+/, '') || v === String(Math.round(n)).padStart(2, '0')) {
+        matches.push({ col: c, dia: String(Math.round(n)).padStart(2, '0') });
       }
     }
-    if (matches.length > bestScore) {
-      bestScore = matches.length;
-      if (matches.length >= 10) { dayHeaderRow = r; dayColMap = matches; }
-    }
+    if (matches.length >= 10) { dayHeaderRow = r; dayColMap = matches; break; }
   }
 
-  if (dayHeaderRow === -1) return { dias: [], rows: [] };
+  // Extrai nome do setor das linhas anteriores ao cabeçalho
+  // Formato: linha 1=empresa, linha 2=título, linha 3=SETOR (col 0)
+  // Só olha col 0 para não capturar "FUNÇÃO" (col 2) ou "COLABORADOR" (col 1)
+  const SKIP_SETOR = /hibiscus|escala|hbc|nº|n°|colaborador|função|^\s*$/i;
+  let setor = '';
+  // Para antes da linha de cabeçalho de colunas (dayHeaderRow - 1)
+  for (let r = 0; r < Math.max(0, dayHeaderRow - 1); r++) {
+    const row = raw[r];
+    const v = String(row[0] ?? '').trim();
+    if (v && !SKIP_SETOR.test(v) && !/^\d/.test(v) && v.length >= 3 && v.length <= 60) {
+      setor = v;
+    }
+  }
+  // Fallback: extrai do nome do arquivo
+  if (!setor && fileNameHint) {
+    setor = fileNameHint
+      .replace(/\.xlsx?$/i, '')
+      .replace(/^[_\s]+/, '')
+      .replace(/escala\s*(de\s*)?/gi, '')
+      .replace(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*/gi, '')
+      .replace(/\b(20\d{2})\b/g, '')
+      .replace(/[-–]\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  if (dayHeaderRow === -1) return { setor: setor || 'SETOR', dias: [], rows: [] };
 
   const dias    = dayColMap.map(d => d.dia);
   const dayCols = new Set(dayColMap.map(d => d.col));
-  const STATUS  = /^[TXCFAtxcfa]/;
+  const SKIP_NAME = /legenda|observ|obs\.|lider|atendimento|dpto|recursos|líder|^\*|trabalha|folga|compensa|férias|atestado/i;
   const rows: EscalaRow[] = [];
-  const minFilled = Math.max(3, Math.floor(dayColMap.length * 0.25));
 
   for (let r = dayHeaderRow + 1; r < raw.length; r++) {
     const row = raw[r];
     if (!row || row.every(c => String(c).trim() === '')) continue;
 
-    const filled = dayColMap.filter(({ col }) => STATUS.test(String(row[col] ?? '').trim())).length;
-    if (filled < minFilled) continue;
+    const col0 = String(row[0] ?? '').trim();
+    const col1 = String(row[1] ?? '').trim();
+    const col2 = String(row[2] ?? '').trim();
 
-    const nonDay = row
-      .map((v, ci) => ({ v: String(v).trim(), ci }))
-      .filter(({ ci, v }) => !dayCols.has(ci) && v !== '');
+    // Linha de colaborador: col0 = número, col1 = nome, col2 = função
+    if (!col1 || col1.length < 3) continue;
+    if (SKIP_NAME.test(col1)) continue;
+    if (/^[A-Z]{1,3}$/.test(col1)) continue; // siglas da legenda
 
-    const num    = /^\d+$/.test(nonDay[0]?.v ?? '') ? Number(nonDay[0].v) : rows.length + 1;
-    const nome   = nonDay.find(({ ci }) => ci > 0 && !/^\d+$/.test(nonDay.find(x => x.ci === ci)?.v ?? ''))?.v
-                   ?? nonDay[1]?.v ?? '';
-    const funcao = nonDay.filter(({ v }) => v.length > 2 && !/^\d+$/.test(v))[1]?.v ?? '';
+    const num    = /^\d/.test(col0) ? parseInt(col0) : rows.length + 1;
     const diaVals = dayColMap.map(({ col }) => String(row[col] ?? '').trim().toUpperCase() || '');
 
-    if (nome) rows.push({ num, nome, funcao, dias: diaVals });
+    rows.push({ num, nome: col1, funcao: col2, dias: diaVals });
   }
 
-  return { dias, rows };
+  return { setor: setor || 'SETOR', dias, rows };
 }
 
 function parseWorkbook(file: File): Promise<EscalaSheet[]> {
@@ -149,12 +172,12 @@ function parseWorkbook(file: File): Promise<EscalaSheet[]> {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data   = new Uint8Array(e.target?.result as ArrayBuffer);
-        const wb     = XLSX.read(data, { type: 'array' });
-        const sheets: EscalaSheet[] = wb.SheetNames.map(name => {
-          const ws = wb.Sheets[name];
-          const { dias, rows } = parseEscalaSheet(ws);
-          return { setor: name.trim(), dias, rows };
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb   = XLSX.read(data, { type: 'array' });
+        const sheets: EscalaSheet[] = wb.SheetNames.map(sheetName => {
+          const ws = wb.Sheets[sheetName];
+          const { setor, dias, rows } = parseEscalaSheet(ws, file.name);
+          return { setor, dias, rows };
         }).filter(s => s.rows.length > 0);
         resolve(sheets);
       } catch (err) { reject(err); }
