@@ -240,7 +240,19 @@ export function EscalaPublica() {
         <TabelaSetor sheet={sheet} filtroNome={filtroNome} filtroStatus={filtroStatus} />
       </div>
 
-      <p className="text-center text-[10px] text-gray-300 mt-8">Desenvolvido por H8 Sistemas · Acesso restrito · Sujeito a alterações</p>
+      {/* Rodapé com marca */}
+      <div className="mt-10 px-4 flex flex-col items-center gap-3">
+        <img
+          src="/logo.png"
+          alt="Hibiscus Beach Club"
+          className="h-10 w-auto object-contain opacity-70"
+          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+        />
+        <p className="text-[10px] text-gray-300 text-center">
+          Hibiscus Beach Club · Acesso restrito · Sujeito a alterações
+        </p>
+        <p className="text-[9px] text-gray-200 text-center pb-4">Desenvolvido por H8 Sistemas</p>
+      </div>
     </div>
   );
 }
