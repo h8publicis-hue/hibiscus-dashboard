@@ -190,13 +190,14 @@ async function deletarEscala(id: string) {
 
 function TabEscalas() {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [sheets, setSheets]     = useState<EscalaSheet[] | null>(null);
-  const [mes, setMes]           = useState('');
+  const [sheets, setSheets]         = useState<EscalaSheet[] | null>(null);
+  const [parsing, setParsing]       = useState(false);
+  const [mes, setMes]               = useState('');
   const [publishing, setPublishing] = useState(false);
-  const [link, setLink]         = useState('');
-  const [metas, setMetas]       = useState<EscalaMeta[]>([]);
+  const [link, setLink]             = useState('');
+  const [metas, setMetas]           = useState<EscalaMeta[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
-  const [copiado, setCopiado]   = useState('');
+  const [copiado, setCopiado]       = useState('');
   const [confirmDel, setConfirmDel] = useState('');
 
   const reload = useCallback(() => {
@@ -207,18 +208,23 @@ function TabEscalas() {
   useEffect(() => { reload(); }, [reload]);
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setParsing(true);
+    setLink('');
     try {
-      const parsed = await parseWorkbook(file);
-      setSheets(parsed);
-      setLink('');
-      // Tenta extrair mês do nome do arquivo
-      const m = file.name.match(/jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|\d{4}/gi);
-      if (m) setMes(m.join(' '));
+      // Parseia todos os arquivos em paralelo e junta as abas
+      const allParsed = await Promise.all(files.map(f => parseWorkbook(f)));
+      const merged: EscalaSheet[] = allParsed.flat();
+      setSheets(merged.length > 0 ? merged : null);
+      if (merged.length === 0) { alert('Nenhum dado encontrado nos arquivos.'); }
+      // Tenta extrair mês do nome do primeiro arquivo
+      const m = files[0].name.match(/jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|\d{4}/gi);
+      if (m && !mes) setMes(m.join(' '));
     } catch {
-      alert('Erro ao ler o arquivo. Verifique se é um .xlsx válido.');
+      alert('Erro ao ler um dos arquivos. Verifique se todos são .xlsx válidos.');
     }
+    setParsing(false);
     e.target.value = '';
   };
 
@@ -255,17 +261,21 @@ function TabEscalas() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col gap-4">
         <div>
           <p className="text-sm font-bold text-gray-800">Enviar nova escala</p>
-          <p className="text-xs text-gray-400 mt-0.5">Arquivo .xlsx com abas por setor (Recepção, Bar, Garçons…)</p>
+          <p className="text-xs text-gray-400 mt-0.5">Selecione um ou vários .xlsx — cada arquivo é juntado automaticamente</p>
         </div>
 
         <button
           onClick={() => fileRef.current?.click()}
-          className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center gap-2 text-gray-400 hover:border-emerald-300 hover:text-emerald-500 transition-colors"
+          disabled={parsing}
+          className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center gap-2 text-gray-400 hover:border-emerald-300 hover:text-emerald-500 transition-colors disabled:opacity-50"
         >
-          <span className="text-2xl">📂</span>
-          <span className="text-sm font-medium">Clique para selecionar o arquivo .xlsx</span>
+          <span className="text-2xl">{parsing ? '⏳' : '📂'}</span>
+          <span className="text-sm font-medium">
+            {parsing ? 'Lendo arquivos…' : 'Clique para selecionar um ou mais arquivos .xlsx'}
+          </span>
+          <span className="text-xs text-gray-300">Selecione vários de uma vez — cada arquivo é um setor</span>
         </button>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={onFile} />
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" multiple className="hidden" onChange={onFile} />
 
         {sheets && (
           <div className="flex flex-col gap-3">
