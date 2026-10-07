@@ -10,6 +10,26 @@ const TIPOS: { key: TipoRefeicao; label: string; emoji: string }[] = [
   { key: 'lanche', label: 'Lanche', emoji: '🥪' },
 ];
 
+// Janelas de horário (HH:MM)
+const JANELAS: { key: TipoRefeicao; label: string; inicio: string; fim: string; emoji: string }[] = [
+  { key: 'cafe',   label: 'Café da Manhã', inicio: '08:30', fim: '09:40', emoji: '☕' },
+  { key: 'almoco', label: 'Almoço',        inicio: '11:00', fim: '15:00', emoji: '🍽️' },
+];
+
+function horaEmMinutos(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function detectarJanelaAtual(): TipoRefeicao | null {
+  const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
+  const min   = horaEmMinutos(agora);
+  for (const j of JANELAS) {
+    if (min >= horaEmMinutos(j.inicio) && min <= horaEmMinutos(j.fim)) return j.key;
+  }
+  return null;
+}
+
 type FeedbackState =
   | { kind: 'idle' }
   | { kind: 'scanning' }
@@ -19,7 +39,7 @@ type FeedbackState =
   | { kind: 'invalido' };
 
 export function Refeicao() {
-  const [tipo, setTipo]       = useState<TipoRefeicao>('almoco');
+  const [tipo, setTipo]       = useState<TipoRefeicao>(() => detectarJanelaAtual() ?? 'almoco');
   const [fb, setFb]           = useState<FeedbackState>({ kind: 'idle' });
   const scannerRef            = useRef<Html5Qrcode | null>(null);
   const scanningRef           = useRef(false);
@@ -155,13 +175,18 @@ export function Refeicao() {
   }, [stopScanner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tipoAtual = TIPOS.find(t => t.key === tipo)!;
+  const janelaAtiva = JANELAS.find(j => j.key === detectarJanelaAtual());
+  const proximaJanela = janelaAtiva ? null : JANELAS.find(j => {
+    const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Recife' });
+    return horaEmMinutos(j.inicio) > horaEmMinutos(agora);
+  });
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col select-none">
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <UtensilsCrossed size={18} className="text-brand-400" />
+          <UtensilsCrossed size={18} className="text-emerald-400" />
           <div>
             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Hibiscus Beach Club</p>
             <h1 className="text-sm font-bold text-white leading-tight">Refeitório</h1>
@@ -178,7 +203,7 @@ export function Refeicao() {
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 tipo === t.key
-                  ? 'bg-brand-600 text-white'
+                  ? 'bg-emerald-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
@@ -187,6 +212,27 @@ export function Refeicao() {
           ))}
         </div>
       </div>
+
+      {/* Banner de janela de horário */}
+      {janelaAtiva ? (
+        <div className="bg-emerald-700 px-4 py-1.5 flex items-center justify-center gap-2">
+          <span className="text-xs text-emerald-100 font-semibold">
+            {janelaAtiva.emoji} {janelaAtiva.label} aberto · {janelaAtiva.inicio}–{janelaAtiva.fim}
+          </span>
+        </div>
+      ) : proximaJanela ? (
+        <div className="bg-amber-700 px-4 py-1.5 flex items-center justify-center gap-2">
+          <span className="text-xs text-amber-100 font-semibold">
+            Fora do horário · próximo: {proximaJanela.emoji} {proximaJanela.label} às {proximaJanela.inicio}
+          </span>
+        </div>
+      ) : (
+        <div className="bg-gray-700 px-4 py-1.5 flex items-center justify-center gap-2">
+          <span className="text-xs text-gray-400">
+            {JANELAS.map(j => `${j.emoji} ${j.label} ${j.inicio}–${j.fim}`).join('  ·  ')}
+          </span>
+        </div>
+      )}
 
       {/* Área principal */}
       <div className="flex-1 relative flex items-center justify-center">

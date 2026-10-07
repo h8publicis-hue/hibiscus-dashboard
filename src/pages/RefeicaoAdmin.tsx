@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X, Upload, Trash2, Printer } from 'lucide-react';
+import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X, Upload, Trash2, Printer, ImageDown, Users } from 'lucide-react';
 import QRCode from 'qrcode';
+import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { Pessoa } from '../types';
 
@@ -152,6 +153,41 @@ function PessoaForm({ initial, onSave, onCancel }: {
   );
 }
 
+function ModalParceiros({ onCriar, onClose }: { onCriar: (n: number, prefixo: string) => void; onClose: () => void }) {
+  const [qtd, setQtd] = useState(80);
+  const [prefixo, setPrefixo] = useState('Parceiro');
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 dark:text-white">Criar Parceiros Temporários</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <p className="text-xs text-gray-400">Serão criados QR Codes numerados. Ex: Parceiro 01, Parceiro 02…</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 font-medium">Prefixo</label>
+            <input value={prefixo} onChange={e => setPrefixo(e.target.value)}
+              className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium">Quantidade</label>
+            <input type="number" min={1} max={200} value={qtd} onChange={e => setQtd(Number(e.target.value))}
+              className="w-full mt-0.5 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+          <button onClick={() => onCriar(qtd, prefixo.trim() || 'Parceiro')}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
+            Criar {qtd} parceiros
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RefeicaoAdmin() {
   const [pessoas,    setPessoas]    = useState<Pessoa[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -166,6 +202,8 @@ export function RefeicaoAdmin() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [aba,        setAba]        = useState<'cadastro' | 'presenca'>('cadastro');
   const [tipoFiltro, setTipoFiltro] = useState<string>('almoco');
+  const [catFiltro,  setCatFiltro]  = useState<string>('todos');
+  const [showParceiros, setShowParceiros] = useState(false);
   const fileInputRef                = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -255,10 +293,57 @@ export function RefeicaoAdmin() {
     } finally { setSaving(false); }
   };
 
-  const pessoasFiltradas = pessoas.filter(p =>
-    !search || p.nome.toLowerCase().includes(search.toLowerCase()) ||
-    p.empresa.toLowerCase().includes(search.toLowerCase())
-  );
+  const criarParceiros = async (qtd: number, prefixo: string) => {
+    setShowParceiros(false);
+    setSaving(true);
+    try {
+      const novas = Array.from({ length: qtd }, (_, i) => ({
+        nome:      `${prefixo} ${String(i + 1).padStart(2, '0')}`,
+        categoria: 'parceiro',
+        empresa:   'Hibiscus Beach Club',
+        setor: '', cargo: '', ativo: true,
+      }));
+      await fetch('/api/refeicoes?action=pessoas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pessoas: novas, substituir: false }),
+      });
+      await load();
+    } finally { setSaving(false); }
+  };
+
+  const exportarImagens = async () => {
+    const lista = pessoas.filter(p => selecionados.has(p.id));
+    if (lista.length === 0) return;
+    setSaving(true);
+    try {
+      const zip = new JSZip();
+      await Promise.all(lista.map(p => new Promise<void>(resolve => {
+        const canvas = document.createElement('canvas');
+        QRCode.toCanvas(canvas, p.qrCode, { width: 300, margin: 2 }, () => {
+          canvas.toBlob(blob => {
+            if (blob) {
+              const safeName = p.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
+              zip.file(`${safeName}.png`, blob);
+            }
+            resolve();
+          }, 'image/png');
+        });
+      })));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `qrcodes-${lista.length}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally { setSaving(false); }
+  };
+
+  const pessoasFiltradas = pessoas.filter(p => {
+    const matchSearch = !search || p.nome.toLowerCase().includes(search.toLowerCase()) || p.empresa.toLowerCase().includes(search.toLowerCase());
+    const matchCat = catFiltro === 'todos' || p.categoria === catFiltro;
+    return matchSearch && matchCat;
+  });
 
   const toggleSelecionado = (id: string) => {
     setSelecionados(prev => {
@@ -374,11 +459,19 @@ export function RefeicaoAdmin() {
             <Trash2 size={14} /> Zerar Tudo
           </button>
           {selecionados.size > 0 && (
-            <button onClick={imprimirQrCodes} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
-              <Printer size={14} /> Imprimir QR ({selecionados.size})
-            </button>
+            <>
+              <button onClick={imprimirQrCodes} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
+                <Printer size={14} /> Imprimir QR ({selecionados.size})
+              </button>
+              <button onClick={exportarImagens} disabled={saving} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors disabled:opacity-40">
+                <ImageDown size={14} /> Exportar imagens ({selecionados.size})
+              </button>
+            </>
           )}
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors">
+          <button onClick={() => setShowParceiros(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-indigo-200 text-sm text-indigo-600 hover:bg-indigo-50 transition-colors">
+            <Users size={14} /> Parceiros temp.
+          </button>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
             <Plus size={14} /> Nova Pessoa
           </button>
         </div>
@@ -513,13 +606,23 @@ export function RefeicaoAdmin() {
         <PessoaForm onSave={criarPessoa} onCancel={() => setShowForm(false)} />
       )}
 
-      {/* Busca */}
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Buscar por nome ou empresa..."
-        className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-      />
+      {/* Busca + filtro de categoria */}
+      <div className="flex flex-col gap-2">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por nome ou empresa..."
+          className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        />
+        <div className="flex gap-2 flex-wrap">
+          {(['todos', 'colaborador', 'parceiro', 'visitante'] as const).map(cat => (
+            <button key={cat} onClick={() => setCatFiltro(cat)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors border ${catFiltro === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-indigo-300'}`}>
+              {cat === 'todos' ? `Todos (${pessoas.length})` : `${cat} (${pessoas.filter(p => p.categoria === cat).length})`}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Tabela */}
       {loading ? (
@@ -602,6 +705,7 @@ export function RefeicaoAdmin() {
       )}
 
       {qrPessoa && <QrModal pessoa={qrPessoa} onClose={() => setQrPessoa(null)} />}
+      {showParceiros && <ModalParceiros onCriar={criarParceiros} onClose={() => setShowParceiros(false)} />}
 
       </> /* fim aba cadastro */}
     </div>
