@@ -318,10 +318,74 @@ export function RefeicaoAdmin() {
     setSaving(true);
     try {
       const zip = new JSZip();
+      const QR_SIZE = 360;
+      const PADDING = 32;
+      const CARD_W = QR_SIZE + PADDING * 2;
+
       await Promise.all(lista.map(p => new Promise<void>(resolve => {
-        const canvas = document.createElement('canvas');
-        QRCode.toCanvas(canvas, p.qrCode, { width: 300, margin: 2 }, () => {
-          canvas.toBlob(blob => {
+        // 1. Gera o QR num canvas temporário
+        const qrCanvas = document.createElement('canvas');
+        QRCode.toCanvas(qrCanvas, p.qrCode, { width: QR_SIZE, margin: 2 }, () => {
+          // 2. Monta o card final
+          const card = document.createElement('canvas');
+          const ctx = card.getContext('2d')!;
+
+          // Mede textos para calcular altura
+          card.width = CARD_W;
+          card.height = 10; // temporário para medir
+          ctx.font = 'bold 28px Arial, sans-serif';
+          const nomeLines: string[] = [];
+          const words = p.nome.split(' ');
+          let line = '';
+          for (const w of words) {
+            const test = line ? `${line} ${w}` : w;
+            if (ctx.measureText(test).width > CARD_W - PADDING * 2) {
+              if (line) nomeLines.push(line);
+              line = w;
+            } else { line = test; }
+          }
+          if (line) nomeLines.push(line);
+
+          const LINE_H_NOME = 36;
+          const LINE_H_SUB  = 26;
+          const subCount = [p.empresa, p.setor].filter(Boolean).length;
+          const headerH = PADDING + nomeLines.length * LINE_H_NOME + (subCount > 0 ? 8 + subCount * LINE_H_SUB : 0) + PADDING;
+          const CARD_H = headerH + QR_SIZE + PADDING;
+
+          card.height = CARD_H;
+
+          // Fundo branco
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, CARD_W, CARD_H);
+
+          // Borda cinza suave
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(1, 1, CARD_W - 2, CARD_H - 2);
+
+          // Nome
+          ctx.fillStyle = '#111827';
+          ctx.font = 'bold 28px Arial, sans-serif';
+          ctx.textBaseline = 'top';
+          let y = PADDING;
+          for (const ln of nomeLines) {
+            ctx.fillText(ln, PADDING, y);
+            y += LINE_H_NOME;
+          }
+
+          // Subtítulo: empresa · setor
+          const sub = [p.empresa, p.setor].filter(Boolean).join(' · ');
+          if (sub) {
+            y += 8;
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '22px Arial, sans-serif';
+            ctx.fillText(sub, PADDING, y);
+          }
+
+          // QR code
+          ctx.drawImage(qrCanvas, PADDING, headerH, QR_SIZE, QR_SIZE);
+
+          card.toBlob(blob => {
             if (blob) {
               const safeName = p.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
               zip.file(`${safeName}.png`, blob);
