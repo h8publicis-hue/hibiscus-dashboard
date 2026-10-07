@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { TipoRefeicao } from '../types';
 import { Plus, RefreshCw, QrCode, Download, Pencil, Check, X, Upload, Trash2, Printer, ImageDown, Users } from 'lucide-react';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -71,18 +72,33 @@ function PessoaForm({ initial, onSave, onCancel }: {
   onSave: (data: Partial<Pessoa>) => void;
   onCancel: () => void;
 }) {
+  const defaultRefeicoes = (cat: string): TipoRefeicao[] => {
+    if (cat === 'colaborador') return ['almoco'];
+    if (cat === 'parceiro')    return ['cafe', 'almoco'];
+    return ['cafe', 'almoco'];
+  };
+
   const [form, setForm] = useState({
-    nome:           initial?.nome           ?? '',
-    categoria:      initial?.categoria      ?? 'colaborador',
-    empresa:        initial?.empresa        ?? '',
-    setor:          initial?.setor          ?? '',
-    cargo:          initial?.cargo          ?? '',
-    dataNascimento: initial?.dataNascimento ?? '',
-    dataAdmissao:   initial?.dataAdmissao   ?? '',
-    ativo:          initial?.ativo          ?? true,
+    nome:                initial?.nome                ?? '',
+    categoria:           initial?.categoria           ?? 'colaborador',
+    empresa:             initial?.empresa             ?? '',
+    setor:               initial?.setor               ?? '',
+    cargo:               initial?.cargo               ?? '',
+    dataNascimento:      initial?.dataNascimento      ?? '',
+    dataAdmissao:        initial?.dataAdmissao        ?? '',
+    ativo:               initial?.ativo               ?? true,
+    refeicoesPermitidas: initial?.refeicoesPermitidas ?? defaultRefeicoes(initial?.categoria ?? 'colaborador'),
   });
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const toggleRefeicao = (tipo: TipoRefeicao) => {
+    setForm(f => {
+      const atual = f.refeicoesPermitidas;
+      const nova = atual.includes(tipo) ? atual.filter(r => r !== tipo) : [...atual, tipo];
+      return { ...f, refeicoesPermitidas: nova.length === 0 ? atual : nova }; // impede lista vazia
+    });
+  };
 
   return (
     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 flex flex-col gap-3">
@@ -95,7 +111,10 @@ function PessoaForm({ initial, onSave, onCancel }: {
         </div>
         <div>
           <label className="text-xs text-gray-500 dark:text-gray-400 font-medium">Categoria</label>
-          <select value={form.categoria} onChange={e => set('categoria', e.target.value)}
+          <select value={form.categoria} onChange={e => {
+            set('categoria', e.target.value);
+            if (!initial) set('refeicoesPermitidas', defaultRefeicoes(e.target.value));
+          }}
             className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="colaborador">Colaborador</option>
             <option value="parceiro">Parceiro</option>
@@ -135,6 +154,25 @@ function PessoaForm({ initial, onSave, onCancel }: {
         <div className="flex items-center gap-2 mt-1">
           <input type="checkbox" id="ativo" checked={form.ativo} onChange={e => set('ativo', e.target.checked)} className="rounded" />
           <label htmlFor="ativo" className="text-sm text-gray-600 dark:text-gray-300">Ativo</label>
+        </div>
+        <div className="col-span-2">
+          <label className="text-xs text-gray-500 dark:text-gray-400 font-medium">Refeições permitidas</label>
+          <div className="flex gap-2 mt-1">
+            {([
+              { key: 'cafe'   as TipoRefeicao, label: '☕ Café' },
+              { key: 'almoco' as TipoRefeicao, label: '🍽️ Almoço' },
+            ]).map(({ key, label }) => {
+              const ativo = form.refeicoesPermitidas.includes(key);
+              return (
+                <button key={key} type="button" onClick={() => toggleRefeicao(key)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold border-2 transition-colors ${
+                    ativo ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600'
+                  }`}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       <div className="flex gap-2 justify-end">

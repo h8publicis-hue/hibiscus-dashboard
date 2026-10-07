@@ -143,7 +143,7 @@ export default async function handler(req: any, res: any) {
         const pessoas = await getPessoas();
         const idx = pessoas.findIndex((p: any) => p.id === id);
         if (idx === -1) return res.status(404).json({ error: 'Pessoa não encontrada' });
-        const allowed = ['nome', 'categoria', 'empresa', 'setor', 'cargo', 'dataNascimento', 'dataAdmissao', 'foto', 'ativo'];
+        const allowed = ['nome', 'categoria', 'empresa', 'setor', 'cargo', 'dataNascimento', 'dataAdmissao', 'foto', 'ativo', 'refeicoesPermitidas'];
         for (const k of allowed) { if (req.body?.[k] !== undefined) pessoas[idx][k] = req.body[k]; }
         await savePessoas(pessoas);
         return res.json({ ok: true, pessoa: pessoas[idx] });
@@ -184,6 +184,13 @@ export default async function handler(req: any, res: any) {
     if (!pessoaId || !nome) return res.status(400).json({ error: 'pessoaId e nome obrigatórios' });
     const data = todayBRT(); const hora = nowBRT();
     try {
+      // Valida refeicoesPermitidas
+      const pessoas = await getPessoas();
+      const pessoa = pessoas.find((p: any) => p.id === pessoaId);
+      if (pessoa?.refeicoesPermitidas?.length > 0 && !pessoa.refeicoesPermitidas.includes(tipoRefeicao)) {
+        return res.json({ ok: true, status: 'nao_permitida', tipoRefeicao, permitidas: pessoa.refeicoesPermitidas });
+      }
+
       const refeicoes = await getRefeicoes(data);
       const duplicada = refeicoes.find((r: any) => r.pessoaId === pessoaId && r.tipoRefeicao === tipoRefeicao && r.status === 'registrada');
       if (duplicada) return res.json({ ok: true, status: 'duplicada', horaAnterior: duplicada.hora });

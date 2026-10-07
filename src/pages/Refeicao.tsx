@@ -34,8 +34,9 @@ type FeedbackState =
   | { kind: 'idle' }
   | { kind: 'scanning' }
   | { kind: 'loading' }
-  | { kind: 'sucesso';    pessoa: Pessoa; hora: string }
-  | { kind: 'duplicada';  nome: string;  horaAnterior: string; tipo: string }
+  | { kind: 'sucesso';       pessoa: Pessoa; hora: string }
+  | { kind: 'duplicada';     nome: string;  horaAnterior: string; tipo: string }
+  | { kind: 'nao_permitida'; nome: string;  permitidas: string[] }
   | { kind: 'invalido' };
 
 export function Refeicao() {
@@ -122,7 +123,10 @@ export function Refeicao() {
       });
       const reg = await regRes.json();
 
-      if (reg.status === 'duplicada') {
+      if (reg.status === 'nao_permitida') {
+        const permitidasLabel = (reg.permitidas as string[]).map(k => JANELAS.find(j => j.key === k)?.label ?? k).join(' e ');
+        setFb({ kind: 'nao_permitida', nome: pessoa.nome, permitidas: [permitidasLabel] });
+      } else if (reg.status === 'duplicada') {
         const tipoLabel = TIPOS.find(t => t.key === tipoRefeicao)?.label ?? tipoRefeicao;
         setFb({ kind: 'duplicada', nome: pessoa.nome, horaAnterior: reg.horaAnterior, tipo: tipoLabel });
       } else {
@@ -288,6 +292,22 @@ export function Refeicao() {
               <p className="text-2xl font-black text-white">{fb.nome}</p>
               <p className="text-amber-100 text-base mt-2">
                 {fb.tipo} já registrado hoje às <span className="font-bold">{fb.horaAnterior}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Não permitida */}
+        {fb.kind === 'nao_permitida' && (
+          <div className="w-full h-full bg-orange-500 flex flex-col items-center justify-center gap-4 px-6">
+            <XCircle size={56} className="text-white" />
+            <div className="text-center">
+              <p className="text-2xl font-black text-white">{fb.nome}</p>
+              <p className="text-orange-100 text-base mt-2">
+                Refeição não incluída no seu acesso
+              </p>
+              <p className="text-orange-200 text-sm mt-1">
+                Permitido: {fb.permitidas[0]}
               </p>
             </div>
           </div>

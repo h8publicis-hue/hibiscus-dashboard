@@ -170,6 +170,7 @@ export interface Pessoa {
   cargo?: string;
   dataNascimento?: string;
   dataAdmissao?: string;
+  refeicoesPermitidas?: TipoRefeicao[]; // undefined = todas liberadas
 }
 
 export interface Refeicao {
