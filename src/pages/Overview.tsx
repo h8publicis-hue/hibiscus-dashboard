@@ -689,10 +689,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Check-in Online</span>
           {!ckL && checkin && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" title="API ativa" />}
         </div>
-        <a href="https://loja.hibiscusbeachclub.com.br/admin/checkin" target="_blank" rel="noopener noreferrer"
-          className="text-[10px] text-blue-600 dark:text-blue-400 underline whitespace-nowrap font-semibold">
-          Abrir →
-        </a>
       </div>
 
       {ckL ? (
