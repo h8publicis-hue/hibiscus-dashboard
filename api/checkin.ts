@@ -155,13 +155,16 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   const cacheKey = `checkin-v3:${todayBRT()}`;
+  const fresh = req.query?.fresh === '1';
 
-  if (memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
+  if (!fresh && memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
 
-  const kv = await kvGet(cacheKey) as CheckinData | null;
-  if (kv && Date.now() - kv.ts < CACHE_TTL) {
-    memCache = { data: kv, ts: kv.ts };
-    return res.json(kv);
+  if (!fresh) {
+    const kv = await kvGet(cacheKey) as CheckinData | null;
+    if (kv && Date.now() - kv.ts < CACHE_TTL) {
+      memCache = { data: kv, ts: kv.ts };
+      return res.json(kv);
+    }
   }
 
   try {
