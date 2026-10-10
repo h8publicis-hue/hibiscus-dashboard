@@ -454,7 +454,7 @@ function AreasBeachCompact() {
     <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
         <Waves size={12} className="text-blue-500" />
-        <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Áreas Beach</p>
+        <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mesas das Áreas Beach</p>
       </div>
       <div className="flex flex-col gap-1.5">
         {areasComMesas.map(area => {
