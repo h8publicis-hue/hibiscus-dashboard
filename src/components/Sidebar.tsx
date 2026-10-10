@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Smile, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen, Map, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Smile, Activity, Bell, UtensilsCrossed, Settings, FileText, BookOpen, Map, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
 
@@ -9,13 +9,16 @@ interface SidebarProps {
 }
 
 export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
-  const [expanded, setExpanded] = useState<boolean>(() => {
+  const [pinned, setPinned] = useState<boolean>(() => {
     try { return localStorage.getItem('sidebar-expanded') === 'true'; } catch { return false; }
   });
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
-    try { localStorage.setItem('sidebar-expanded', String(expanded)); } catch { /* ignore */ }
-  }, [expanded]);
+    try { localStorage.setItem('sidebar-expanded', String(pinned)); } catch { /* ignore */ }
+  }, [pinned]);
+
+  const open = pinned || hovered;
 
   const allItems = [
     { to: '/',               icon: LayoutDashboard, label: 'Visão Geral',    alerts: overviewAlerts },
@@ -35,20 +38,20 @@ export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
       key={to}
       to={to}
       end={to === '/'}
-      title={!expanded ? label : undefined}
+      title={!open ? label : undefined}
       className={({ isActive }) =>
         clsx(
           'flex items-center rounded-lg text-sm font-medium transition-all duration-200',
-          expanded ? 'justify-between px-3 py-2' : 'justify-center px-0 py-2.5',
+          open ? 'justify-between px-3 py-2' : 'justify-center px-0 py-2.5',
           isActive
-            ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
+            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
         )
       }
     >
-      <span className={clsx('flex items-center', expanded ? 'gap-2.5' : 'justify-center w-full')}>
+      <span className={clsx('flex items-center', open ? 'gap-2.5' : 'justify-center w-full')}>
         <Icon size={18} />
-        {expanded && <span className="truncate">{label}</span>}
+        {open && <span className="truncate">{label}</span>}
       </span>
       {alerts > 0 && (
         <span className="bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center leading-none shrink-0">
@@ -63,22 +66,28 @@ export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
 
   return (
     <aside
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={clsx(
         'hidden lg:flex flex-col py-4 shrink-0 self-stretch bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-200',
-        expanded ? 'w-52 px-3' : 'w-14 px-1.5',
+        open ? 'w-52 px-3' : 'w-14 px-1.5',
       )}
     >
-      {/* Toggle no topo */}
+      {/* Toggle — fixa/desfxa o menu aberto */}
       <div className="border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
         <button
-          onClick={() => setExpanded(e => !e)}
-          title={expanded ? 'Recolher menu' : 'Expandir menu'}
+          onClick={() => setPinned(p => !p)}
+          title={pinned ? 'Desafixar menu' : 'Fixar menu aberto'}
           className={clsx(
             'flex items-center rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-full',
-            expanded ? 'gap-2 px-3 py-2 justify-start' : 'justify-center px-0 py-2.5',
+            open ? 'gap-2 px-3 py-2 justify-start' : 'justify-center px-0 py-2.5',
           )}
         >
-          {expanded ? <><ChevronRight size={15} /><span>Menu</span></> : <ChevronRight size={15} />}
+          <ChevronRight
+            size={15}
+            className={clsx('transition-transform duration-200', pinned && 'rotate-180')}
+          />
+          {open && <span>{pinned ? 'Recolher' : 'Fixar'}</span>}
         </button>
       </div>
 
