@@ -705,7 +705,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       ) : (
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: 'Reservados', value: checkin?.reservados ?? '—', color: 'text-purple-600 dark:text-purple-400' },
+            { label: 'Reservados', value: ptL ? '…' : (paytour?.totalSales ?? '—'), color: 'text-purple-600 dark:text-purple-400' },
             { label: 'Disponíveis', value: checkin?.sessionActive ? (checkin?.disponiveis ?? '—') : '—', color: 'text-orange-500' },
             { label: 'Check-ins', value: checkin?.sessionActive ? (checkin?.checkins ?? '—') : '—', color: 'text-green-600 dark:text-green-400' },
             { label: 'Pendentes', value: checkin?.sessionActive ? (checkin?.pendentes ?? '—') : '—', color: 'text-red-500' },
