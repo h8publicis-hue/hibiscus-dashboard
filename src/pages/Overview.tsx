@@ -1524,34 +1524,34 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       </div>
 
       {/* ── DESKTOP: grid ───────────────────────────────────────────────── */}
-      <div className="hidden lg:flex flex-col h-full overflow-hidden">
+      <div className="hidden lg:flex flex-col overflow-y-auto">
         {bannerAviso}
-        <div className="flex flex-1 overflow-hidden px-4 pb-4">
-        <div className="grid grid-cols-3 gap-3 w-full min-h-0">
+        <div className="px-4 pt-1 pb-8">
+          <div className="grid grid-cols-3 gap-3 w-full">
 
-          {/* Coluna 1 — Receita + Chamadas */}
-          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
-            {blocoAoVivo}
-            {blocoJaVendido}
-            {blocoChamadas}
+            {/* Coluna 1 — Receita + Chamadas */}
+            <div className="flex flex-col gap-3">
+              {blocoAoVivo}
+              {blocoJaVendido}
+              {blocoChamadas}
+            </div>
+
+            {/* Coluna 2 — Ocupação + Check-in */}
+            <div className="flex flex-col gap-3">
+              {blocoOcupacao}
+              {blocoCheckin}
+            </div>
+
+            {/* Coluna 3 — Reputação */}
+            <div className="flex flex-col gap-3">
+              {blocoSatisfacao}
+              {blocoNPS}
+              <ReviewsTicker surveyData={survey} />
+              {blocoStaffRanking}
+            </div>
+
           </div>
-
-          {/* Coluna 2 — Ocupação + Check-in */}
-          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
-            {blocoOcupacao}
-            {blocoCheckin}
-          </div>
-
-          {/* Coluna 3 — Reputação */}
-          <div className="flex flex-col gap-3 min-h-0 overflow-y-auto">
-            {blocoSatisfacao}
-            {blocoNPS}
-            <ReviewsTicker surveyData={survey} />
-            {blocoStaffRanking}
-          </div>
-
         </div>
-        </div>{/* fecha flex flex-1 overflow-hidden */}
       </div>
     </>
   );
