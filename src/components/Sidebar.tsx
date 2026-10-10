@@ -10,7 +10,7 @@ interface SidebarProps {
 
 export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
   const [expanded, setExpanded] = useState<boolean>(() => {
-    try { return localStorage.getItem('sidebar-expanded') !== 'false'; } catch { return true; }
+    try { return localStorage.getItem('sidebar-expanded') === 'true'; } catch { return false; }
   });
 
   useEffect(() => {
@@ -68,24 +68,26 @@ export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
         expanded ? 'w-52 px-3' : 'w-14 px-1.5',
       )}
     >
+      {/* Toggle no topo */}
+      <div className="border-b border-gray-100 dark:border-gray-700 pb-2 mb-2">
+        <button
+          onClick={() => setExpanded(e => !e)}
+          title={expanded ? 'Recolher menu' : 'Expandir menu'}
+          className={clsx(
+            'flex items-center rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-full',
+            expanded ? 'gap-2 px-3 py-2 justify-start' : 'justify-center px-0 py-2.5',
+          )}
+        >
+          {expanded ? <><ChevronRight size={15} /><span>Menu</span></> : <ChevronRight size={15} />}
+        </button>
+      </div>
+
       <nav className="flex flex-col gap-1 flex-1">
         {mainItems.map(renderLink)}
       </nav>
 
       <div className="border-t border-gray-100 dark:border-gray-700 pt-2 mt-2 flex flex-col gap-1">
         {bottomItems.map(renderLink)}
-
-        {/* Toggle */}
-        <button
-          onClick={() => setExpanded(e => !e)}
-          title={expanded ? 'Recolher menu' : 'Expandir menu'}
-          className={clsx(
-            'flex items-center rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors mt-1',
-            expanded ? 'gap-2 px-3 py-2' : 'justify-center px-0 py-2.5',
-          )}
-        >
-          {expanded ? <><ChevronLeft size={15} /><span>Recolher</span></> : <ChevronRight size={15} />}
-        </button>
       </div>
     </aside>
   );
