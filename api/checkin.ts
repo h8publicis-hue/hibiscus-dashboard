@@ -20,7 +20,7 @@ export interface CheckinData {
   total?:        number;
   ts:            number;
   stale?:        boolean;
-  _debugDisp?:   any;
+  _debugAtiv?:   any;
 }
 
 let memCache: { data: CheckinData; ts: number } | null = null;
@@ -127,24 +127,12 @@ async function fetchCheckin(): Promise<CheckinData> {
   const checkins   = atividades.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
   const pendentes  = reservados - checkins;
 
-  // Capacidade: busca pelas disponibilidades distintas encontradas nas atividades
-  let disponiveis: number | undefined;
-  let _debugDisp: any = undefined;
-  const dispIds = [...new Set(atividades.map((a: any) => a.produto_disponibilidade_id).filter(Boolean))];
-  if (dispIds.length > 0) {
-    const results = await Promise.all(dispIds.map(id => fetchCapacidade(String(id), token)));
-    _debugDisp = { ids: dispIds, results };
-    const totalCap = results.reduce((acc, { cap }) => acc != null && cap != null ? acc + cap : acc ?? cap, null as number | null);
-    if (totalCap != null) disponiveis = Math.max(0, totalCap - reservados);
-  }
-
   return {
     reservados,
     sessionActive: true,
     checkins,
     pendentes,
-    ...(disponiveis != null ? { disponiveis } : {}),
-    _debugDisp,
+    _debugAtiv: atividades[0] ?? null,
     ts: Date.now(),
   };
 }
