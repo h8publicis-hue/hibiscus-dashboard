@@ -27,7 +27,7 @@ export function Sidebar({ overviewAlerts, surveyAlerts }: SidebarProps) {
     { to: '/mapa-ocupacao',  icon: Map,             label: 'Mapa Beach',     alerts: 0 },
     { to: '/chamadas',       icon: Bell,            label: 'Chamadas',       alerts: 0 },
     { to: '/relatorio',      icon: FileText,        label: 'Fechamento',     alerts: 0 },
-    { to: '/cozinha',        icon: UtensilsCrossed, label: 'Cozinha',        alerts: 0 },
+    { to: '/cozinha',        icon: UtensilsCrossed, label: 'Painel Cozinha', alerts: 0 },
     { to: '/refeicao/admin', icon: UtensilsCrossed, label: 'Refeitório',     alerts: 0 },
     { to: '/ajuda',          icon: BookOpen,        label: 'Treinamento',    alerts: 0 },
     { to: '/configuracoes',  icon: Settings,        label: 'Configurações',  alerts: 0 },
