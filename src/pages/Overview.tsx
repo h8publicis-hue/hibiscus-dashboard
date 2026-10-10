@@ -1,4 +1,4 @@
-import { Users, Star, Target, MessageSquare, Smile, Info, Megaphone, X, Check, Pencil } from 'lucide-react';
+import { Users, Star, Target, MessageSquare, Smile, Info, Megaphone, X, Check, Pencil, Waves } from 'lucide-react';
 import { ReviewsTicker } from '../components/ReviewsTicker';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
@@ -13,6 +13,8 @@ import { useAviso, AvisoList, AvisoArea, AVISO_AREAS, AvisoLayout } from '../hoo
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { BEACH_SETORES, BEACH_SETOR_GRUPOS } from '../types';
+import { useBeachTables, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
+import type { MesaArea } from '../hooks/useBeachTables';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -443,6 +445,46 @@ const NPS_PERIODS = [
   { key: '30d',   label: '30d'  },
 ] as const;
 
+function AreasBeachCompact() {
+  const { tables, estado } = useBeachTables();
+  const areasComMesas = (AREAS as MesaArea[]).filter(a => tables.some(t => t.area === a));
+  if (areasComMesas.length === 0) return null;
+
+  return (
+    <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex flex-col gap-2">
+      <div className="flex items-center gap-1.5">
+        <Waves size={12} className="text-blue-500" />
+        <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Áreas Beach</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {areasComMesas.map(area => {
+          const mesas = tables.filter(t => t.area === area);
+          const total = mesas.length;
+          const ocup  = mesas.filter(t => estado[t.numero]?.status === 'ocupada').length;
+          const pct   = total > 0 ? Math.round((ocup / total) * 100) : 0;
+          const color = AREA_COLORS[area];
+          return (
+            <div key={area} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color.dot }} />
+                  <p className="text-[11px] text-gray-700 dark:text-gray-300 font-medium truncate">{area}</p>
+                </div>
+                <span className="text-[11px] font-bold text-gray-800 dark:text-gray-200 tabular-nums shrink-0">
+                  {ocup}/{total} <span className="text-gray-400 font-normal">{pct}%</span>
+                </span>
+              </div>
+              <div className="w-full h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color.dot }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const [npsPeriod, setNpsPeriod] = useState<string>('month');
   const { data: survey,  loading: smL } = useSurveyMonkey(npsPeriod);
@@ -686,6 +728,24 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
   // ── Bloco: Check-in Online ────────────────────────────────────────────────
   const blocoCheckin = (
+    <div className="bg-white dark:bg-gray-800 rounded-xl px-4 py-2.5 shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-1.5">
+        <Users size={13} className="text-gray-400" />
+        <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Check-in Online</span>
+        <span className="text-[10px] text-gray-400">— indisponível (loja Paytour)</span>
+      </div>
+      <a
+        href="https://loja.hibiscusbeachclub.com.br/admin/checkin"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[10px] text-blue-600 dark:text-blue-400 underline whitespace-nowrap font-semibold"
+      >
+        Abrir →
+      </a>
+    </div>
+  );
+
+  const _blocoCheckinOld = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600">
       <div className="flex items-center gap-1.5 mb-3">
         <Users size={14} className="text-brand-500" />
@@ -988,6 +1048,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         </div>
 
         <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} reservas={occupancy.reservasHoje} />
+        <AreasBeachCompact />
         {reservasPendentes > 0 && (
           <p className="text-xs font-semibold text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-center">
             ⚠️ {reservasPendentes} reserva{reservasPendentes > 1 ? 's' : ''} pendente{reservasPendentes > 1 ? 's' : ''} — confirmar com o comercial
