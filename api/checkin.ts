@@ -20,6 +20,7 @@ export interface CheckinData {
   total?:        number;
   ts:            number;
   stale?:        boolean;
+  _debugDisp?:   any;
 }
 
 let memCache: { data: CheckinData; ts: number } | null = null;
@@ -90,18 +91,17 @@ async function getPtToken(attempt = 1): Promise<string> {
 }
 
 // ── Capacidade da disponibilidade (vagas totais) ──────────────────────────────
-async function fetchCapacidade(dispId: string, token: string): Promise<number | null> {
+async function fetchCapacidade(dispId: string, token: string): Promise<{ cap: number | null; raw?: any }> {
   try {
     const r = await fetch(`${PT_BASE}/v2/disponibilidades/${dispId}`, {
       headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
       signal: AbortSignal.timeout(8_000),
     });
-    if (!r.ok) return null;
+    if (!r.ok) return { cap: null, raw: { status: r.status } };
     const j = await r.json() as any;
-    // capacidade pode estar em vagas, quantidade ou capacidade
-    const cap = j?.vagas ?? j?.quantidade ?? j?.capacidade ?? null;
-    return cap != null ? Number(cap) : null;
-  } catch { return null; }
+    const cap = j?.vagas ?? j?.quantidade ?? j?.capacidade ?? j?.total ?? j?.limite ?? null;
+    return { cap: cap != null ? Number(cap) : null, raw: j };
+  } catch (e: any) { return { cap: null, raw: { error: e.message } }; }
 }
 
 // ── Fetch atividades do dia ───────────────────────────────────────────────────
@@ -127,13 +127,14 @@ async function fetchCheckin(): Promise<CheckinData> {
   const checkins   = atividades.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
   const pendentes  = reservados - checkins;
 
-  // Capacidade: busca pela primeira disponibilidade distinta encontrada nas atividades
+  // Capacidade: busca pelas disponibilidades distintas encontradas nas atividades
   let disponiveis: number | undefined;
+  let _debugDisp: any = undefined;
   const dispIds = [...new Set(atividades.map((a: any) => a.produto_disponibilidade_id).filter(Boolean))];
   if (dispIds.length > 0) {
-    // Soma capacidade de todas as disponibilidades do dia
-    const caps = await Promise.all(dispIds.map(id => fetchCapacidade(String(id), token)));
-    const totalCap = caps.reduce((acc, c) => acc != null && c != null ? acc + c : acc ?? c, null as number | null);
+    const results = await Promise.all(dispIds.map(id => fetchCapacidade(String(id), token)));
+    _debugDisp = { ids: dispIds, results };
+    const totalCap = results.reduce((acc, { cap }) => acc != null && cap != null ? acc + cap : acc ?? cap, null as number | null);
     if (totalCap != null) disponiveis = Math.max(0, totalCap - reservados);
   }
 
@@ -143,6 +144,7 @@ async function fetchCheckin(): Promise<CheckinData> {
     checkins,
     pendentes,
     ...(disponiveis != null ? { disponiveis } : {}),
+    _debugDisp,
     ts: Date.now(),
   };
 }
