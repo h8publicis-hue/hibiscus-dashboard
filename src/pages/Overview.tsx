@@ -504,9 +504,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       ckSetData(r.data);
       setCkShowForm(false);
       setCkSessionId('');
-      setCkMsg(null);
+      if ((r as any).warn) {
+        setCkMsg((r as any).warn);
+      } else {
+        setCkMsg(null);
+      }
     } else {
-      setCkMsg(r.error ?? 'Sessão inválida — verifique o PHPSESSID e tente novamente');
+      setCkMsg(r.error ?? 'Erro ao salvar sessão — tente novamente');
     }
     setCkConnecting(false);
   }

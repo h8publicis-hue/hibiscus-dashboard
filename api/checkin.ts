@@ -375,26 +375,18 @@ export default async function handler(req: any, res: any) {
 
       const session = user === '__phpsessid__' ? pass : (() => { throw new Error('Use PHPSESSID direto'); })();
 
-      // Valida
-      const today = todayBRT();
-      const testRes = await lojaFetch(
-        `/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
-        session,
-      );
-      const testText = await testRes.text();
-      console.log('[checkin] validação status:', testRes.status, 'url:', testRes.url, 'body[:100]:', testText.slice(0, 100));
-      if (isSessionExpired(testText, testRes.status)) {
-        throw new Error('Sessão inválida — PHPSESSID não autenticado. Faça login no Paytour primeiro.');
-      }
-
+      // Salva sem validar — a validação via Cloudflare bloqueia chamadas do Vercel
       activeSession = session;
       await kvSet(SESSION_KV, session, 23 * 60 * 60);
       memCache = null;
-      // Invalida cache do dia e busca dados frescos imediatamente
       await kvSet(`checkin-v2:${todayBRT()}`, '', 1);
       const freshData = await fetchCheckin();
       memCache = { data: freshData, ts: freshData.ts };
       kvSet(`checkin-v2:${todayBRT()}`, freshData);
+      if (!freshData.sessionActive) {
+        // Sessão salva mas loja ainda bloqueou — informa sem rejeitar
+        return res.json({ ok: true, session: session.slice(0, 8) + '...', data: freshData, warn: 'Sessão salva, mas loja retornou bloqueio. Tente novamente mais tarde.' });
+      }
       return res.json({ ok: true, session: session.slice(0, 8) + '...', data: freshData });
     } catch (e: any) {
       return res.status(401).json({ ok: false, error: e.message });
