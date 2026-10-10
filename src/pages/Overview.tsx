@@ -6,7 +6,7 @@ import { usePaytour } from '../hooks/usePaytour';
 
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
-import { useCheckin, checkinManualLogin, checkinClearSession } from '../hooks/useCheckin';
+import { useCheckin } from '../hooks/useCheckin';
 import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso, AvisoList, AvisoArea, AVISO_AREAS, AvisoLayout } from '../hooks/useAviso';
@@ -489,36 +489,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const [npsPeriod, setNpsPeriod] = useState<string>('month');
   const { data: survey,  loading: smL } = useSurveyMonkey(npsPeriod);
   const { data: paytour, loading: ptL } = usePaytour('today');
-  const { data: checkin, loading: ckL, refresh: ckRefresh, setData: ckSetData } = useCheckin();
-  const [ckConnecting, setCkConnecting] = useState(false);
-  const [ckShowForm,   setCkShowForm]   = useState(false);
-  const [ckSessionId,  setCkSessionId]  = useState('');
-  const [ckMsg,        setCkMsg]        = useState<string | null>(null);
-
-  async function ckConnect() {
-    if (!ckSessionId.trim()) return;
-    setCkConnecting(true);
-    setCkMsg(null);
-    const r = await checkinManualLogin('__phpsessid__', ckSessionId.trim());
-    if (r.ok && r.data) {
-      ckSetData(r.data);
-      setCkShowForm(false);
-      setCkSessionId('');
-      if ((r as any).warn) {
-        setCkMsg((r as any).warn);
-      } else {
-        setCkMsg(null);
-      }
-    } else {
-      setCkMsg(r.error ?? 'Erro ao salvar sessão — tente novamente');
-    }
-    setCkConnecting(false);
-  }
-
-  async function ckDisconnect() {
-    await checkinClearSession();
-    ckRefresh();
-  }
+  const { data: checkin, loading: ckL } = useCheckin();
   const { avisos, saving: avisoSaving, save: saveAvisos } = useAviso();
   const [avisoDismissed, setAvisoDismissed] = useState(false);
   const [avisoEditing,   setAvisoEditing]   = useState(false);
@@ -712,53 +683,18 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   // ── Bloco: Check-in Online ────────────────────────────────────────────────
   const blocoCheckin = (
     <div className="bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700">
-      {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <Users size={13} className="text-gray-400" />
           <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Check-in Online</span>
-          {checkin?.sessionActive && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" title="Sessão ativa" />}
+          {!ckL && checkin && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" title="API ativa" />}
         </div>
-        <div className="flex items-center gap-2">
-          {!ckL && (checkin?.sessionActive
-            ? <button onClick={ckDisconnect} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors">Desconectar</button>
-            : <button onClick={() => { setCkShowForm(f => !f); setCkMsg(null); }} className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold hover:underline">Conectar sessão</button>
-          )}
-          <a href="https://loja.hibiscusbeachclub.com.br/admin/checkin" target="_blank" rel="noopener noreferrer"
-            className="text-[10px] text-blue-600 dark:text-blue-400 underline whitespace-nowrap font-semibold">
-            Abrir →
-          </a>
-        </div>
+        <a href="https://loja.hibiscusbeachclub.com.br/admin/checkin" target="_blank" rel="noopener noreferrer"
+          className="text-[10px] text-blue-600 dark:text-blue-400 underline whitespace-nowrap font-semibold">
+          Abrir →
+        </a>
       </div>
 
-      {/* Formulário PHPSESSID */}
-      {ckShowForm && !checkin?.sessionActive && (
-        <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="text-[10px] text-blue-700 dark:text-blue-300 mb-2 leading-relaxed">
-            <strong>Como conectar:</strong> abra a loja Paytour no navegador, pressione F12 → Aplicativo → Cookies → <code>loja.hibiscusbeachclub.com.br</code> → copie o valor de <strong>PHPSESSID</strong>
-          </p>
-          <div className="flex gap-1.5">
-            <input
-              type="text"
-              value={ckSessionId}
-              onChange={e => setCkSessionId(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && ckConnect()}
-              placeholder="Cole o PHPSESSID aqui"
-              className="flex-1 text-[11px] px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-            <button
-              onClick={ckConnect}
-              disabled={ckConnecting || !ckSessionId.trim()}
-              className="text-[11px] px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
-            >
-              {ckConnecting ? '…' : 'Salvar'}
-            </button>
-          </div>
-          {ckMsg && <p className="text-[10px] text-red-600 mt-1.5">{ckMsg}</p>}
-        </div>
-      )}
-
-      {/* Cards de dados */}
       {ckL ? (
         <div className="flex gap-2">
           {[...Array(4)].map((_, i) => <div key={i} className="flex-1 h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
@@ -766,10 +702,10 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
       ) : (
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: 'Reservados', value: ptL ? '…' : (paytour?.totalSales ?? '—'), color: 'text-purple-600 dark:text-purple-400' },
-            { label: 'Disponíveis', value: checkin?.sessionActive ? (checkin?.disponiveis ?? '—') : '—', color: 'text-orange-500' },
-            { label: 'Check-ins',   value: checkin?.sessionActive ? (checkin?.checkins   ?? '—') : '—', color: 'text-green-600 dark:text-green-400' },
-            { label: 'Pendentes',   value: checkin?.sessionActive ? (checkin?.pendentes  ?? '—') : '—', color: 'text-red-500' },
+            { label: 'Reservados', value: checkin?.reservados ?? '—', color: 'text-purple-600 dark:text-purple-400' },
+            { label: 'Disponíveis', value: checkin?.disponiveis ?? '—', color: 'text-orange-500' },
+            { label: 'Check-ins',   value: checkin?.checkins   ?? '—', color: 'text-green-600 dark:text-green-400' },
+            { label: 'Pendentes',   value: checkin?.pendentes  ?? '—', color: 'text-red-500' },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
               <p className={`text-lg font-black ${color}`}>{value}</p>

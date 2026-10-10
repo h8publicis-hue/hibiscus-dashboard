@@ -1,32 +1,28 @@
-// Check-in: Paytour API (sempre) + loja opcional (sessão para check-ins físicos).
-// Auto-login com LOJA_ADMIN_EMAIL + LOJA_ADMIN_PASSWORD quando sessão expira.
+// Check-in: dados via API oficial Paytour — GET /v2/atividades?data_de=hoje&data_ate=hoje
+// Não depende de PHPSESSID nem loja. Usa as mesmas credenciais de app já configuradas.
 
-const LOJA_BASE       = 'https://paytour-proxy.hibiscusbeachclub.workers.dev/loja';
-const PT_BASE         = 'https://api.paytour.com.br';
-const PT_KEY          = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
-const PT_SECRET       = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
-const PROXY_SECRET    = process.env.PAYTOUR_PROXY_SECRET    ?? '';
-const KV_URL          = process.env.KV_REST_API_URL         ?? '';
-const KV_TOKEN        = process.env.KV_REST_API_TOKEN       ?? '';
-const LOJA_EMAIL      = process.env.LOJA_ADMIN_EMAIL        ?? '';
-const LOJA_PASSWORD   = process.env.LOJA_ADMIN_PASSWORD     ?? '';
-const CACHE_TTL    = 30 * 60 * 1000;
-const KV_TTL_SEC   = 30 * 60;
-const SESSION_KV   = 'checkin:session';
+const PT_BASE     = 'https://api.paytour.com.br';
+const PT_KEY      = process.env.VITE_PAYTOUR_APP_KEY    ?? '';
+const PT_SECRET   = process.env.VITE_PAYTOUR_APP_SECRET ?? '';
+const PROXY_SECRET = process.env.PAYTOUR_PROXY_SECRET   ?? '';
+const KV_URL      = process.env.KV_REST_API_URL         ?? '';
+const KV_TOKEN    = process.env.KV_REST_API_TOKEN       ?? '';
 
-let activeSession = process.env.PAYTOUR_LOJA_SESSION ?? '';
-let memCache: { data: CheckinData; ts: number } | null = null;
+const CACHE_TTL   = 5 * 60 * 1000; // 5 min
+const KV_TTL_SEC  = 5 * 60;
 
 export interface CheckinData {
-  reservados: number;     // da API Paytour (sempre disponível)
-  sessionActive: boolean; // loja session ativa?
-  disponiveis?: number;   // da loja (opcional)
-  checkins?: number;      // da loja (opcional)
-  pendentes?: number;     // da loja (opcional)
-  total?: number;         // da loja (opcional)
-  ts: number;
-  stale?: boolean;
+  reservados:    number;
+  sessionActive: boolean;
+  checkins?:     number;
+  pendentes?:    number;
+  disponiveis?:  number;
+  total?:        number;
+  ts:            number;
+  stale?:        boolean;
 }
+
+let memCache: { data: CheckinData; ts: number } | null = null;
 
 // ── KV helpers ────────────────────────────────────────────────────────────────
 async function kvGet(key: string) {
@@ -57,7 +53,9 @@ function todayBRT(): string {
   return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-// ── Paytour API helpers ───────────────────────────────────────────────────────
+// ── Paytour token ─────────────────────────────────────────────────────────────
+let ptTokenCache: { token: string; exp: number } | null = null;
+
 function proxyHeaders(extra: Record<string, string> = {}) {
   return {
     'x-proxy-secret': PROXY_SECRET,
@@ -66,8 +64,6 @@ function proxyHeaders(extra: Record<string, string> = {}) {
     ...extra,
   };
 }
-
-let ptTokenCache: { token: string; exp: number } | null = null;
 
 async function getPtToken(attempt = 1): Promise<string> {
   if (ptTokenCache && Date.now() < ptTokenCache.exp - 30_000) return ptTokenCache.token;
@@ -79,13 +75,12 @@ async function getPtToken(attempt = 1): Promise<string> {
   });
   const text = await r.text();
   if (text.trim().startsWith('<') || r.status === 403) {
-    console.warn(`[checkin] getPtToken HTML/403 attempt=${attempt} status=${r.status}`);
     if (attempt < 3) {
       ptTokenCache = null;
       await new Promise(res => setTimeout(res, 1000 * attempt));
       return getPtToken(attempt + 1);
     }
-    throw new Error(`[checkin] Paytour auth retornou HTML (status ${r.status})`);
+    throw new Error(`Paytour auth retornou bloqueio (${r.status})`);
   }
   const j = JSON.parse(text) as any;
   const token = j.access_token ?? '';
@@ -94,190 +89,34 @@ async function getPtToken(attempt = 1): Promise<string> {
   return token;
 }
 
-async function getPaytourReservados(attempt = 1): Promise<number> {
+// ── Fetch atividades do dia ───────────────────────────────────────────────────
+async function fetchCheckin(): Promise<CheckinData> {
   const today = todayBRT();
   const token = await getPtToken();
-  const url = `${PT_BASE}/v2/pedidos?status=aprovado&disponibilidade_data_de=${today}&disponibilidade_data_ate=${today}&por_pagina=1&pagina=1`;
-  const r = await fetch(url, {
+
+  const r = await fetch(`${PT_BASE}/v2/atividades?data_de=${today}&data_ate=${today}`, {
     headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (r.status === 401 || r.status === 403) {
-    console.warn(`[checkin] getPaytourReservados ${r.status} attempt=${attempt}`);
-    if (attempt < 3) {
-      ptTokenCache = null;
-      await new Promise(res => setTimeout(res, 800 * attempt));
-      return getPaytourReservados(attempt + 1);
-    }
-    throw new Error(`getPaytourReservados: ${r.status}`);
-  }
-  if (!r.ok) throw new Error(`getPaytourReservados: ${r.status}`);
-  const j = await r.json() as any;
-  return Number(j?.info?.total ?? j?.itens?.length ?? 0);
-}
-
-// ── Loja session + auto-login ─────────────────────────────────────────────────
-// URL direta da loja — login vai diretamente do Vercel (não pelo Worker)
-// O Worker (Cloudflare) recebe 403 da loja quando tenta logar, pois ambos são Cloudflare
-// e o WAF bloqueia tráfego entre Workers. O Vercel não tem esse problema.
-const LOJA_DIRECT = 'https://loja.hibiscusbeachclub.com.br';
-
-async function lojaAutoLogin(): Promise<string> {
-  if (!LOJA_EMAIL || !LOJA_PASSWORD) throw new Error('Credenciais LOJA_ADMIN_EMAIL/PASSWORD não configuradas');
-
-  const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
-
-  // POST direto do Vercel para a loja (sem passar pelo Worker)
-  const r = await fetch(`${LOJA_DIRECT}/admin`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-      Referer: 'https://loja.hibiscusbeachclub.com.br/admin',
-      Origin: 'https://loja.hibiscusbeachclub.com.br',
-    },
-    body,
-    redirect: 'manual',
     signal: AbortSignal.timeout(15_000),
   });
 
-  console.log(`[checkin] auto-login direto status=${r.status}`);
-
-  // Node.js fetch com redirect:'manual' preserva headers do 302
-  const setCookie = r.headers.get('set-cookie') ?? '';
-  const match = setCookie.match(/PHPSESSID=([^;,\s]+)/i);
-  if (match?.[1]) {
-    const session = match[1];
-    activeSession = session;
-    await kvSet(SESSION_KV, session, 23 * 60 * 60);
-    console.log(`[checkin] auto-login OK — sessão ${session.slice(0, 8)}...`);
-    return session;
+  if (r.status === 401 || r.status === 403) {
+    ptTokenCache = null;
+    throw new Error(`atividades: ${r.status}`);
   }
+  if (!r.ok) throw new Error(`atividades: ${r.status}`);
 
-  // Tenta também via header Location (alguns servidores PHP enviam cookie lá)
-  const loc = r.headers.get('location') ?? '';
-  console.warn(`[checkin] auto-login sem PHPSESSID — status=${r.status} location=${loc} setCookie="${setCookie.slice(0, 120)}"`);
-  throw new Error(`Auto-login falhou (status ${r.status}) — sem PHPSESSID. Location: ${loc}`);
-}
+  const atividades = await r.json() as any[];
+  if (!Array.isArray(atividades)) throw new Error('atividades: resposta inesperada');
 
-async function getSession(): Promise<string> {
-  if (activeSession) return activeSession;
-  const kv = await kvGet(SESSION_KV) as string | null;
-  if (kv) { activeSession = kv; return kv; }
-  // Sem sessão salva — tenta auto-login
-  if (LOJA_EMAIL && LOJA_PASSWORD) {
-    try { return await lojaAutoLogin(); } catch (e: any) { console.warn('[checkin] auto-login inicial falhou:', e.message); }
-  }
-  return '';
-}
-
-// Token enviado em todos os requests à loja — o Cloudflare WAF libera requests com este header.
-// Regra Cloudflare: Security > WAF > Custom Rules > se x-hbc-token = CHECKIN_BYPASS_TOKEN → Skip WAF
-const CHECKIN_BYPASS_TOKEN = process.env.CHECKIN_BYPASS_TOKEN ?? '';
-
-function lojaFetch(path: string, session: string) {
-  return fetch(`${LOJA_DIRECT}${path}`, {
-    headers: {
-      Cookie: `PHPSESSID=${session}`,
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      Accept: 'application/json, text/plain, */*',
-      'Accept-Language': 'pt-BR,pt;q=0.9',
-      'X-Requested-With': 'XMLHttpRequest',
-      Referer: 'https://loja.hibiscusbeachclub.com.br/admin/checkin',
-      Origin: 'https://loja.hibiscusbeachclub.com.br',
-      ...(CHECKIN_BYPASS_TOKEN ? { 'x-hbc-token': CHECKIN_BYPASS_TOKEN } : {}),
-    },
-    signal: AbortSignal.timeout(10_000),
-  });
-}
-
-function isSessionExpired(text: string, status: number): boolean {
-  if (status === 401 || status === 403) return true;
-  if (text.trim().startsWith('<')) return true;
-  return false;
-}
-
-// ── Fetch data ────────────────────────────────────────────────────────────────
-async function fetchCheckin(): Promise<CheckinData> {
-  const today = todayBRT();
-  const start = `${today}T00:00:00.000-03:00`;
-  const end   = `${today}T23:59:59.000-03:00`;
-
-  // Paytour API — sempre funciona via Worker
-  const reservados = await getPaytourReservados();
-
-  // Loja — opcional, só se houver PHPSESSID
-  const session = await getSession();
-  if (!session) return { reservados, sessionActive: false, ts: Date.now() };
-
-  const calRes = await lojaFetch(
-    `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
-    session,
-  );
-  const rawText = await calRes.text();
-
-  if (isSessionExpired(rawText, calRes.status)) {
-    activeSession = '';
-    await kvSet(SESSION_KV, '', 1);
-    // Tenta auto-login e refaz a chamada uma vez
-    if (LOJA_EMAIL && LOJA_PASSWORD) {
-      try {
-        const newSession = await lojaAutoLogin();
-        const retryRes  = await lojaFetch(
-          `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
-          newSession,
-        );
-        const retryText = await retryRes.text();
-        if (!isSessionExpired(retryText, retryRes.status)) {
-          // Continua com retryText — reassina variáveis locais
-          const retryItems = JSON.parse(retryText) as any[];
-          if (Array.isArray(retryItems)) {
-            const dayuse2 = retryItems.find((i: any) => i.type === 'faixa') ?? retryItems[0];
-            if (dayuse2) {
-              const total2       = Number(dayuse2.total      ?? 0);
-              const lojaRes2     = Number(dayuse2.reservados ?? 0);
-              const vRes2 = await lojaFetch(`/admin/checkin/vouchers-by-availability/${dayuse2.id}`, newSession);
-              let checkins2 = 0;
-              if (vRes2.ok) {
-                const vData2 = await vRes2.json() as any;
-                checkins2 = (vData2?.vouchers ?? []).filter((v: any) => v.utilizado === true).length;
-              }
-              return { reservados: lojaRes2, sessionActive: true, disponiveis: total2 - lojaRes2, checkins: checkins2, pendentes: lojaRes2 - checkins2, total: total2, ts: Date.now() };
-            }
-          }
-        }
-      } catch (e: any) { console.warn('[checkin] auto-login pós-expiração falhou:', e.message); }
-    }
-    return { reservados, sessionActive: false, ts: Date.now() };
-  }
-
-  const items = JSON.parse(rawText) as any[];
-  if (!Array.isArray(items)) return { reservados, sessionActive: false, ts: Date.now() };
-
-  const dayuse = items.find((i: any) => i.type === 'faixa') ?? items[0];
-  if (!dayuse) return { reservados, sessionActive: false, ts: Date.now() };
-
-  const total       = Number(dayuse.total      ?? 0);
-  const lojaRes     = Number(dayuse.reservados ?? 0);
-  const disponiveis = total - lojaRes;
-
-  const vRes = await lojaFetch(`/admin/checkin/vouchers-by-availability/${dayuse.id}`, session);
-  let checkins = 0;
-  if (vRes.ok) {
-    const vData = await vRes.json() as any;
-    const vouchers: any[] = vData?.vouchers ?? [];
-    checkins = vouchers.filter((v: any) => v.utilizado === true).length;
-  }
+  const reservados = atividades.length;
+  const checkins   = atividades.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
+  const pendentes  = reservados - checkins;
 
   return {
-    reservados: lojaRes,   // da loja — correto para o dia, não o histórico Paytour
+    reservados,
     sessionActive: true,
-    disponiveis,
     checkins,
-    pendentes: lojaRes - checkins,
-    total,
+    pendentes,
     ts: Date.now(),
   };
 }
@@ -287,121 +126,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  // GET ?debug=1[&session=PHPSESSID] → diagnóstico completo
-  if (req.method === 'GET' && req.query?.debug === '1') {
-    const steps: any[] = [];
-    const log = (label: string, data: any) => steps.push({ label, data });
-    const today = todayBRT();
-    const start = `${today}T00:00:00.000-03:00`;
-    const end   = `${today}T23:59:59.000-03:00`;
-
-    // Se passou ?session=..., testa esse PHPSESSID direto no calendário
-    const testSession = (req.query?.session as string) ?? '';
-    if (testSession) {
-      try {
-        const calR = await lojaFetch(
-          `/admin/calendario?passeoIds=&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&isCheckin=1`,
-          testSession,
-        );
-        const calText = await calR.text();
-        log('calendario_direto', {
-          status: calR.status,
-          isExpired: isSessionExpired(calText, calR.status),
-          bodyPreview: calText.slice(0, 500),
-        });
-      } catch (e: any) {
-        log('calendario_erro', { message: e.message });
-      }
-      return res.json({ ok: true, steps });
-    }
-
-    // Sem session: testa login direto
-    log('env', { hasEmail: !!LOJA_EMAIL, hasPassword: !!LOJA_PASSWORD, lojaBase: LOJA_BASE });
-    try {
-      const body = `login=${encodeURIComponent(LOJA_EMAIL)}&senha=${encodeURIComponent(LOJA_PASSWORD)}`;
-      const r = await fetch(`${LOJA_DIRECT}/admin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,*/*',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-          Referer: 'https://loja.hibiscusbeachclub.com.br/admin',
-          Origin: 'https://loja.hibiscusbeachclub.com.br',
-        },
-        body,
-        redirect: 'manual',
-        signal: AbortSignal.timeout(15_000),
-      });
-      const setCookieDirect = r.headers.get('set-cookie') ?? '';
-      const matchDirect = setCookieDirect.match(/PHPSESSID=([^;,\s]+)/i);
-      log('direct_login', { status: r.status, setCookiePreview: setCookieDirect.slice(0, 120), phpsessid: matchDirect?.[1]?.slice(0,8) ?? null });
-    } catch (e: any) {
-      log('login_error', { message: e.message });
-    }
-
-    return res.json({ ok: true, steps });
-  }
-
-  // GET ?action=keepalive → ping para renovar sessão (chamado pelo cron)
-  if (req.method === 'GET' && req.query?.action === 'keepalive') {
-    const session = await getSession();
-    if (!session) return res.status(503).json({ ok: false, error: 'Sem sessão ativa' });
-    try {
-      const today = todayBRT();
-      const r = await lojaFetch(
-        `/admin/calendario?passeoIds=&start=${encodeURIComponent(today + 'T00:00:00.000-03:00')}&end=${encodeURIComponent(today + 'T23:59:59.000-03:00')}&isCheckin=1`,
-        session,
-      );
-      const text = await r.text();
-      const alive = !isSessionExpired(text, r.status);
-      if (alive) {
-        await kvSet(`checkin-v2:${today}`, '', 1); // invalida cache para dados frescos
-      }
-      await kvSet('checkin:keepalive', { ok: alive, ts: Date.now() });
-      return res.json({ ok: alive, ts: new Date().toISOString(), message: alive ? 'Sessão ativa' : 'Sessão expirada' });
-    } catch (err: any) {
-      return res.status(200).json({ ok: false, error: String(err) });
-    }
-  }
-
-  // POST → salva PHPSESSID
-  if (req.method === 'POST') {
-    try {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
-      const user = body.login ?? body.email ?? '';
-      const pass = body.senha ?? '';
-      if (!user || !pass) return res.status(400).json({ ok: false, error: 'login e senha obrigatórios' });
-
-      const session = user === '__phpsessid__' ? pass : (() => { throw new Error('Use PHPSESSID direto'); })();
-
-      // Salva sem validar — a validação via Cloudflare bloqueia chamadas do Vercel
-      activeSession = session;
-      await kvSet(SESSION_KV, session, 23 * 60 * 60);
-      memCache = null;
-      await kvSet(`checkin-v2:${todayBRT()}`, '', 1);
-      const freshData = await fetchCheckin();
-      memCache = { data: freshData, ts: freshData.ts };
-      kvSet(`checkin-v2:${todayBRT()}`, freshData);
-      if (!freshData.sessionActive) {
-        // Sessão salva mas loja ainda bloqueou — informa sem rejeitar
-        return res.json({ ok: true, session: session.slice(0, 8) + '...', data: freshData, warn: 'Sessão salva, mas loja retornou bloqueio. Tente novamente mais tarde.' });
-      }
-      return res.json({ ok: true, session: session.slice(0, 8) + '...', data: freshData });
-    } catch (e: any) {
-      return res.status(401).json({ ok: false, error: e.message });
-    }
-  }
-
-  // DELETE → limpa sessão
-  if (req.method === 'DELETE') {
-    activeSession = '';
-    await kvSet(SESSION_KV, '', 1);
-    memCache = null;
-    return res.json({ ok: true });
-  }
-
-  const cacheKey = `checkin-v2:${todayBRT()}`;
+  const cacheKey = `checkin-v3:${todayBRT()}`;
 
   if (memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
 
@@ -419,6 +144,6 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('[checkin]', err.message);
     if (memCache) return res.json({ ...memCache.data, stale: true });
-    return res.status(503).json({ error: err.message });
+    return res.status(503).json({ error: err.message, reservados: 0, sessionActive: false, ts: Date.now() });
   }
 }
