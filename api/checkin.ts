@@ -90,22 +90,31 @@ async function getPtToken(attempt = 1): Promise<string> {
   return token;
 }
 
-// ── Vagas disponíveis via /passeios/{id}/horarios?dia=hoje ────────────────────
-async function fetchVagasPorProduto(produtoId: string, dia: string, token: string): Promise<{ vagas: number | null; raw: any }> {
-  try {
-    const r = await fetch(`${PT_BASE}/v2/passeios/${produtoId}/horarios?dia=${dia}`, {
-      headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!r.ok) return { vagas: null, raw: { status: r.status } };
-    const j = await r.json() as any;
-    const slots: any[] = Array.isArray(j) ? j : (j?.data ?? j?.horarios ?? []);
-    const total = slots.reduce((acc: number, s: any) => {
-      const v = s?.vagas ?? s?.vagas_disponiveis ?? s?.disponivel ?? s?.disponivel_venda ?? null;
-      return v != null ? acc + Number(v) : acc;
-    }, 0);
-    return { vagas: slots.length > 0 ? total : null, raw: j };
-  } catch (e: any) { return { vagas: null, raw: { error: e.message } }; }
+// ── Vagas disponíveis via faixas-etarias ────────────────────────────────────
+async function fetchVagasPorProduto(produtoId: string, dia: string, token: string): Promise<{ vagas: number | null; rawFaixas: any; rawHorarios: any }> {
+  const headers = proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' });
+  const opts = { headers, signal: AbortSignal.timeout(8_000) };
+
+  // Tenta faixas-etarias (tipo "faixa")
+  const rf = await fetch(`${PT_BASE}/v2/passeios/${produtoId}/faixas-etarias?dia=${dia}`, opts).catch(() => null);
+  const jf = rf?.ok ? await rf.json().catch(() => null) : { status: rf?.status };
+
+  // Tenta horarios (tipo "horario")
+  const rh = await fetch(`${PT_BASE}/v2/passeios/${produtoId}/horarios?dia=${dia}`, opts).catch(() => null);
+  const jh = rh?.ok ? await rh.json().catch(() => null) : { status: rh?.status };
+
+  // Extrai vagas de qualquer um dos dois
+  for (const j of [jf, jh]) {
+    const slots: any[] = Array.isArray(j) ? j : (j?.data ?? j?.horarios ?? j?.faixas ?? []);
+    if (slots.length > 0) {
+      const total = slots.reduce((acc: number, s: any) => {
+        const v = s?.vagas ?? s?.vagas_disponiveis ?? s?.disponivel ?? s?.disponivel_venda ?? s?.quantidade ?? null;
+        return v != null ? acc + Number(v) : acc;
+      }, 0);
+      if (total > 0) return { vagas: total, rawFaixas: jf, rawHorarios: jh };
+    }
+  }
+  return { vagas: null, rawFaixas: jf, rawHorarios: jh };
 }
 
 // ── Fetch atividades do dia ───────────────────────────────────────────────────
@@ -137,7 +146,7 @@ async function fetchCheckin(): Promise<CheckinData> {
   let _debugHorarios: any;
   if (prodIds.length > 0) {
     const results = await Promise.all(prodIds.map(id => fetchVagasPorProduto(id, today, token)));
-    _debugHorarios = { prodIds, results };
+    _debugHorarios = { prodIds, results: results.map(r => ({ vagas: r.vagas, rawFaixas: r.rawFaixas, rawHorarios: r.rawHorarios })) };
     const total = results.reduce((acc, { vagas: v }) => acc != null && v != null ? acc + v : acc ?? v, null as number | null);
     if (total != null) disponiveis = total;
   }
