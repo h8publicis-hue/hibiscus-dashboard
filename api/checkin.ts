@@ -20,7 +20,6 @@ export interface CheckinData {
   total?:        number;
   ts:            number;
   stale?:        boolean;
-  _debugAtiv?:   any;
 }
 
 let memCache: { data: CheckinData; ts: number } | null = null;
@@ -90,18 +89,23 @@ async function getPtToken(attempt = 1): Promise<string> {
   return token;
 }
 
-// ── Capacidade da disponibilidade (vagas totais) ──────────────────────────────
-async function fetchCapacidade(dispId: string, token: string): Promise<{ cap: number | null; raw?: any }> {
+// ── Vagas disponíveis via /passeios/{id}/horarios?dia=hoje ────────────────────
+async function fetchVagasPorProduto(produtoId: string, dia: string, token: string): Promise<number | null> {
   try {
-    const r = await fetch(`${PT_BASE}/v2/disponibilidades/${dispId}`, {
+    const r = await fetch(`${PT_BASE}/v2/passeios/${produtoId}/horarios?dia=${dia}`, {
       headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
       signal: AbortSignal.timeout(8_000),
     });
-    if (!r.ok) return { cap: null, raw: { status: r.status } };
+    if (!r.ok) return null;
     const j = await r.json() as any;
-    const cap = j?.vagas ?? j?.quantidade ?? j?.capacidade ?? j?.total ?? j?.limite ?? null;
-    return { cap: cap != null ? Number(cap) : null, raw: j };
-  } catch (e: any) { return { cap: null, raw: { error: e.message } }; }
+    const slots: any[] = Array.isArray(j) ? j : (j?.data ?? j?.horarios ?? []);
+    // Soma vagas de todos os horários do dia (normalmente 1 slot/dia para day use)
+    const total = slots.reduce((acc: number, s: any) => {
+      const v = s?.vagas ?? s?.vagas_disponiveis ?? s?.disponivel ?? s?.disponivel_venda ?? null;
+      return v != null ? acc + Number(v) : acc;
+    }, 0);
+    return slots.length > 0 ? total : null;
+  } catch { return null; }
 }
 
 // ── Fetch atividades do dia ───────────────────────────────────────────────────
@@ -127,12 +131,21 @@ async function fetchCheckin(): Promise<CheckinData> {
   const checkins   = atividades.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
   const pendentes  = reservados - checkins;
 
+  // Disponíveis: soma vagas dos horários do dia por produto_id
+  let disponiveis: number | undefined;
+  const prodIds = [...new Set(atividades.map((a: any) => String(a.produto_id)).filter(Boolean))];
+  if (prodIds.length > 0) {
+    const vagas = await Promise.all(prodIds.map(id => fetchVagasPorProduto(id, today, token)));
+    const total = vagas.reduce((acc, v) => acc != null && v != null ? acc + v : acc ?? v, null as number | null);
+    if (total != null) disponiveis = total;
+  }
+
   return {
     reservados,
     sessionActive: true,
     checkins,
     pendentes,
-    _debugAtiv: atividades[0] ?? null,
+    ...(disponiveis != null ? { disponiveis } : {}),
     ts: Date.now(),
   };
 }
