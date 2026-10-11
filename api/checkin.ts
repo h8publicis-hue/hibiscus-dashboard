@@ -144,7 +144,7 @@ async function fetchCheckin(): Promise<CheckinData> {
   let rawPasseio: any = null;
   if (prodId0) {
     const headers2 = proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' });
-    const rp = await fetch(`${PT_BASE}/v2/passeios/${prodId0}`, { headers: headers2, signal: AbortSignal.timeout(8_000) }).catch(() => null);
+    const rp = await fetch(`${PT_BASE}/v2/passeios/${prodId0}?data_de=${today}&data_ate=${today}`, { headers: headers2, signal: AbortSignal.timeout(8_000) }).catch(() => null);
     rawPasseio = rp?.ok ? await rp.json().catch(() => null) : { status: rp?.status };
   }
   const _debugHorarios: any = { firstAtiv, rawPasseio };
