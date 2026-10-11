@@ -138,23 +138,16 @@ async function fetchCheckin(): Promise<CheckinData> {
 
   // Disponíveis: tenta endpoint disponibilidades por produto_id
   let disponiveis: number | undefined;
-  // pares únicos [produto_id, produto_disponibilidade_id]
-  const seenProds = new Set<string>();
-  const prodPairs: { prodId: string; dispId: string }[] = [];
-  for (const a of atividades) {
-    const prodId = String(a.produto_id ?? '');
-    if (prodId && !seenProds.has(prodId)) {
-      seenProds.add(prodId);
-      prodPairs.push({ prodId, dispId: String(a.produto_disponibilidade_id ?? '') });
-    }
+  // Debug: expõe primeira atividade completa + GET /v2/passeios/{produto_id}
+  const firstAtiv = atividades[0] ?? null;
+  const prodId0 = String(firstAtiv?.produto_id ?? '');
+  let rawPasseio: any = null;
+  if (prodId0) {
+    const headers2 = proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' });
+    const rp = await fetch(`${PT_BASE}/v2/passeios/${prodId0}`, { headers: headers2, signal: AbortSignal.timeout(8_000) }).catch(() => null);
+    rawPasseio = rp?.ok ? await rp.json().catch(() => null) : { status: rp?.status };
   }
-  let _debugHorarios: any;
-  if (prodPairs.length > 0) {
-    const results = await Promise.all(prodPairs.map(({ prodId, dispId }) => fetchVagasPorProduto(prodId, dispId, today, token)));
-    _debugHorarios = { prodPairs, results: results.map(r => ({ vagas: r.vagas, rawDisp: r.rawDisp, rawPasId: r.rawPasId })) };
-    const total = results.reduce((acc, { vagas: v }) => acc != null && v != null ? acc + v : acc ?? v, null as number | null);
-    if (total != null) disponiveis = total;
-  }
+  const _debugHorarios: any = { firstAtiv, rawPasseio };
 
   return {
     reservados,
