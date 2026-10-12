@@ -215,6 +215,9 @@ function EditMesaModal({
       setErro('Número inválido'); return;
     }
     const novo = String(Number(trimmed)).padStart(3, '0');
+    if (novo !== numero && todosNumeros.includes(novo)) {
+      setErro(`Mesa ${novo} já existe`); return;
+    }
     onSave(numero, novo, area);
     onClose();
   };
