@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, LayoutGrid, Tv, Hash } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Pencil, Save, X, Users, MapPin, Plus, Trash2, Tv } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaConfig, MesaEstado, MesaArea, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
@@ -452,8 +452,6 @@ export function MapaOcupacao() {
   const [markerSize, setMarkerSize] = useState(24);
   const markerSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmZerar, setConfirmZerar]           = useState(false);
-  const [confirmZerarNum, setConfirmZerarNum]     = useState(false);
-  const [renumerarInicio, setRenumerarInicio]     = useState<string | null>(null); // null=oculto, string=input aberto
 
   // Sincroniza tamanho inicial vindo do servidor (só na primeira carga)
   const markerSizeLoaded = useRef(false);
@@ -536,38 +534,11 @@ export function MapaOcupacao() {
     setDraft(prev => prev.filter(t => t.numero !== numero));
   }, []);
 
-  // ── Zerar numeração ────────────────────────────────────────────────────────
-
-  const handleZerarNumeracao = () => {
-    setDraft(prev => prev.map((t, i) => ({ ...t, numero: `_${i + 1}` })));
-  };
-
-  // ── Renumerar a partir de N ────────────────────────────────────────────────
-
-  const handleRenumerarAPartirDe = (inicioStr: string) => {
-    const inicio = Number(inicioStr.trim());
-    if (!inicioStr.trim() || isNaN(inicio) || inicio < 1) return;
-    setDraft(prev => prev.map((t, i) => ({ ...t, numero: String(inicio + i).padStart(3, '0') })));
-    setRenumerarInicio(null);
-  };
-
   // ── Renomear mesa ──────────────────────────────────────────────────────────
 
   const handleRenomear = (antigo: string, novo: string, area: MesaArea | undefined) => {
     setDraft(prev => prev.map((t, i) => i === editIdx ? { ...t, numero: novo, area } : t));
     setEditIdx(null);
-  };
-
-  // ── Distribuir mesas em posições padrão ───────────────────────────────────
-
-  const handleDistribuir = () => {
-    const defaults = buildDefaultPositions(draftTables.length);
-    // Mantém os números existentes, só troca as coordenadas
-    setDraft(prev => prev.map((t, i) => ({
-      ...t,
-      x: defaults[i]?.x ?? 50,
-      y: defaults[i]?.y ?? 50,
-    })));
   };
 
   // ── Salvar edição ──────────────────────────────────────────────────────────
@@ -774,48 +745,6 @@ export function MapaOcupacao() {
                 className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600">
                 <Plus size={11} /> Adicionar mesa
               </button>
-              <button onClick={handleDistribuir}
-                className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600">
-                <LayoutGrid size={11} /> Distribuir
-              </button>
-              {!confirmZerarNum ? (
-                <button onClick={() => setConfirmZerarNum(true)}
-                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-xs font-medium hover:bg-white/20">
-                  <Hash size={11} /> Zerar numeração
-                </button>
-              ) : (
-                <div className="flex gap-1">
-                  <button onClick={() => { handleZerarNumeracao(); setConfirmZerarNum(false); }}
-                    className="flex-1 py-1.5 rounded-lg bg-orange-500 text-white text-[10px] font-semibold hover:bg-orange-600">
-                    Sim
-                  </button>
-                  <button onClick={() => setConfirmZerarNum(false)}
-                    className="flex-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-[10px] font-medium hover:bg-white/20">
-                    Não
-                  </button>
-                </div>
-              )}
-              {renumerarInicio === null ? (
-                <button onClick={() => setRenumerarInicio('')}
-                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-xs font-medium hover:bg-white/20">
-                  <Hash size={11} /> Renumerar a partir de...
-                </button>
-              ) : (
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="number" min={1} autoFocus
-                    value={renumerarInicio}
-                    onChange={e => setRenumerarInicio(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleRenumerarAPartirDe(renumerarInicio); if (e.key === 'Escape') setRenumerarInicio(null); }}
-                    placeholder="Nº inicial"
-                    className="flex-1 min-w-0 rounded-lg bg-white/10 text-white text-[10px] px-2 py-1.5 outline-none focus:ring-1 focus:ring-amber-400 [appearance:textfield]"
-                  />
-                  <button onClick={() => handleRenumerarAPartirDe(renumerarInicio)}
-                    className="px-2 py-1.5 rounded-lg bg-amber-500 text-white text-[10px] font-semibold hover:bg-amber-600">✓</button>
-                  <button onClick={() => setRenumerarInicio(null)}
-                    className="px-2 py-1.5 rounded-lg bg-white/10 text-white/60 text-[10px] hover:bg-white/20">✕</button>
-                </div>
-              )}
               <button onClick={handleSaveEdit}
                 className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600">
                 <Save size={11} /> Salvar
