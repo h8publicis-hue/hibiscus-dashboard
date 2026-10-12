@@ -452,6 +452,7 @@ export function MapaOcupacao() {
   const markerSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmZerar, setConfirmZerar]           = useState(false);
   const [confirmZerarNum, setConfirmZerarNum]     = useState(false);
+  const [renumerarInicio, setRenumerarInicio]     = useState<string | null>(null); // null=oculto, string=input aberto
 
   // Sincroniza tamanho inicial vindo do servidor (só na primeira carga)
   const markerSizeLoaded = useRef(false);
@@ -538,6 +539,15 @@ export function MapaOcupacao() {
 
   const handleZerarNumeracao = () => {
     setDraft(prev => prev.map((t, i) => ({ ...t, numero: `_${i + 1}` })));
+  };
+
+  // ── Renumerar a partir de N ────────────────────────────────────────────────
+
+  const handleRenumerarAPartirDe = (inicioStr: string) => {
+    const inicio = Number(inicioStr.trim());
+    if (!inicioStr.trim() || isNaN(inicio) || inicio < 1) return;
+    setDraft(prev => prev.map((t, i) => ({ ...t, numero: String(inicio + i).padStart(3, '0') })));
+    setRenumerarInicio(null);
   };
 
   // ── Renomear mesa ──────────────────────────────────────────────────────────
@@ -781,6 +791,27 @@ export function MapaOcupacao() {
                     className="flex-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-[10px] font-medium hover:bg-white/20">
                     Não
                   </button>
+                </div>
+              )}
+              {renumerarInicio === null ? (
+                <button onClick={() => setRenumerarInicio('')}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/10 text-white/60 text-xs font-medium hover:bg-white/20">
+                  <Hash size={11} /> Renumerar a partir de...
+                </button>
+              ) : (
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="number" min={1} autoFocus
+                    value={renumerarInicio}
+                    onChange={e => setRenumerarInicio(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleRenumerarAPartirDe(renumerarInicio); if (e.key === 'Escape') setRenumerarInicio(null); }}
+                    placeholder="Nº inicial"
+                    className="flex-1 min-w-0 rounded-lg bg-white/10 text-white text-[10px] px-2 py-1.5 outline-none focus:ring-1 focus:ring-amber-400 [appearance:textfield]"
+                  />
+                  <button onClick={() => handleRenumerarAPartirDe(renumerarInicio)}
+                    className="px-2 py-1.5 rounded-lg bg-amber-500 text-white text-[10px] font-semibold hover:bg-amber-600">✓</button>
+                  <button onClick={() => setRenumerarInicio(null)}
+                    className="px-2 py-1.5 rounded-lg bg-white/10 text-white/60 text-[10px] hover:bg-white/20">✕</button>
                 </div>
               )}
               <button onClick={handleSaveEdit}
