@@ -101,17 +101,18 @@ function StatsBar({ estado, total }: { estado: Record<string, MesaEstado>; total
 
 interface TableMarkerProps {
   mesa:         MesaConfig;
+  idx:          number;
   estado:       MesaEstado | undefined;
   highlight:    boolean;
   dimmed:       boolean;
   editMode:     boolean;
   size:         number;
-  onClickMesa:  (numero: string) => void;
+  onClickMesa:  (numero: string, idx: number) => void;
   onDrag:       (numero: string, x: number, y: number) => void;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
-function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickMesa, onDrag, containerRef }: TableMarkerProps) {
+function TableMarker({ mesa, idx, estado, highlight, dimmed, editMode, size, onClickMesa, onDrag, containerRef }: TableMarkerProps) {
   const status    = estado?.status ?? 'livre';
   const areaColor = mesa.area ? AREA_COLORS[mesa.area].dot : null;
   const dragging  = useRef(false);
@@ -148,8 +149,8 @@ function TableMarker({ mesa, estado, highlight, dimmed, editMode, size, onClickM
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (editMode && moved.current) return;
-    onClickMesa(mesa.numero);
-  }, [editMode, onClickMesa, mesa.numero]);
+    onClickMesa(mesa.numero, idx);
+  }, [editMode, onClickMesa, mesa.numero, idx]);
 
   return (
     <div
@@ -444,7 +445,7 @@ export function MapaOcupacao() {
 
   const [editMode, setEditMode]     = useState(false);
   const [draftTables, setDraft]     = useState<MesaConfig[]>([]);
-  const [editNumero, setEditNumero] = useState<string | null>(null); // modal renomear
+  const [editIdx, setEditIdx] = useState<number | null>(null); // modal renomear (por índice, evita conflito com duplicatas)
   const [markerSize, setMarkerSize] = useState(24);
   const markerSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmZerar, setConfirmZerar]           = useState(false);
@@ -500,12 +501,12 @@ export function MapaOcupacao() {
 
   // ── Clique em mesa ──────────────────────────────────────────────────────────
 
-  const handleClickMesa = useCallback((numero: string) => {
+  const handleClickMesa = useCallback((numero: string, idx: number) => {
     if (panMoved) return;
     if (editMode) {
-      setEditNumero(numero); // modo edição → renomear
+      setEditIdx(idx); // modo edição → renomear (por índice para suportar duplicatas)
     } else {
-      setModal(numero);      // modo normal → ocupar/liberar
+      setModal(numero); // modo normal → ocupar/liberar
     }
   }, [panMoved, editMode]);
 
@@ -550,7 +551,8 @@ export function MapaOcupacao() {
   // ── Renomear mesa ──────────────────────────────────────────────────────────
 
   const handleRenomear = (antigo: string, novo: string, area: MesaArea | undefined) => {
-    setDraft(prev => prev.map(t => t.numero === antigo ? { ...t, numero: novo, area } : t));
+    setDraft(prev => prev.map((t, i) => i === editIdx ? { ...t, numero: novo, area } : t));
+    setEditIdx(null);
   };
 
   // ── Distribuir mesas em posições padrão ───────────────────────────────────
@@ -886,11 +888,12 @@ export function MapaOcupacao() {
             onError={e => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
           />
 
-          {activeTables.map(mesa => {
+          {activeTables.map((mesa, idx) => {
             const isHighlighted = buscaNum.length >= 1 && mesa.numero.replace(/^0+/, '') === buscaNum;
             return (
               <TableMarker
-                key={mesa.numero}
+                key={idx}
+                idx={idx}
                 mesa={mesa}
                 estado={estado[mesa.numero]}
                 highlight={isHighlighted}
@@ -918,15 +921,15 @@ export function MapaOcupacao() {
         />
       )}
 
-      {/* Modal renomear (edit mode) */}
-      {editNumero && editMode && (
+      {/* Modal renomear (edit mode) — identifica por índice para suportar duplicatas */}
+      {editIdx !== null && editMode && draftTables[editIdx] && (
         <EditMesaModal
-          numero={editNumero}
-          area={draftTables.find(t => t.numero === editNumero)?.area}
+          numero={draftTables[editIdx].numero}
+          area={draftTables[editIdx].area}
           todosNumeros={todosNumeros}
           onSave={handleRenomear}
-          onClose={() => setEditNumero(null)}
-          onRemove={n => { handleRemoveMesa(n); setEditNumero(null); }}
+          onClose={() => setEditIdx(null)}
+          onRemove={n => { handleRemoveMesa(n); setEditIdx(null); }}
         />
       )}
     </div>
