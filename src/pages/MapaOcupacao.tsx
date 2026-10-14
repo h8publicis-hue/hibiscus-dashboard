@@ -787,6 +787,11 @@ export function MapaOcupacao() {
             </>
           )}
         </div>
+
+        {/* Crédito */}
+        <p className="text-[8px] text-white/20 text-center mt-auto pt-2 pb-1 leading-tight">
+          Tecnologia H8 Sistemas
+        </p>
       </div>
 
       {/* ── Mapa ── */}
