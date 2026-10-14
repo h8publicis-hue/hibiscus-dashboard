@@ -1255,18 +1255,49 @@ function MesaModalLider({
 
 function BoxMesasBeach() {
   const { tables, estado, ocuparMesa, liberarMesa } = useBeachTables();
-  const [busca, setBusca] = useState('');
-  const [modal, setModal] = useState<string | null>(null);
+  const [busca, setBusca]     = useState('');
+  const [ate, setAte]         = useState('');
+  const [modal, setModal]     = useState<string | null>(null);
+  const [confirmRange, setConfirmRange] = useState<{ mesas: string[]; acao: 'ocupar' | 'liberar' } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const ocupadas = Object.values(estado).filter(e => e.status === 'ocupada').length;
   const livres   = tables.length - ocupadas;
 
+  const mesaByNum = (n: string) => tables.find(t => t.numero.replace(/^0+/, '') === n.trim().replace(/^0+/, ''));
+
   const handleConfirmar = () => {
-    const n = busca.trim().replace(/^0+/, '');
-    if (!n) return;
-    const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
+    const de = busca.trim().replace(/^0+/, '');
+    if (!de) return;
+
+    if (ate.trim()) {
+      // modo range
+      const atN = Number(ate.trim().replace(/^0+/, ''));
+      const deN = Number(de);
+      if (isNaN(deN) || isNaN(atN) || atN < deN) return;
+      const range: string[] = [];
+      for (let i = deN; i <= atN; i++) {
+        const found = mesaByNum(String(i));
+        if (found) range.push(found.numero);
+      }
+      if (range.length === 0) return;
+      setConfirmRange({ mesas: range, acao: 'ocupar' });
+      setBusca(''); setAte('');
+      return;
+    }
+
+    // modo individual
+    const found = mesaByNum(de);
     if (found) { setModal(found.numero); setBusca(''); inputRef.current?.blur(); }
+  };
+
+  const handleConfirmRange = async () => {
+    if (!confirmRange) return;
+    for (const num of confirmRange.mesas) {
+      if (confirmRange.acao === 'ocupar') await ocuparMesa(num, 1);
+      else await liberarMesa(num);
+    }
+    setConfirmRange(null);
   };
 
   return (
@@ -1283,21 +1314,31 @@ function BoxMesasBeach() {
           </div>
         </div>
         <div className="p-4 flex flex-col gap-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Digite o número da mesa para ocupar ou liberar:</p>
-          <div className="flex gap-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Mesa individual ou intervalo (de → até):</p>
+          <div className="flex gap-2 items-center">
             <input
               ref={inputRef}
               type="number"
               inputMode="numeric"
-              placeholder="Ex: 42"
+              placeholder="De"
               value={busca}
               onChange={e => setBusca(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleConfirmar()}
-              className="min-w-0 flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-bold placeholder-gray-300 dark:placeholder-gray-500 focus:outline-none focus:border-brand-500 dark:focus:border-brand-400"
+              className="min-w-0 w-24 px-3 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-bold placeholder-gray-300 dark:placeholder-gray-500 focus:outline-none focus:border-brand-500 dark:focus:border-brand-400 [appearance:textfield]"
+            />
+            <span className="text-gray-400 dark:text-gray-500 text-sm font-medium shrink-0">até</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="Até"
+              value={ate}
+              onChange={e => setAte(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleConfirmar()}
+              className="min-w-0 w-24 px-3 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-lg font-bold placeholder-gray-300 dark:placeholder-gray-500 focus:outline-none focus:border-brand-500 dark:focus:border-brand-400 [appearance:textfield]"
             />
             <button
               onClick={handleConfirmar}
-              className="shrink-0 w-14 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 active:bg-emerald-700 transition-colors">
+              className="shrink-0 w-14 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 active:bg-emerald-700 transition-colors py-3">
               <ArrowRight size={22} />
             </button>
           </div>
@@ -1312,6 +1353,27 @@ function BoxMesasBeach() {
           onOcupar={ocuparMesa}
           onLiberar={liberarMesa}
         />
+      )}
+
+      {confirmRange && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm flex flex-col gap-4">
+            <h2 className="text-lg font-black text-gray-900 dark:text-white">Ocupar {confirmRange.mesas.length} mesas?</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Mesas {confirmRange.mesas[0].replace(/^0+/, '')} a {confirmRange.mesas[confirmRange.mesas.length - 1].replace(/^0+/, '')} serão marcadas como <strong>ocupadas</strong>.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={handleConfirmRange}
+                className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors">
+                Confirmar
+              </button>
+              <button onClick={() => setConfirmRange(null)}
+                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
