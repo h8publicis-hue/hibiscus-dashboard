@@ -1259,6 +1259,7 @@ function BoxMesasBeach() {
   const [ate, setAte]         = useState('');
   const [modal, setModal]     = useState<string | null>(null);
   const [confirmRange, setConfirmRange] = useState<{ mesas: string[]; acao: 'ocupar' | 'liberar' } | null>(null);
+  const [loadingRange, setLoadingRange] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const ocupadas = Object.values(estado).filter(e => e.status === 'ocupada').length;
@@ -1293,10 +1294,12 @@ function BoxMesasBeach() {
 
   const handleConfirmRange = async () => {
     if (!confirmRange) return;
+    setLoadingRange(true);
     for (const num of confirmRange.mesas) {
       if (confirmRange.acao === 'ocupar') await ocuparMesa(num, 1);
       else await liberarMesa(num);
     }
+    setLoadingRange(false);
     setConfirmRange(null);
   };
 
@@ -1363,12 +1366,14 @@ function BoxMesasBeach() {
               Mesas {confirmRange.mesas[0].replace(/^0+/, '')} a {confirmRange.mesas[confirmRange.mesas.length - 1].replace(/^0+/, '')} serão marcadas como <strong>ocupadas</strong>.
             </p>
             <div className="flex gap-2">
-              <button onClick={handleConfirmRange}
-                className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors">
-                Confirmar
+              <button onClick={handleConfirmRange} disabled={loadingRange}
+                className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
+                {loadingRange ? (
+                  <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg> Registrando…</>
+                ) : 'Confirmar'}
               </button>
-              <button onClick={() => setConfirmRange(null)}
-                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <button onClick={() => setConfirmRange(null)} disabled={loadingRange}
+                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50">
                 Cancelar
               </button>
             </div>
