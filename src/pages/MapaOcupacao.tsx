@@ -174,8 +174,8 @@ function TableMarker({ mesa, idx, estado, highlight, dimmed, editMode, size, onC
           editMode
             ? areaColor ? '' : 'bg-gray-500'
             : status === 'ocupada'
-              ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-200 dark:shadow-red-900/40'
-              : 'bg-green-500 hover:bg-green-600 shadow-md shadow-green-200 dark:shadow-green-900/40',
+              ? 'bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-200 dark:shadow-blue-900/40'
+              : 'bg-gray-400 hover:bg-gray-500 shadow-md shadow-gray-200 dark:shadow-gray-900/40',
           highlight && 'ring-2 ring-white ring-offset-1 scale-125 animate-pulse',
           dimmed && 'opacity-30',
         )}
@@ -779,10 +779,10 @@ export function MapaOcupacao() {
           ) : (
             <>
               <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" /> Livre
+                <span className="w-2.5 h-2.5 rounded-full bg-gray-400 shrink-0" /> Livre
               </div>
               <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" /> Ocupada
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" /> Ocupada
               </div>
             </>
           )}
