@@ -51,7 +51,7 @@ function TableDot({ mesa, estado, size }: { mesa: MesaConfig; estado: MesaEstado
         style={{ width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.38)) }}
         className={clsx(
           'rounded-full flex items-center justify-center font-bold text-white leading-none shadow',
-          status === 'ocupada' ? 'bg-blue-500' : 'bg-gray-400',
+          status === 'ocupada' ? 'bg-blue-800' : 'bg-gray-400',
         )}
       >
         {mesa.numero.replace(/^0+/, '')}
@@ -281,7 +281,7 @@ export function MapaKds() {
               <span className="w-2.5 h-2.5 rounded-full bg-gray-400 shrink-0" /> Livre
             </div>
             <div className="flex items-center gap-1.5 text-[9px] text-white/50">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" /> Ocupada
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-800 shrink-0" /> Ocupada
             </div>
             <div className="flex gap-1 mt-1">
               {[
