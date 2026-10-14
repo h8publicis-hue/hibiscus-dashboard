@@ -195,6 +195,58 @@ export function MapaKds() {
             ))}
           </div>
 
+          {/* Lounges */}
+          <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+            <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Lounges</p>
+            {/* Frente Mar: idx 0,2,4,6,8,10,12 → 501,503,505,507,509,511,513 */}
+            <div className="flex flex-col gap-1">
+              <p className="text-[8px] text-white/25 uppercase tracking-wider">Frente Mar</p>
+              <div className="flex gap-1 flex-wrap">
+                {[0,2,4,6,8,10,12].map(idx => {
+                  const n = occupancy.lounges[idx] ?? 0;
+                  return (
+                    <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[26px]', n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
+                      <span className="text-[7px] text-white/30 leading-none">{501 + idx}</span>
+                      <span className={clsx('text-xs font-black leading-none tabular-nums', n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Atrás: idx 1,3,5,7,9,11,13 → 502,504,506,508,510,512,514 */}
+            <div className="flex flex-col gap-1">
+              <p className="text-[8px] text-white/25 uppercase tracking-wider">Atrás</p>
+              <div className="flex gap-1 flex-wrap">
+                {[1,3,5,7,9,11,13].map(idx => {
+                  const n = occupancy.lounges[idx] ?? 0;
+                  return (
+                    <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[26px]', n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
+                      <span className="text-[7px] text-white/30 leading-none">{501 + idx}</span>
+                      <span className={clsx('text-xs font-black leading-none tabular-nums', n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Outros: idx 14=515 Anexo, 15=516 Prime, 16=517 Gramado, 17=518 Gramado, 18=519 */}
+            <div className="flex gap-1 flex-wrap">
+              {[{idx:14,label:'Anexo'},{idx:15,label:'Prime'},{idx:16,label:'Grama'},{idx:17,label:'Grama'},{idx:18,label:'519'}].map(({idx,label}) => {
+                const n = occupancy.lounges[idx] ?? 0;
+                return (
+                  <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[30px]', idx === 15 ? (n > 0 ? 'bg-yellow-600/30 border border-yellow-500/50' : 'bg-yellow-900/20 border border-yellow-700/30') : n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
+                    <span className="text-[7px] text-white/30 leading-none">{label}</span>
+                    <span className={clsx('text-xs font-black leading-none tabular-nums', idx === 15 ? 'text-yellow-300' : n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Total */}
+            <div className="flex items-center justify-between border-t border-white/10 pt-1.5 mt-0.5">
+              <span className="text-[9px] text-white/40">Total clientes</span>
+              <span className="text-lg font-black text-blue-300 tabular-nums">{loungesTotal}</span>
+            </div>
+          </div>
+
           {/* Áreas */}
           {AREAS.some(a => tables.some(t => t.area === a)) && (
             <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
