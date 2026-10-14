@@ -158,7 +158,7 @@ export function MapaKds() {
       <div className="flex-1 flex overflow-hidden min-h-0">
 
         {/* Painel lateral fixo */}
-        <div className="w-48 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
+        <div className="w-60 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
 
           {/* Bloco clube */}
           <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
@@ -244,6 +244,11 @@ export function MapaKds() {
               ))}
             </div>
           </div>
+
+          {/* Crédito */}
+          <p className="text-[8px] text-white/20 text-center mt-auto pt-2 pb-1 leading-tight">
+            Tecnologia H8 Sistemas
+          </p>
         </div>
 
         {/* Mapa — ocupa o restante */}
