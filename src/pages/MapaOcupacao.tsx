@@ -581,7 +581,7 @@ export function MapaOcupacao() {
     <div className="flex-1 flex overflow-hidden min-h-0 bg-gray-900">
 
       {/* ── Sidebar esquerda ── */}
-      <div className="w-48 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
+      <div className="w-60 shrink-0 flex flex-col gap-2 p-3 overflow-y-auto">
 
         {/* Bloco Clube */}
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2.5">
