@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MapPin, X, LogOut, ArrowRight, Megaphone } from 'lucide-react';
+import { MapPin, X, LogOut, ArrowRight, Megaphone, Waves } from 'lucide-react';
 import clsx from 'clsx';
 import { useBeachTables, MesaEstado, MesaConfig, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import { useOccupancy } from '../hooks/useOccupancy';
@@ -196,7 +196,7 @@ function MapaDot({ mesa, estado, size, onPress }: { mesa: MesaConfig; estado: Me
         style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
         className={clsx(
           'rounded-full flex items-center justify-center font-bold text-white leading-none shadow active:scale-110 transition-transform',
-          status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500',
+          status === 'ocupada' ? 'bg-blue-800' : 'bg-gray-400',
         )}
       >
         {mesa.numero.replace(/^0+/, '')}
@@ -230,6 +230,9 @@ function GarcomApp() {
 
   const [modal, setModal]   = useState<string | null>(null);
   const [irMesa, setIrMesa] = useState('');
+  const [ate, setAte]       = useState('');
+  const [confirmRange, setConfirmRange] = useState<{ mesas: string[]; acao: 'ocupar' | 'liberar' } | null>(null);
+  const [loadingRange, setLoadingRange] = useState(false);
   const [imgAspect, setImgAspect] = useState<number | null>(null);
   const [dotSize, setDotSize] = useState<number>(() => {
     try { return Number(localStorage.getItem('garcom-dot-size') ?? '12') || 12; } catch { return 12; }
@@ -250,12 +253,39 @@ function GarcomApp() {
     if (m) setModal(m.padStart(3, '0'));
   }, [searchParams]);
 
+  const mesaByNum = useCallback((raw: string) => {
+    const n = raw.trim().replace(/^0+/, '');
+    return tables.find(t => t.numero.replace(/^0+/, '') === n);
+  }, [tables]);
+
   const handleIrMesa = useCallback(() => {
-    const n = irMesa.trim().replace(/^0+/, '');
-    if (!n) return;
-    const found = tables.find(t => t.numero.replace(/^0+/, '') === n);
+    if (ate.trim()) {
+      const de  = parseInt(irMesa.trim(), 10);
+      const ateN = parseInt(ate.trim(), 10);
+      if (isNaN(de) || isNaN(ateN) || de > ateN) return;
+      const mesas = tables
+        .filter(t => { const n = parseInt(t.numero, 10); return n >= de && n <= ateN; })
+        .map(t => t.numero);
+      if (mesas.length === 0) return;
+      setConfirmRange({ mesas, acao: 'ocupar' });
+      return;
+    }
+    const found = mesaByNum(irMesa);
     if (found) { setModal(found.numero); setIrMesa(''); inputRef.current?.blur(); }
-  }, [irMesa, tables]);
+  }, [irMesa, ate, tables, mesaByNum]);
+
+  const handleConfirmRange = useCallback(async () => {
+    if (!confirmRange) return;
+    setLoadingRange(true);
+    for (const num of confirmRange.mesas) {
+      if (confirmRange.acao === 'ocupar') await ocuparMesa(num, 1);
+      else await liberarMesa(num);
+    }
+    setLoadingRange(false);
+    setConfirmRange(null);
+    setIrMesa('');
+    setAte('');
+  }, [confirmRange, ocuparMesa, liberarMesa]);
 
   const handleLogout = () => { sessionStorage.removeItem(PIN_KEY); window.location.reload(); };
 
@@ -349,10 +379,67 @@ function GarcomApp() {
           </div>
         )}
 
-        {/* Campo grande de mesa */}
+        {/* Lounges */}
         <div className="bg-gray-800 rounded-2xl p-4">
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Número da mesa</p>
-          <div className="flex gap-2 w-full">
+          <div className="flex items-center gap-2 mb-3">
+            <Waves size={13} className="text-white/40" />
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Lounges</p>
+          </div>
+          {/* Frente Mar */}
+          <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Frente Mar</p>
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {[0,2,4,6,8,10,12].map((idx, pos) => {
+              const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
+              return (
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-500/20' : 'bg-white/5')}>
+                  <span className="text-[8px] text-white/40 leading-none">{n}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-300' : 'text-white/20')}>{c}</span>
+                </div>
+              );
+            })}
+          </div>
+          {/* Atrás */}
+          <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Atrás</p>
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {[1,3,5,7,9,11,13].map((idx, pos) => {
+              const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
+              return (
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-500/20' : 'bg-white/5')}>
+                  <span className="text-[8px] text-white/40 leading-none">{n}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-300' : 'text-white/20')}>{c}</span>
+                </div>
+              );
+            })}
+          </div>
+          {/* Outros */}
+          <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Outros</p>
+          <div className="grid grid-cols-5 gap-1 mb-2">
+            {[
+              { label: 'Anx', idx: 14 },
+              { label: 'Prime', idx: 15 },
+              { label: 'Gram', idx: 16 },
+              { label: 'Gram', idx: 17 },
+              { label: '519', idx: 18 },
+            ].map(({ label, idx }) => {
+              const c = occupancy.lounges[idx] ?? 0;
+              return (
+                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? (idx === 15 ? 'bg-yellow-500/20' : 'bg-emerald-500/20') : 'bg-white/5')}>
+                  <span className="text-[8px] text-white/40 leading-none">{label}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? (idx === 15 ? 'text-yellow-300' : 'text-emerald-300') : 'text-white/20')}>{c}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-end pt-1 border-t border-white/5">
+            <span className="text-[9px] text-white/30">Total lounges: </span>
+            <span className="text-[9px] font-bold text-white/50 ml-1">{(occupancy.lounges ?? []).reduce((a: number, b: number) => a + b, 0)}</span>
+          </div>
+        </div>
+
+        {/* Seletor De → Até */}
+        <div className="bg-gray-800 rounded-2xl p-4">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Mesa individual ou intervalo (de → até)</p>
+          <div className="flex gap-2 w-full items-center">
             <input
               ref={inputRef}
               type="text"
@@ -360,12 +447,21 @@ function GarcomApp() {
               value={irMesa}
               onChange={e => setIrMesa(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
-              placeholder="Ex: 42"
-              className="min-w-0 flex-1 text-2xl font-black text-white bg-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
+              placeholder="De"
+              className="w-0 flex-1 text-xl font-black text-white bg-gray-700 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={ate}
+              onChange={e => setAte(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
+              placeholder="Até"
+              className="w-0 flex-1 text-xl font-black text-white bg-gray-700 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
             />
             <button
               onClick={handleIrMesa}
-              className="shrink-0 w-14 rounded-xl bg-emerald-500 text-white font-bold active:bg-emerald-600 transition-colors flex items-center justify-center"
+              className="shrink-0 w-14 rounded-xl bg-emerald-500 text-white font-bold active:bg-emerald-600 transition-colors flex items-center justify-center h-[52px]"
             >
               <ArrowRight size={22} />
             </button>
@@ -422,6 +518,36 @@ function GarcomApp() {
       <footer className="mt-4 text-center py-2 text-[10px] text-white/20 select-none">
         Desenvolvido por <span className="font-semibold">H8 Sistemas</span>
       </footer>
+
+      {confirmRange && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => !loadingRange && setConfirmRange(null)} />
+          <div className="relative bg-gray-800 rounded-t-3xl shadow-xl w-full max-w-sm p-6 z-10 pb-8">
+            <h2 className="text-lg font-bold text-white mb-2">Ocupar {confirmRange.mesas.length} mesas?</h2>
+            <p className="text-sm text-white/50 mb-5">
+              Mesas {parseInt(confirmRange.mesas[0], 10)} → {parseInt(confirmRange.mesas[confirmRange.mesas.length - 1], 10)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => !loadingRange && setConfirmRange(null)}
+                disabled={loadingRange}
+                className="flex-1 py-3 rounded-xl bg-white/10 text-white/70 font-bold active:bg-white/20 disabled:opacity-40"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRange}
+                disabled={loadingRange}
+                className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold active:bg-emerald-600 disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {loadingRange ? (
+                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Registrando…</>
+                ) : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <MesaModal
