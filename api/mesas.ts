@@ -95,6 +95,13 @@ export default async function handler(req: any, res: any) {
     return res.json({ tables: config.tables, estado, markerSize: config.markerSize ?? 24 });
   }
 
+  // Cron Vercel usa GET — permite reset via GET também
+  if (req.method === 'GET' && req.query?.action === 'reset') {
+    const estado = buildInitialEstado();
+    await kvSet('mesas:estado', estado);
+    return res.json({ ok: true, cron: true });
+  }
+
   if (req.method === 'POST') {
     const action = req.query?.action;
 
