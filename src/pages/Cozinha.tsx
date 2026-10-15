@@ -271,7 +271,7 @@ export function Cozinha() {
   const loungeColors = occ ? pctColor(loungesTotal / loungesMax)             : undefined;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="h-screen overflow-hidden bg-gray-100 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -321,7 +321,7 @@ export function Cozinha() {
           <p className="text-gray-400 text-sm animate-pulse">Carregando...</p>
         </div>
       ) : (
-        <div className="flex-1 p-4 flex flex-col gap-3 max-w-7xl mx-auto w-full">
+        <div className="flex-1 min-h-0 p-4 flex flex-col gap-3 max-w-7xl mx-auto w-full">
 
           {/* Linha de cima: Refeitório + Últimas Entradas */}
           <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
@@ -387,11 +387,11 @@ export function Cozinha() {
             </div>
 
             {/* Últimas Entradas */}
-            <div className="flex-1 rounded-2xl border-2 border-gray-200 bg-white flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 rounded-2xl border-2 border-gray-200 bg-white flex flex-col overflow-hidden">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center pt-4 pb-3 border-b border-gray-100">
                 Últimas Entradas
               </p>
-              <div className="flex-1 overflow-y-auto">
+              <div className="overflow-y-auto flex-1 min-h-0">
                 {scanLog.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-sm text-gray-300">Aguardando bipes...</p>
