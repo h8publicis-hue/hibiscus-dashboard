@@ -315,126 +315,133 @@ export function Cozinha() {
         </div>
       )}
 
-      {/* Cards — horizontal no desktop, vertical no mobile */}
+      {/* Conteúdo principal */}
       {!occ ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-gray-400 text-sm animate-pulse">Carregando...</p>
         </div>
       ) : (
-        <div className="flex-1 p-4 flex flex-col lg:flex-row gap-4 max-w-6xl mx-auto w-full items-stretch">
-          <KitchenCard
-            emoji="🏖️"
-            label="Espaço Beach"
-            value={occ.beach}
-            max={SPACE_CONFIGS.beach.max}
-            accent={beachColors}
-          />
-          <KitchenCard
-            emoji="🛋️"
-            label="Espaço Lounge"
-            value={loungesTotal}
-            max={loungesMax}
-            accent={loungeColors}
-          />
-          {/* Refeitório */}
-          <div className={`rounded-2xl border-2 p-5 flex flex-col items-center gap-2 flex-1 ${refeitorioAberto ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}>
-            <span className="text-3xl">🍽️</span>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Refeitório</p>
+        <div className="flex-1 p-4 flex flex-col gap-3 max-w-7xl mx-auto w-full">
 
-            {/* Badge de status */}
-            {refeitorioAberto ? (
-              <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-0.5 rounded-full">
-                ● Aberto · fecha em {minutosParaFechar}min
-              </span>
-            ) : (
-              <span className="text-xs font-bold bg-gray-200 text-gray-500 px-3 py-0.5 rounded-full">
-                ○ Encerrado · {minutosParaAbrir > 0 ? `abre em ${minutosParaAbrir}min` : 'abre às 11h'}
-              </span>
-            )}
+          {/* Linha de cima: Refeitório + Últimas Entradas */}
+          <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
 
-            <p className={`text-[5.5rem] font-black tabular-nums leading-none ${refeitorioAberto ? 'text-blue-700' : 'text-gray-400'}`}>{refeitorio}</p>
-            <p className="text-sm text-gray-400 -mt-1">Previsão de ocupação do refeitório</p>
+            {/* Refeitório */}
+            <div className={`rounded-2xl border-2 p-6 flex flex-col items-center gap-2 lg:w-80 shrink-0 ${refeitorioAberto ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}>
+              <span className="text-3xl">🍽️</span>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Refeitório</p>
 
-            {/* Contador de almoços registrados */}
-            {refeitorio > 0 && (
-              <div className="w-full flex flex-col gap-1.5 mt-1 bg-white/60 rounded-xl px-3 py-2">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-green-700">✅ {almocosHoje} já almoçaram</span>
-                  <span className="text-gray-500">🕐 {Math.max(0, refeitorio - almocosHoje)} faltam</span>
+              {refeitorioAberto ? (
+                <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-0.5 rounded-full">
+                  ● Aberto · fecha em {minutosParaFechar}min
+                </span>
+              ) : (
+                <span className="text-xs font-bold bg-gray-200 text-gray-500 px-3 py-0.5 rounded-full">
+                  ○ Encerrado · {minutosParaAbrir > 0 ? `abre em ${minutosParaAbrir}min` : 'abre às 11h'}
+                </span>
+              )}
+
+              <p className={`text-[6rem] font-black tabular-nums leading-none ${refeitorioAberto ? 'text-blue-700' : 'text-gray-400'}`}>{refeitorio}</p>
+              <p className="text-sm text-gray-400 -mt-1 text-center">Previsão de ocupação do refeitório</p>
+
+              {refeitorio > 0 && (
+                <div className="w-full flex flex-col gap-1.5 mt-1 bg-white/60 rounded-xl px-3 py-2">
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-green-700">✅ {almocosHoje} já almoçaram</span>
+                    <span className="text-gray-500">🕐 {Math.max(0, refeitorio - almocosHoje)} faltam</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-green-500 transition-all duration-700"
+                      style={{ width: `${Math.min(100, Math.round((almocosHoje / refeitorio) * 100))}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400 text-center">
+                    {Math.min(100, Math.round((almocosHoje / refeitorio) * 100))}% do previsto
+                  </p>
                 </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              )}
+
+              <div className="w-full flex flex-col gap-1 mt-1">
+                <div className="w-full h-2.5 bg-black/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-green-500 transition-all duration-700"
-                    style={{ width: `${Math.min(100, Math.round((almocosHoje / refeitorio) * 100))}%` }}
+                    className={`h-full rounded-full transition-all duration-1000 ${refeitorioAberto ? 'bg-blue-500' : 'bg-gray-300'}`}
+                    style={{ width: `${refeitorioProgresso}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-gray-400 text-center">
-                  {Math.min(100, Math.round((almocosHoje / refeitorio) * 100))}% do previsto
-                </p>
+                <div className="flex justify-between text-[10px] text-gray-400">
+                  <span>11h</span>
+                  <span>{refeitorioAberto ? `${refeitorioProgresso}% do período` : '—'}</span>
+                  <span>15h</span>
+                </div>
               </div>
-            )}
 
-            {/* Barra de progresso do período */}
-            <div className="w-full flex flex-col gap-1 mt-1">
-              <div className="w-full h-2.5 bg-black/10 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ${refeitorioAberto ? 'bg-blue-500' : 'bg-gray-300'}`}
-                  style={{ width: `${refeitorioProgresso}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>11h</span>
-                <span>{refeitorioAberto ? `${refeitorioProgresso}% do período` : '—'}</span>
-                <span>15h</span>
+              <div className="flex gap-4 mt-1">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                  👷 {occ.colaboradores ?? 0} colab.
+                </span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                  🤝 {occ.parceiros ?? 0} parceiros
+                </span>
               </div>
             </div>
 
-            <div className="flex gap-4 mt-1">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
-                👷 {occ.colaboradores ?? 0} colab.
-              </span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
-                🤝 {occ.parceiros ?? 0} parceiros
-              </span>
-            </div>
-
-            {/* Log de bipes */}
-            {scanLog.length > 0 && (
-              <div className="w-full mt-2 flex flex-col gap-1 max-h-56 overflow-y-auto">
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider text-center mb-0.5">
-                  Últimas entradas
-                </p>
-                {scanLog.map((r, i) => (
-                  <div
-                    key={r.id}
-                    className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all ${
-                      i === 0 ? 'ring-1 ring-offset-0' : ''
-                    } ${
-                      r.status === 'sucesso'
-                        ? `bg-green-50 ${i === 0 ? 'ring-green-400' : ''}`
-                        : `bg-amber-50 ${i === 0 ? 'ring-amber-400' : ''}`
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${r.status === 'sucesso' ? 'bg-green-500' : 'bg-amber-400'}`} />
-                    <span className="font-semibold text-gray-800 flex-1 truncate">{r.nome}</span>
-                    {r.empresa && (
-                      <span className="text-gray-400 text-[10px] shrink-0 hidden sm:block">{r.empresa}</span>
-                    )}
-                    <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      r.status === 'sucesso' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {r.status === 'sucesso' ? '✓' : `${r.tentativas}×`}
-                    </span>
-                    <span className="text-gray-400 text-[10px] shrink-0 tabular-nums">{r.hora}</span>
+            {/* Últimas Entradas */}
+            <div className="flex-1 rounded-2xl border-2 border-gray-200 bg-white flex flex-col overflow-hidden">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center pt-4 pb-3 border-b border-gray-100">
+                Últimas Entradas
+              </p>
+              <div className="flex-1 overflow-y-auto">
+                {scanLog.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-sm text-gray-300">Aguardando bipes...</p>
                   </div>
-                ))}
+                ) : (
+                  scanLog.map((r, i) => (
+                    <div
+                      key={r.id}
+                      className={`flex items-center gap-3 px-5 py-3 border-b border-gray-50 transition-all ${
+                        i === 0
+                          ? r.status === 'sucesso' ? 'bg-green-50 ring-1 ring-inset ring-green-300' : 'bg-amber-50 ring-1 ring-inset ring-amber-300'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.status === 'sucesso' ? 'bg-green-500' : 'bg-amber-400'}`} />
+                      <span className="font-black text-gray-800 flex-1 truncate text-lg leading-tight uppercase tracking-wide">{r.nome}</span>
+                      {r.empresa && (
+                        <span className="text-gray-400 text-sm shrink-0 hidden md:block">{r.empresa}</span>
+                      )}
+                      <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
+                        r.status === 'sucesso' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {r.status === 'sucesso' ? '✓' : `${r.tentativas}×`}
+                      </span>
+                      <span className="text-gray-400 text-sm shrink-0 tabular-nums">{r.hora}</span>
+                    </div>
+                  ))
+                )}
               </div>
-            )}
-
-            {scanLog.length === 0 && (
-              <p className="text-[11px] text-gray-300 mt-2 text-center">Aguardando bipes...</p>
-            )}
+            </div>
           </div>
+
+          {/* Linha de baixo: Beach + Lounge */}
+          <div className="flex gap-3 h-44">
+            <KitchenCard
+              emoji="🏖️"
+              label="Espaço Beach"
+              value={occ.beach}
+              max={SPACE_CONFIGS.beach.max}
+              accent={beachColors}
+            />
+            <KitchenCard
+              emoji="🛋️"
+              label="Espaço Lounge"
+              value={loungesTotal}
+              max={loungesMax}
+              accent={loungeColors}
+            />
+          </div>
+
         </div>
       )}
 
