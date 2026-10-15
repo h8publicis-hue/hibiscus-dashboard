@@ -62,13 +62,13 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
   const digits = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
       <div className="mb-8 text-center">
-        <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-900/40">
+        <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-200">
           <MapPin size={28} className="text-white" />
         </div>
-        <h1 className="text-xl font-bold text-white">Mapa Beach</h1>
-        <p className="text-sm text-white/40 mt-1">Digite o PIN para entrar</p>
+        <h1 className="text-xl font-bold text-gray-800">Mapa Beach</h1>
+        <p className="text-sm text-gray-400 mt-1">Digite o PIN para entrar</p>
       </div>
 
       <div className="flex gap-3 mb-8">
@@ -77,7 +77,7 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
             'w-4 h-4 rounded-full border-2 transition-all duration-150',
             pin.length > i
               ? erro ? 'bg-red-400 border-red-400' : 'bg-emerald-500 border-emerald-500'
-              : 'bg-transparent border-white/20',
+              : 'bg-transparent border-gray-300',
           )} />
         ))}
       </div>
@@ -89,12 +89,12 @@ function PinScreen({ onAuth }: { onAuth: () => void }) {
           d === '' ? <div key={i} /> :
           d === '⌫' ? (
             <button key={i} onClick={() => setPin(p => p.slice(0, -1))}
-              className="h-14 rounded-2xl bg-white/10 text-white/60 text-xl font-medium flex items-center justify-center active:bg-white/20 transition-colors">
+              className="h-14 rounded-2xl bg-gray-200 text-gray-500 text-xl font-medium flex items-center justify-center active:bg-gray-300 transition-colors">
               ⌫
             </button>
           ) : (
             <button key={i} onClick={() => handleDigit(d)}
-              className="h-14 rounded-2xl bg-white/10 text-white text-xl font-semibold active:bg-white/20 transition-colors">
+              className="h-14 rounded-2xl bg-white text-gray-800 text-xl font-semibold shadow-sm border border-gray-200 active:bg-gray-100 transition-colors">
               {d}
             </button>
           )
@@ -121,36 +121,36 @@ function MesaModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-gray-800 rounded-t-3xl shadow-xl w-full max-w-sm p-6 z-10 pb-8">
+      <div className="relative bg-white rounded-t-3xl shadow-xl w-full max-w-sm p-6 z-10 pb-8">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <MapPin size={20} className="text-emerald-400" />
-            <h2 className="text-lg font-bold text-white">Mesa {numero.replace(/^0+/, '')}</h2>
+            <MapPin size={20} className="text-emerald-500" />
+            <h2 className="text-lg font-bold text-gray-800">Mesa {numero.replace(/^0+/, '')}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 text-white/50">
+          <button onClick={onClose} className="p-1.5 rounded-full bg-gray-100 text-gray-400">
             <X size={18} />
           </button>
         </div>
 
         <div className={clsx(
           'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold mb-5',
-          status === 'ocupada' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400',
+          status === 'ocupada' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500',
         )}>
-          <span className={clsx('w-2 h-2 rounded-full', status === 'ocupada' ? 'bg-red-500' : 'bg-emerald-500')} />
+          <span className={clsx('w-2 h-2 rounded-full', status === 'ocupada' ? 'bg-blue-800' : 'bg-gray-400')} />
           {status === 'ocupada' ? 'OCUPADA' : 'LIVRE'}
         </div>
 
         {status === 'ocupada' ? (
           <>
             {estado?.horaOcupacao && (
-              <div className="bg-white/5 rounded-xl p-3 mb-5 text-sm space-y-1">
-                <div className="flex justify-between text-white/50">
+              <div className="bg-gray-50 rounded-xl p-3 mb-5 text-sm space-y-1">
+                <div className="flex justify-between text-gray-400">
                   <span>Ocupada desde</span>
-                  <span className="font-medium text-white/80">{fmtHora(estado.horaOcupacao)}</span>
+                  <span className="font-medium text-gray-700">{fmtHora(estado.horaOcupacao)}</span>
                 </div>
-                <div className="flex justify-between text-white/50">
+                <div className="flex justify-between text-gray-400">
                   <span>Tempo na mesa</span>
-                  <span className="font-medium text-white/80">{fmtTempo(estado.horaOcupacao)}</span>
+                  <span className="font-medium text-gray-700">{fmtTempo(estado.horaOcupacao)}</span>
                 </div>
               </div>
             )}
@@ -160,13 +160,13 @@ function MesaModal({
                 Liberar mesa
               </button>
             ) : (
-              <div className="border border-red-500/30 rounded-2xl p-4 text-center space-y-3">
-                <p className="text-sm font-medium text-white/70">Confirmar liberação?</p>
+              <div className="border border-red-200 rounded-2xl p-4 text-center space-y-3">
+                <p className="text-sm font-medium text-gray-600">Confirmar liberação?</p>
                 <div className="flex gap-2">
                   <button onClick={() => { onLiberar(numero); onClose(); }}
                     className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold active:bg-red-600">Sim</button>
                   <button onClick={() => setConfirmLiberar(false)}
-                    className="flex-1 py-3 rounded-xl bg-white/10 text-white/70 font-bold active:bg-white/20">Não</button>
+                    className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold active:bg-gray-200">Não</button>
                 </div>
               </div>
             )}
@@ -296,30 +296,30 @@ function GarcomApp() {
   const ocupadas     = Object.values(estado).filter(e => e.status === 'ocupada').length;
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col pb-6">
+    <div className="min-h-screen bg-gray-50 flex flex-col pb-6">
 
       {/* Header */}
-      <header className="bg-gray-900 px-4 py-3 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+      <header className="bg-white px-4 py-3 flex items-center justify-between sticky top-0 z-10 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center shadow">
             <MapPin size={16} className="text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-tight">Mapa Beach</p>
-            <p className="text-[10px] text-white/40 leading-tight">{ocupadas} ocupadas · {tables.length - ocupadas} livres</p>
+            <p className="text-sm font-bold text-gray-800 leading-tight">Mapa Beach</p>
+            <p className="text-[10px] text-gray-400 leading-tight">{ocupadas} ocupadas · {tables.length - ocupadas} livres</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="p-2 rounded-xl text-white/40 active:bg-white/10">
+        <button onClick={handleLogout} className="p-2 rounded-xl text-gray-400 active:bg-gray-100">
           <LogOut size={18} />
         </button>
       </header>
 
       {/* Comunicados */}
       {activeAvisos.length > 0 && (
-        <div className="mx-4 mt-3 flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 rounded-xl px-4 py-2.5">
-          <Megaphone size={14} className="text-amber-400 shrink-0" />
+        <div className="mx-4 mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+          <Megaphone size={14} className="text-amber-500 shrink-0" />
           <p
-            className="flex-1 text-xs text-amber-200 font-medium leading-snug transition-opacity duration-300"
+            className="flex-1 text-xs text-amber-700 font-medium leading-snug transition-opacity duration-300"
             style={{ opacity: fade ? 1 : 0 }}
           >
             {activeAvisos[ticker % activeAvisos.length]?.text}
@@ -335,15 +335,15 @@ function GarcomApp() {
       <div className="flex flex-col gap-3 px-4 pt-4">
 
         {/* Clube */}
-        <div className="bg-gray-800 rounded-2xl p-4 grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl p-4 grid grid-cols-2 gap-3 shadow-sm border border-gray-100">
           {[
-            { label: 'Portaria',  value: portaria ?? '—', color: 'text-white' },
-            { label: 'Na Casa',   value: naCasa,          color: 'text-blue-300' },
-            { label: 'GAP',       value: gap ?? '—',      color: gap && gap > 0 ? 'text-red-400' : 'text-white/30' },
-            { label: 'Parceiros', value: occupancy.parceiros, color: 'text-yellow-300' },
+            { label: 'Portaria',  value: portaria ?? '—', color: 'text-gray-800' },
+            { label: 'Na Casa',   value: naCasa,          color: 'text-blue-600' },
+            { label: 'GAP',       value: gap ?? '—',      color: gap && gap > 0 ? 'text-red-500' : 'text-gray-300' },
+            { label: 'Parceiros', value: occupancy.parceiros, color: 'text-yellow-500' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex flex-col gap-0.5">
-              <p className="text-[10px] text-white/40 uppercase tracking-wide">{label}</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
               <span className={clsx('text-2xl font-black tabular-nums leading-none', color)}>{value}</span>
             </div>
           ))}
@@ -351,8 +351,8 @@ function GarcomApp() {
 
         {/* Áreas */}
         {AREAS.some(a => tables.some(t => t.area === a)) && (
-          <div className="bg-gray-800 rounded-2xl p-4 flex flex-col gap-2.5">
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Áreas</p>
+          <div className="bg-white rounded-2xl p-4 flex flex-col gap-2.5 shadow-sm border border-gray-100">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Áreas</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
               {AREAS.map(area => {
                 const mesas = tables.filter(t => t.area === area);
@@ -365,11 +365,11 @@ function GarcomApp() {
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1 min-w-0">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: AREA_COLORS[area].dot }} />
-                        <p className="text-[9px] text-white/60 truncate leading-none">{area}</p>
+                        <p className="text-[9px] text-gray-500 truncate leading-none">{area}</p>
                       </div>
-                      <span className="text-[10px] font-bold text-white/80 tabular-nums shrink-0">{ocup}/{total} <span className="text-white/40">{pct}%</span></span>
+                      <span className="text-[10px] font-bold text-gray-700 tabular-nums shrink-0">{ocup}/{total} <span className="text-gray-400">{pct}%</span></span>
                     </div>
-                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[area].dot }} />
                     </div>
                   </div>
@@ -380,39 +380,39 @@ function GarcomApp() {
         )}
 
         {/* Lounges */}
-        <div className="bg-gray-800 rounded-2xl p-4">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-3">
-            <Waves size={13} className="text-white/40" />
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Lounges</p>
+            <Waves size={13} className="text-gray-400" />
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Lounges</p>
           </div>
           {/* Frente Mar */}
-          <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Frente Mar</p>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Frente Mar</p>
           <div className="grid grid-cols-7 gap-1 mb-2">
             {[0,2,4,6,8,10,12].map((idx, pos) => {
               const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-500/20' : 'bg-white/5')}>
-                  <span className="text-[8px] text-white/40 leading-none">{n}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-300' : 'text-white/20')}>{c}</span>
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : 'bg-gray-100')}>
+                  <span className="text-[8px] text-gray-400 leading-none">{n}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : 'text-gray-300')}>{c}</span>
                 </div>
               );
             })}
           </div>
           {/* Atrás */}
-          <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Atrás</p>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Atrás</p>
           <div className="grid grid-cols-7 gap-1 mb-2">
             {[1,3,5,7,9,11,13].map((idx, pos) => {
               const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-500/20' : 'bg-white/5')}>
-                  <span className="text-[8px] text-white/40 leading-none">{n}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-300' : 'text-white/20')}>{c}</span>
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : 'bg-gray-100')}>
+                  <span className="text-[8px] text-gray-400 leading-none">{n}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : 'text-gray-300')}>{c}</span>
                 </div>
               );
             })}
           </div>
           {/* Outros */}
-          <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Outros</p>
+          <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Outros</p>
           <div className="grid grid-cols-5 gap-1 mb-2">
             {[
               { label: 'Anx', idx: 14 },
@@ -423,22 +423,22 @@ function GarcomApp() {
             ].map(({ label, idx }) => {
               const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? (idx === 15 ? 'bg-yellow-500/20' : 'bg-emerald-500/20') : 'bg-white/5')}>
-                  <span className="text-[8px] text-white/40 leading-none">{label}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? (idx === 15 ? 'text-yellow-300' : 'text-emerald-300') : 'text-white/20')}>{c}</span>
+                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? (idx === 15 ? 'bg-yellow-50' : 'bg-emerald-50') : 'bg-gray-100')}>
+                  <span className="text-[8px] text-gray-400 leading-none">{label}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? (idx === 15 ? 'text-yellow-600' : 'text-emerald-600') : 'text-gray-300')}>{c}</span>
                 </div>
               );
             })}
           </div>
-          <div className="flex justify-end pt-1 border-t border-white/5">
-            <span className="text-[9px] text-white/30">Total lounges: </span>
-            <span className="text-[9px] font-bold text-white/50 ml-1">{(occupancy.lounges ?? []).reduce((a: number, b: number) => a + b, 0)}</span>
+          <div className="flex justify-end pt-1 border-t border-gray-100">
+            <span className="text-[9px] text-gray-400">Total lounges: </span>
+            <span className="text-[9px] font-bold text-gray-500 ml-1">{(occupancy.lounges ?? []).reduce((a: number, b: number) => a + b, 0)}</span>
           </div>
         </div>
 
         {/* Seletor De → Até */}
-        <div className="bg-gray-800 rounded-2xl p-4">
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">Mesa individual ou intervalo (de → até)</p>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Mesa individual ou intervalo (de → até)</p>
           <div className="flex gap-2 w-full items-center">
             <input
               ref={inputRef}
@@ -448,7 +448,7 @@ function GarcomApp() {
               onChange={e => setIrMesa(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
               placeholder="De"
-              className="w-0 flex-1 text-xl font-black text-white bg-gray-700 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
+              className="w-0 flex-1 text-xl font-black text-gray-800 bg-gray-100 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-300"
             />
             <input
               type="text"
@@ -457,7 +457,7 @@ function GarcomApp() {
               onChange={e => setAte(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleIrMesa()}
               placeholder="Até"
-              className="w-0 flex-1 text-xl font-black text-white bg-gray-700 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-white/20"
+              className="w-0 flex-1 text-xl font-black text-gray-800 bg-gray-100 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-300"
             />
             <button
               onClick={handleIrMesa}
@@ -469,18 +469,18 @@ function GarcomApp() {
         </div>
 
         {/* Mapa */}
-        <div className="bg-gray-800 rounded-2xl overflow-hidden">
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Mapa</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mapa</p>
             <div className="flex items-center gap-1">
               <button onClick={() => changeDotSize(-2)}
-                className="w-6 h-6 rounded-lg bg-white/10 text-white/60 text-sm font-bold flex items-center justify-center active:bg-white/20">−</button>
-              <span className="text-[9px] text-white/30 tabular-nums w-7 text-center">{dotSize}px</span>
+                className="w-6 h-6 rounded-lg bg-gray-100 text-gray-500 text-sm font-bold flex items-center justify-center active:bg-gray-200">−</button>
+              <span className="text-[9px] text-gray-400 tabular-nums w-7 text-center">{dotSize}px</span>
               <button onClick={() => changeDotSize(2)}
-                className="w-6 h-6 rounded-lg bg-white/10 text-white/60 text-sm font-bold flex items-center justify-center active:bg-white/20">+</button>
+                className="w-6 h-6 rounded-lg bg-gray-100 text-gray-500 text-sm font-bold flex items-center justify-center active:bg-gray-200">+</button>
             </div>
           </div>
-          <div className="flex items-center justify-center bg-gray-900/50 px-2 pb-3">
+          <div className="flex items-center justify-center bg-gray-50 px-2 pb-3">
             <div
               ref={containerRef}
               style={{
@@ -515,23 +515,23 @@ function GarcomApp() {
 
       </div>
 
-      <footer className="mt-4 text-center py-2 text-[10px] text-white/20 select-none">
+      <footer className="mt-4 text-center py-2 text-[10px] text-gray-300 select-none">
         Desenvolvido por <span className="font-semibold">H8 Sistemas</span>
       </footer>
 
       {confirmRange && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => !loadingRange && setConfirmRange(null)} />
-          <div className="relative bg-gray-800 rounded-t-3xl shadow-xl w-full max-w-sm p-6 z-10 pb-8">
-            <h2 className="text-lg font-bold text-white mb-2">Ocupar {confirmRange.mesas.length} mesas?</h2>
-            <p className="text-sm text-white/50 mb-5">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !loadingRange && setConfirmRange(null)} />
+          <div className="relative bg-white rounded-t-3xl shadow-xl w-full max-w-sm p-6 z-10 pb-8">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Ocupar {confirmRange.mesas.length} mesas?</h2>
+            <p className="text-sm text-gray-400 mb-5">
               Mesas {parseInt(confirmRange.mesas[0], 10)} → {parseInt(confirmRange.mesas[confirmRange.mesas.length - 1], 10)}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => !loadingRange && setConfirmRange(null)}
                 disabled={loadingRange}
-                className="flex-1 py-3 rounded-xl bg-white/10 text-white/70 font-bold active:bg-white/20 disabled:opacity-40"
+                className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold active:bg-gray-200 disabled:opacity-40"
               >
                 Cancelar
               </button>
