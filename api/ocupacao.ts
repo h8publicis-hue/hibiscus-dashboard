@@ -156,7 +156,7 @@ export default async function handler(req: any, res: any) {
     const obs = Array.isArray(d.loungeObs)  ? d.loungeObs  : [];
     const ld  = Array.isArray(d.loungeData) ? d.loungeData : [];
     const data = {
-      beach:         clamp(d.beach, 0, 500),
+      beach:         clamp(d.beach, 0, 600),
       lounges:       Array(19).fill(0).map((_: unknown, i: number) => clamp((d.lounges as number[])?.[i], 0, 999)),
       prime:         clamp(d.prime, 0, 999),
       parceiros:     clamp(d.parceiros, 0, 999),
