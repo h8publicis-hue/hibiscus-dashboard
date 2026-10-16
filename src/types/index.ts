@@ -299,7 +299,7 @@ export interface ValidacaoGarcom {
 }
 
 export const SPACE_CONFIGS = {
-  beach:  { name: 'Beach',  max: 500, attention: 0.6, alert: 0.9 },
+  beach:  { name: 'Beach',  max: 600, attention: 0.6, alert: 0.9 },
   lounge: { name: 'Lounge', max: 999, attention: 0.6, alert: 0.9, count: 19, start: 501 },
   prime:  { name: 'Prime',  max: 999, attention: 0.5, alert: 1.0 },
 } as const;

@@ -112,7 +112,7 @@ function Dashboard() {
   }), [smL, smErr, ptL, ptErr]);
 
   const occupancyAlerts = [
-    occupancy.beach / 500 >= 0.9 ? 1 : 0,
+    occupancy.beach / 600 >= 0.9 ? 1 : 0,
     occupancy.lounges.filter(l => l / 10 >= 0.9).length,
     occupancy.prime / 10 >= 0.9 ? 1 : 0,
   ].reduce((a, b) => a + b, 0);

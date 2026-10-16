@@ -62,7 +62,7 @@ async function fetchOcc(): Promise<OccupancyState & { reservasHoje?: LoungeReser
     if (!r.ok) throw new Error();
     const d = await r.json() as any;
     return {
-      beach:         clamp(d.beach ?? 0, 0, 500),
+      beach:         clamp(d.beach ?? 0, 0, 600),
       lounges:       Array(SPACE_CONFIGS.lounge.count).fill(0).map((_, i) => clamp(d.lounges?.[i] ?? 0, 0, 999)),
       prime:         clamp(d.prime ?? 0, 0, 999),
       parceiros:     clamp(d.parceiros ?? 0, 0, 999),
