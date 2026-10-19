@@ -499,11 +499,13 @@ export function RefeicaoAdmin() {
     } finally { setSaving(false); }
   };
 
-  const pessoasFiltradas = pessoas.filter(p => {
-    const matchSearch = !search || p.nome.toLowerCase().includes(search.toLowerCase()) || p.empresa.toLowerCase().includes(search.toLowerCase());
-    const matchCat = catFiltro === 'todos' || p.categoria === catFiltro;
-    return matchSearch && matchCat;
-  });
+  const pessoasFiltradas = pessoas
+    .filter(p => {
+      const matchSearch = !search || p.nome.toLowerCase().includes(search.toLowerCase()) || p.empresa.toLowerCase().includes(search.toLowerCase());
+      const matchCat = catFiltro === 'todos' || p.categoria === catFiltro;
+      return matchSearch && matchCat;
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' }));
 
   const toggleSelecionado = (id: string) => {
     setSelecionados(prev => {
