@@ -1000,6 +1000,32 @@ export function RefeicaoAdmin() {
                   ))}
                 </div>
 
+                {/* Bipes de hoje por categoria */}
+                {refeicoes.length > 0 && (() => {
+                  const almocosHoje = refeicoes.filter((r: any) => r.status === 'registrada' && r.tipoRefeicao === 'almoco');
+                  const porCat: Record<string, number> = {};
+                  almocosHoje.forEach((r: any) => { const c = r.categoria ?? 'outro'; porCat[c] = (porCat[c] ?? 0) + 1; });
+                  const cats = [
+                    { key: 'colaborador', label: 'Colaborador', cor: 'bg-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+                    { key: 'extra',       label: 'Extra',       cor: 'bg-orange-400', text: 'text-orange-700', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+                    { key: 'parceiro',    label: 'Parceiro',    cor: 'bg-emerald-500',text: 'text-emerald-700',bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+                    { key: 'visitante',   label: 'Visitante',   cor: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+                  ].filter(c => (porCat[c.key] ?? 0) > 0 || c.key !== 'visitante');
+                  return (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Bipes de hoje — almoço por categoria</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {cats.map(c => (
+                          <div key={c.key} className={`rounded-xl p-3 flex flex-col items-center gap-0.5 ${c.bg}`}>
+                            <span className={`text-2xl font-black tabular-nums ${c.text}`}>{porCat[c.key] ?? 0}</span>
+                            <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{c.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Taxa de adesão do dia atual */}
                 {pessoas.length > 0 && (
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">

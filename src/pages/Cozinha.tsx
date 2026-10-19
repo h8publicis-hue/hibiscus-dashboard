@@ -121,6 +121,7 @@ function Clock() {
 export function Cozinha() {
   const [occ, setOcc]                 = useState<OccupancyState | null>(null);
   const [almocosHoje, setAlmocosHoje] = useState(0);
+  const [almocosHojePorCat, setAlmocosHojePorCat] = useState<{ colaborador: number; extra: number; parceiro: number; visitante: number }>({ colaborador: 0, extra: 0, parceiro: 0, visitante: 0 });
   const [ticker, setTicker]           = useState(0);
   const [fade, setFade]               = useState(true);
   const [scanFb, setScanFb]           = useState<ScanFeedback>({ kind: 'idle' });
@@ -216,6 +217,12 @@ export function Cozinha() {
         .then(j => {
           setAlmocosHoje(j?.porTipo?.almoco ?? 0);
           const registros: any[] = j?.refeicoes ?? [];
+          const porCat = { colaborador: 0, extra: 0, parceiro: 0, visitante: 0 };
+          registros.filter((r: any) => r.status === 'registrada' && r.tipoRefeicao === 'almoco').forEach((r: any) => {
+            const cat = r.categoria as keyof typeof porCat;
+            if (cat in porCat) porCat[cat]++;
+          });
+          setAlmocosHojePorCat(porCat);
           const log: RegistroLog[] = registros
             .filter((r: any) => r.status === 'registrada' && r.tipoRefeicao === 'almoco')
             .sort((a: any, b: any) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
@@ -376,7 +383,7 @@ export function Cozinha() {
                 </div>
               </div>
 
-              <div className="flex gap-4 mt-1">
+              <div className="flex gap-2 mt-1 flex-wrap justify-center">
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${refeitorioAberto ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
                   👷 {occ.colaboradores ?? 0} colab.
                 </span>
@@ -384,6 +391,35 @@ export function Cozinha() {
                   🤝 {occ.parceiros ?? 0} parceiros
                 </span>
               </div>
+
+              {/* Breakdown de bipes por categoria */}
+              {almocosHoje > 0 && (
+                <div className="w-full mt-1 bg-white/60 rounded-xl px-3 py-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center mb-1.5">Biparam hoje</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="flex flex-col items-center bg-indigo-50 rounded-lg py-1.5 px-1">
+                      <span className="text-lg font-black text-indigo-700">{almocosHojePorCat.colaborador}</span>
+                      <span className="text-[9px] text-indigo-500 font-semibold leading-none">Colab.</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-orange-50 rounded-lg py-1.5 px-1">
+                      <span className="text-lg font-black text-orange-700">{almocosHojePorCat.extra}</span>
+                      <span className="text-[9px] text-orange-500 font-semibold leading-none">Extra</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-emerald-50 rounded-lg py-1.5 px-1">
+                      <span className="text-lg font-black text-emerald-700">{almocosHojePorCat.parceiro}</span>
+                      <span className="text-[9px] text-emerald-500 font-semibold leading-none">Parceiro</span>
+                    </div>
+                  </div>
+                  {almocosHojePorCat.visitante > 0 && (
+                    <div className="flex justify-center mt-1">
+                      <div className="flex flex-col items-center bg-purple-50 rounded-lg py-1 px-3">
+                        <span className="text-base font-black text-purple-700">{almocosHojePorCat.visitante}</span>
+                        <span className="text-[9px] text-purple-500 font-semibold leading-none">Visitante</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Últimas Entradas */}
