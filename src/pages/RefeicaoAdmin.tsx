@@ -373,8 +373,13 @@ export function RefeicaoAdmin() {
     setShowParceiros(false);
     setSaving(true);
     try {
+      // Descobre o maior número já existente com esse prefixo para não sobrescrever
+      const regex = new RegExp(`^${prefixo} (\\d+)$`, 'i');
+      const maiorExistente = pessoas
+        .map(p => { const m = p.nome.match(regex); return m ? parseInt(m[1], 10) : 0; })
+        .reduce((max, n) => Math.max(max, n), 0);
       const novas = Array.from({ length: qtd }, (_, i) => ({
-        nome:      `${prefixo} ${String(i + 1).padStart(2, '0')}`,
+        nome:      `${prefixo} ${String(maiorExistente + i + 1).padStart(2, '0')}`,
         categoria: 'parceiro',
         empresa:   'Hibiscus Beach Club',
         setor: '', cargo: '', ativo: true,
