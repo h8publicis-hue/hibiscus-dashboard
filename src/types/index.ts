@@ -161,7 +161,7 @@ export type TipoRefeicao = 'almoco' | 'jantar' | 'cafe' | 'lanche';
 export interface Pessoa {
   id: string;
   nome: string;
-  categoria: 'colaborador' | 'parceiro' | 'visitante';
+  categoria: 'colaborador' | 'parceiro' | 'extra' | 'visitante';
   empresa: string;
   setor: string;
   foto: string;

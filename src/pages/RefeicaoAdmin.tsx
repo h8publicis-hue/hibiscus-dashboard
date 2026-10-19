@@ -75,6 +75,7 @@ function PessoaForm({ initial, onSave, onCancel }: {
   const defaultRefeicoes = (cat: string): TipoRefeicao[] => {
     if (cat === 'colaborador') return ['almoco'];
     if (cat === 'parceiro')    return ['cafe', 'almoco'];
+    if (cat === 'extra')       return ['almoco'];
     return ['cafe', 'almoco'];
   };
 
@@ -118,6 +119,7 @@ function PessoaForm({ initial, onSave, onCancel }: {
             className="w-full mt-0.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="colaborador">Colaborador</option>
             <option value="parceiro">Parceiro</option>
+            <option value="extra">Extra</option>
             <option value="visitante">Visitante</option>
           </select>
         </div>
@@ -658,7 +660,7 @@ export function RefeicaoAdmin() {
         ];
         const registradosHoje = refeicoes.filter((r: any) => r.status === 'registrada' && r.tipoRefeicao === tipoFiltro);
         const idsComeram = new Set(registradosHoje.map((r: any) => r.pessoaId));
-        const colaboradores = pessoas.filter(p => p.ativo && p.categoria === 'colaborador');
+        const colaboradores = pessoas.filter(p => p.ativo && (p.categoria === 'colaborador' || p.categoria === 'extra'));
         const comeram    = colaboradores.filter(p => idsComeram.has(p.id));
         const naoComeram = colaboradores.filter(p => !idsComeram.has(p.id));
 
@@ -753,7 +755,7 @@ export function RefeicaoAdmin() {
           className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
         <div className="flex gap-2 flex-wrap">
-          {(['todos', 'colaborador', 'parceiro', 'visitante'] as const).map(cat => (
+          {(['todos', 'colaborador', 'extra', 'parceiro', 'visitante']).map(cat => (
             <button key={cat} onClick={() => setCatFiltro(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors border ${catFiltro === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-indigo-300'}`}>
               {cat === 'todos' ? `Todos (${pessoas.length})` : `${cat} (${pessoas.filter(p => p.categoria === cat).length})`}
