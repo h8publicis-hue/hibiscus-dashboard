@@ -193,17 +193,32 @@ function PessoaForm({ initial, onSave, onCancel }: {
   );
 }
 
-function ModalParceiros({ onCriar, onClose }: { onCriar: (n: number, prefixo: string) => void; onClose: () => void }) {
-  const [qtd, setQtd] = useState(80);
-  const [prefixo, setPrefixo] = useState('Parceiro');
+function ModalParceiros({ onCriar, onClose }: { onCriar: (n: number, prefixo: string, categoria: 'parceiro' | 'extra') => void; onClose: () => void }) {
+  const [qtd,       setQtd]       = useState(80);
+  const [prefixo,   setPrefixo]   = useState('Parceiro');
+  const [categoria, setCategoria] = useState<'parceiro' | 'extra'>('parceiro');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 dark:text-white">Criar Parceiros Temporários</h3>
+          <h3 className="font-bold text-gray-900 dark:text-white">Criar Temporários</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
         <p className="text-xs text-gray-400">Serão criados QR Codes numerados. Ex: Parceiro 01, Parceiro 02…</p>
+
+        {/* Categoria */}
+        <div>
+          <label className="text-xs text-gray-500 font-medium">Categoria</label>
+          <div className="flex gap-2 mt-1">
+            {(['parceiro', 'extra'] as const).map(cat => (
+              <button key={cat} onClick={() => { setCategoria(cat); setPrefixo(cat === 'parceiro' ? 'Parceiro' : 'Extra'); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors capitalize ${categoria === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:border-indigo-300'}`}>
+                {cat === 'parceiro' ? 'Parceiro' : 'Extra'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-500 font-medium">Prefixo</label>
@@ -218,9 +233,9 @@ function ModalParceiros({ onCriar, onClose }: { onCriar: (n: number, prefixo: st
         </div>
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
-          <button onClick={() => onCriar(qtd, prefixo.trim() || 'Parceiro')}
+          <button onClick={() => onCriar(qtd, prefixo.trim() || (categoria === 'parceiro' ? 'Parceiro' : 'Extra'), categoria)}
             className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
-            Criar {qtd} parceiros
+            Criar {qtd} {categoria === 'parceiro' ? 'parceiros' : 'extras'}
           </button>
         </div>
       </div>
@@ -369,7 +384,7 @@ export function RefeicaoAdmin() {
     } finally { setSaving(false); }
   };
 
-  const criarParceiros = async (qtd: number, prefixo: string) => {
+  const criarParceiros = async (qtd: number, prefixo: string, categoria: 'parceiro' | 'extra' = 'parceiro') => {
     setShowParceiros(false);
     setSaving(true);
     try {
@@ -380,7 +395,7 @@ export function RefeicaoAdmin() {
         .reduce((max, n) => Math.max(max, n), 0);
       const novas = Array.from({ length: qtd }, (_, i) => ({
         nome:      `${prefixo} ${String(maiorExistente + i + 1).padStart(2, '0')}`,
-        categoria: 'parceiro',
+        categoria,
         empresa:   'Hibiscus Beach Club',
         setor: '', cargo: '', ativo: true,
       }));
