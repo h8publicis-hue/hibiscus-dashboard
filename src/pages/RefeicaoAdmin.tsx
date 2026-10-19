@@ -238,7 +238,10 @@ export function RefeicaoAdmin() {
   const [search,     setSearch]     = useState('');
   const [importMsg,  setImportMsg]  = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-  const [aba,        setAba]        = useState<'cadastro' | 'presenca'>('cadastro');
+  const [aba,        setAba]        = useState<'cadastro' | 'presenca' | 'relatorios'>('cadastro');
+  const [relDias,    setRelDias]    = useState<7 | 14 | 30>(7);
+  const [relDados,   setRelDados]   = useState<{ data: string; total: number; almoco: number; jantar: number; cafe: number; lanche: number }[]>([]);
+  const [relLoading, setRelLoading] = useState(false);
   const [tipoFiltro, setTipoFiltro] = useState<string>('almoco');
   const [catFiltro,  setCatFiltro]  = useState<string>('todos');
   const [showParceiros, setShowParceiros] = useState(false);
@@ -254,6 +257,39 @@ export function RefeicaoAdmin() {
   };
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const carregarRelatorio = async (dias: number) => {
+    setRelLoading(true);
+    const hoje = new Date();
+    const datas: string[] = [];
+    for (let i = 0; i < dias; i++) {
+      const d = new Date(hoje);
+      d.setDate(hoje.getDate() - i);
+      datas.push(d.toLocaleDateString('en-CA', { timeZone: 'America/Recife' }));
+    }
+    const resultados = await Promise.all(datas.map(async (data) => {
+      try {
+        const r = await fetch(`/api/refeicoes?data=${data}`);
+        const j = await r.json();
+        return {
+          data,
+          total:  j.total ?? 0,
+          almoco: j.porTipo?.almoco ?? 0,
+          jantar: j.porTipo?.jantar ?? 0,
+          cafe:   j.porTipo?.cafe   ?? 0,
+          lanche: j.porTipo?.lanche ?? 0,
+        };
+      } catch {
+        return { data, total: 0, almoco: 0, jantar: 0, cafe: 0, lanche: 0 };
+      }
+    }));
+    setRelDados(resultados.reverse()); // cronológico
+    setRelLoading(false);
+  };
+
+  useEffect(() => {
+    if (aba === 'relatorios') carregarRelatorio(relDias);
+  }, [aba, relDias]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const criarPessoa = async (data: Partial<Pessoa>) => {
     setSaving(true);
@@ -604,9 +640,9 @@ export function RefeicaoAdmin() {
 
       {/* Abas */}
       <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
-        {([['cadastro', 'Cadastro'], ['presenca', 'Presença do Dia']] as const).map(([key, label]) => (
+        {([['cadastro', 'Cadastro'], ['presenca', 'Presença do Dia'], ['relatorios', 'Relatórios']] as const).map(([key, label]) => (
           <button key={key} onClick={() => setAba(key)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${aba === key ? 'border-brand-600 text-brand-600 dark:text-brand-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${aba === key ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
             {label}
           </button>
         ))}
@@ -810,6 +846,154 @@ export function RefeicaoAdmin() {
       {showParceiros && <ModalParceiros onCriar={criarParceiros} onClose={() => setShowParceiros(false)} />}
 
       </> /* fim aba cadastro */}
+
+      {/* ── ABA RELATÓRIOS ── */}
+      {aba === 'relatorios' && (() => {
+        const totalPeriodo = relDados.reduce((s, d) => s + d.total, 0);
+        const diasComMovimento = relDados.filter(d => d.total > 0);
+        const mediaDiaria = diasComMovimento.length > 0 ? Math.round(totalPeriodo / diasComMovimento.length) : 0;
+        const diaPico = relDados.reduce((best, d) => d.total > best.total ? d : best, { data: '—', total: 0, almoco: 0, jantar: 0, cafe: 0, lanche: 0 });
+        const totAlmoco = relDados.reduce((s, d) => s + d.almoco, 0);
+        const totJantar = relDados.reduce((s, d) => s + d.jantar, 0);
+        const totCafe   = relDados.reduce((s, d) => s + d.cafe,   0);
+        const totLanche = relDados.reduce((s, d) => s + d.lanche, 0);
+        const tipoMaisUsado = [
+          { label: 'Almoço', v: totAlmoco, emoji: '☀️' },
+          { label: 'Jantar', v: totJantar, emoji: '🌙' },
+          { label: 'Café',   v: totCafe,   emoji: '☕' },
+          { label: 'Lanche', v: totLanche, emoji: '🥪' },
+        ].sort((a, b) => b.v - a.v)[0];
+        const maxBar = Math.max(...relDados.map(d => d.total), 1);
+
+        // Ranking de frequência — agrega refeições por nome (do dia de hoje, só temos today loaded)
+        // Para o período, buscamos os nomes dos registros do dia atual como proxy visual
+        // (o histórico completo por pessoa exigiria buscar todos os registros de cada dia)
+        const formatData = (iso: string) => {
+          const [, m, d] = iso.split('-');
+          return `${d}/${m}`;
+        };
+
+        return (
+          <div className="flex flex-col gap-5">
+            {/* Seletor de período */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Período de análise</p>
+              <div className="flex gap-1">
+                {([7, 14, 30] as const).map(n => (
+                  <button key={n} onClick={() => setRelDias(n)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${relDias === n ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-indigo-300'}`}>
+                    {n} dias
+                  </button>
+                ))}
+                <button onClick={() => carregarRelatorio(relDias)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1">
+                  <RefreshCw size={12} />
+                </button>
+              </div>
+            </div>
+
+            {relLoading ? (
+              <div className="text-center py-16 text-gray-400 text-sm animate-pulse">Carregando dados...</div>
+            ) : (
+              <>
+                {/* Cards de resumo */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Total no período', value: totalPeriodo,    emoji: '🍽️' },
+                    { label: 'Média por dia',     value: mediaDiaria,    emoji: '📊' },
+                    { label: 'Dia de pico',       value: diaPico.total > 0 ? `${formatData(diaPico.data)} (${diaPico.total})` : '—', emoji: '🔥' },
+                    { label: 'Tipo mais usado',   value: tipoMaisUsado?.v > 0 ? `${tipoMaisUsado.emoji} ${tipoMaisUsado.label} (${tipoMaisUsado.v})` : '—', emoji: '' },
+                  ].map(c => (
+                    <div key={c.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{c.label}</p>
+                      <p className="text-lg font-black text-gray-900 dark:text-white leading-tight">{c.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Gráfico de barras */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Movimento por dia</p>
+                  {totalPeriodo === 0 ? (
+                    <p className="text-center text-gray-400 text-sm py-8">Nenhum registro neste período.</p>
+                  ) : (
+                    <div className="flex items-end gap-1 h-32 overflow-x-auto pb-1">
+                      {relDados.map(d => (
+                        <div key={d.data} className="flex flex-col items-center gap-1 flex-1 min-w-[28px]">
+                          <span className="text-[9px] text-gray-400 font-semibold">{d.total > 0 ? d.total : ''}</span>
+                          <div className="w-full rounded-t-sm overflow-hidden flex flex-col justify-end" style={{ height: '88px' }}>
+                            <div className="flex flex-col w-full rounded-t-sm overflow-hidden" style={{ height: `${Math.round((d.total / maxBar) * 88)}px` }}>
+                              <div style={{ flex: d.almoco }} className="bg-indigo-500" />
+                              <div style={{ flex: d.cafe }}   className="bg-amber-400" />
+                              <div style={{ flex: d.jantar }} className="bg-blue-500" />
+                              <div style={{ flex: d.lanche }} className="bg-green-500" />
+                            </div>
+                          </div>
+                          <span className="text-[9px] text-gray-400 rotate-0">{formatData(d.data)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Legenda */}
+                  <div className="flex gap-3 mt-3 flex-wrap">
+                    {[['bg-indigo-500', 'Almoço'], ['bg-amber-400', 'Café'], ['bg-blue-500', 'Jantar'], ['bg-green-500', 'Lanche']].map(([cor, label]) => (
+                      <div key={label} className="flex items-center gap-1">
+                        <span className={`w-2.5 h-2.5 rounded-sm ${cor}`} />
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Totais por tipo */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Almoços',  value: totAlmoco, color: 'text-indigo-600 dark:text-indigo-400', emoji: '☀️' },
+                    { label: 'Cafés',    value: totCafe,   color: 'text-amber-600 dark:text-amber-400',   emoji: '☕' },
+                    { label: 'Jantares', value: totJantar, color: 'text-blue-600 dark:text-blue-400',     emoji: '🌙' },
+                    { label: 'Lanches',  value: totLanche, color: 'text-green-600 dark:text-green-400',   emoji: '🥪' },
+                  ].map(c => (
+                    <div key={c.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-3">
+                      <span className="text-2xl">{c.emoji}</span>
+                      <div>
+                        <p className={`text-xl font-black ${c.color} leading-none`}>{c.value}</p>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">{c.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Taxa de adesão do dia atual */}
+                {pessoas.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Taxa de adesão — hoje</p>
+                    <div className="flex flex-col gap-2">
+                      {[
+                        { label: 'Almoço',  v: contagem?.porTipo?.almoco ?? 0, cor: 'bg-indigo-500' },
+                        { label: 'Café',    v: contagem?.porTipo?.cafe   ?? 0, cor: 'bg-amber-400' },
+                        { label: 'Jantar',  v: contagem?.porTipo?.jantar ?? 0, cor: 'bg-blue-500' },
+                        { label: 'Lanche',  v: contagem?.porTipo?.lanche ?? 0, cor: 'bg-green-500' },
+                      ].map(row => {
+                        const pct = pessoas.length > 0 ? Math.round(row.v / pessoas.length * 100) : 0;
+                        return (
+                          <div key={row.label} className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 w-14 shrink-0">{row.label}</span>
+                            <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div className={`h-full ${row.cor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 w-20 text-right">{row.v} / {pessoas.length} ({pct}%)</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
