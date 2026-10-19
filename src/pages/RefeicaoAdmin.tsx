@@ -507,12 +507,25 @@ export function RefeicaoAdmin() {
     })
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' }));
 
-  const toggleSelecionado = (id: string) => {
+  const lastCheckedIdx = useRef<number>(-1);
+
+  const toggleSelecionado = (id: string, shiftKey = false) => {
+    const idx = pessoasFiltradas.findIndex(p => p.id === id);
     setSelecionados(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (shiftKey && lastCheckedIdx.current >= 0) {
+        const from = Math.min(lastCheckedIdx.current, idx);
+        const to   = Math.max(lastCheckedIdx.current, idx);
+        const adding = !prev.has(id);
+        for (let i = from; i <= to; i++) {
+          adding ? next.add(pessoasFiltradas[i].id) : next.delete(pessoasFiltradas[i].id);
+        }
+      } else {
+        next.has(id) ? next.delete(id) : next.add(id);
+      }
       return next;
     });
+    lastCheckedIdx.current = idx;
   };
 
   const toggleTodos = () => {
@@ -817,7 +830,7 @@ export function RefeicaoAdmin() {
                 <>
                   <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                     <td className="px-4 py-3 w-8">
-                      <input type="checkbox" checked={selecionados.has(p.id)} onChange={() => toggleSelecionado(p.id)} className="rounded cursor-pointer" />
+                      <input type="checkbox" checked={selecionados.has(p.id)} onChange={e => toggleSelecionado(p.id, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey)} className="rounded cursor-pointer" />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
