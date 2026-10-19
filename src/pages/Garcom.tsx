@@ -417,8 +417,6 @@ function GarcomApp() {
             {[
               { label: 'Anx', idx: 14 },
               { label: 'Prime', idx: 15 },
-              { label: 'Gram', idx: 16 },
-              { label: 'Gram', idx: 17 },
               { label: '519', idx: 18 },
             ].map(({ label, idx }) => {
               const c = occupancy.lounges[idx] ?? 0;

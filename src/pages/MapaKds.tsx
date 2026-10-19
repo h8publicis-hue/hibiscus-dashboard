@@ -228,9 +228,9 @@ export function MapaKds() {
                 })}
               </div>
             </div>
-            {/* Outros: idx 14=515 Anexo, 15=516 Prime, 16=517 Gramado, 17=518 Gramado, 18=519 */}
+            {/* Outros: idx 14=515 Anexo, 15=516 Prime, 18=519 */}
             <div className="flex gap-1 flex-wrap">
-              {[{idx:14,label:'Anexo'},{idx:15,label:'Prime'},{idx:16,label:'Grama'},{idx:17,label:'Grama'},{idx:18,label:'519'}].map(({idx,label}) => {
+              {[{idx:14,label:'Anexo'},{idx:15,label:'Prime'},{idx:18,label:'519'}].map(({idx,label}) => {
                 const n = occupancy.lounges[idx] ?? 0;
                 return (
                   <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[30px]', idx === 15 ? (n > 0 ? 'bg-yellow-600/30 border border-yellow-500/50' : 'bg-yellow-900/20 border border-yellow-700/30') : n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>

@@ -113,7 +113,6 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Prime ★',    ids: [15] },
-  { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
 const MONTH_REV_TTL = 60 * 60 * 1000; // 1h — igual ao hook
@@ -222,10 +221,10 @@ function LoungeMap({ lounges, loungeObs, loungeData, reservas }: { lounges: numb
       {/* Separador visual */}
       <div className="border-t border-gray-100 dark:border-gray-700" />
 
-      {/* Anexo + Gramado à esquerda · Prime★ isolado à direita (abaixo do 514) */}
+      {/* Anexo à esquerda · Prime★ isolado à direita (abaixo do 514) */}
       <div className="flex items-start justify-between">
         <div className="flex gap-3 items-start">
-          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[4]].map((group) => (
+          {[LOUNGE_GROUPS[2]].map((group) => (
             <div key={group.label} className="flex flex-col gap-1">
               <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
               <div className="flex gap-1">
@@ -408,7 +407,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
       ))}
 
       <div className="flex gap-2 items-start">
-        {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map((group) => (
+        {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3]].map((group) => (
           <div key={group.label} className="flex flex-col gap-0.5">
             <LoungeLabel label={group.label} className="text-[7px] font-semibold text-gray-500 dark:text-gray-400" />
             <div className="flex gap-0.5">
@@ -977,8 +976,8 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
           <OccupancyRow
             label="🛋️ Lounges"
-            current={loungesTotal}
-            max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count}
+            current={occupancy.lounges.filter(v => v > 0).length}
+            max={SPACE_CONFIGS.lounge.count}
             hideMax
             sublabel={`${occupancy.lounges.filter(v => v > 0).length} de ${SPACE_CONFIGS.lounge.count} lounges`}
           />
