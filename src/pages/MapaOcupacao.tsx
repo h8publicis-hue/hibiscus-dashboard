@@ -434,7 +434,25 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
 
 // ── MapaOcupacao ──────────────────────────────────────────────────────────────
 
-export function MapaOcupacao() {
+export const MAPA_PUBLIC_TOKEN = '@Hibiscus';
+
+export function MapaOcupacaoPublica() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('t') !== MAPA_PUBLIC_TOKEN) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <p className="text-4xl mb-3">🔒</p>
+          <p className="text-white font-bold text-lg">Acesso restrito</p>
+          <p className="text-gray-400 text-sm mt-1">Link inválido ou expirado.</p>
+        </div>
+      </div>
+    );
+  }
+  return <MapaOcupacao readOnly />;
+}
+
+export function MapaOcupacao({ readOnly = false }: { readOnly?: boolean }) {
   const { tables, estado, loading, markerSize: remoteMarkerSize, ocuparMesa, liberarMesa, atualizarClientes, salvarPosicoes, salvarMarkerSize, zerarTudo } = useBeachTables();
   const [occupancy] = useOccupancy();
   const portaria    = usePortaria();
@@ -705,7 +723,7 @@ export function MapaOcupacao() {
         </div>
 
         {/* Editar mapa */}
-        <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
+        {!readOnly && <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-2">
           <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Admin</p>
           <button onClick={() => window.open('/mapa-kds', '_blank')}
             className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-medium hover:bg-indigo-600 transition-colors">
@@ -760,7 +778,7 @@ export function MapaOcupacao() {
               )}
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Legenda */}
         <div className="bg-gray-800 rounded-2xl p-3 flex flex-col gap-1.5">

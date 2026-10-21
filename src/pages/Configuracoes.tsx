@@ -43,6 +43,7 @@ const LINKS_OPERACIONAIS = [
   { label: 'App / Garçom',     path: '/garcom',    desc: 'Mapa de mesas Beach — ocupar e liberar' },
   { label: 'Mapa Beach · KDS', path: '/mapa-kds',  desc: 'Mapa de mesas em tela cheia para TV/KDS' },
   { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
+  { label: 'Mapa Beach · Líder', path: '/mapa-ocupacao?t=@Hibiscus', desc: 'Mapa de mesas — acesso externo (somente leitura, PIN: @Hibiscus)' },
 ];
 
 function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
