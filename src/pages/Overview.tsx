@@ -608,18 +608,19 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                       style={{ width: `${monthPctLabel}%` }}
                     />
                   </div>
-                  {monthPct < 1 && (
-                    <p className="text-[10px] font-semibold text-red-500 dark:text-red-400 text-right mt-0.5">
-                      Faltam R$ {fmtN(Math.round(monthGoal - (monthRevenue ?? 0)))}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  {monthPct < 1
+                    ? <p className="text-[10px] font-semibold text-red-500 dark:text-red-400">Faltam R$ {fmtN(Math.round(monthGoal - monthRevenue))}</p>
+                    : <span />
+                  }
+                  {monthRevTs && (
+                    <p className="text-[10px] text-gray-400 text-right">
+                      Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      {' · '}próx. às {new Date(monthRevTs + 10 * 60 * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
                 </div>
-                {monthRevTs && (
-                  <p className="text-[10px] text-gray-400 text-right">
-                    Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    {' · '}próx. às {new Date(monthRevTs + 10 * 60 * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                )}
               </div>
             )
             : <p className="text-xs text-gray-400">Sem dados</p>
