@@ -608,6 +608,11 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                       style={{ width: `${monthPctLabel}%` }}
                     />
                   </div>
+                  {monthPct < 1 && (
+                    <p className="text-[10px] font-semibold text-red-500 dark:text-red-400 text-right mt-0.5">
+                      Faltam R$ {fmtN(Math.round(monthGoal - (monthRevenue ?? 0)))}
+                    </p>
+                  )}
                 </div>
                 {monthRevTs && (
                   <p className="text-[10px] text-gray-400 text-right">
