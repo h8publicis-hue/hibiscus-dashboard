@@ -437,8 +437,11 @@ function TableModal({ numero, estado, onClose, onOcupar, onLiberar, onAtualizarC
 export const MAPA_PUBLIC_TOKEN = '@Hibiscus';
 
 export function MapaOcupacaoPublica() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('t') !== MAPA_PUBLIC_TOKEN) {
+  const params    = new URLSearchParams(window.location.search);
+  const authed    = localStorage.getItem('hibiscus-admin-auth-v2') === 'ok';
+  const tokenOk   = params.get('t') === MAPA_PUBLIC_TOKEN;
+
+  if (!authed && !tokenOk) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
@@ -449,7 +452,7 @@ export function MapaOcupacaoPublica() {
       </div>
     );
   }
-  return <MapaOcupacao readOnly />;
+  return <MapaOcupacao readOnly={!authed} />;
 }
 
 export function MapaOcupacao({ readOnly = false }: { readOnly?: boolean }) {
