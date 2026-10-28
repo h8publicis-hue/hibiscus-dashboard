@@ -77,10 +77,10 @@ function KitchenCard({
   const colors = accent ?? { border: 'border-blue-300', bg: 'bg-blue-50', num: 'text-blue-700', badge: 'bg-blue-100 text-blue-700', bar: 'bg-blue-400' };
 
   return (
-    <div className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-5 flex flex-col items-center gap-2 flex-1`}>
-      <span className="text-3xl">{emoji}</span>
-      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest text-center">{label}</p>
-      <p className={`text-[5.5rem] font-black tabular-nums leading-none ${colors.num}`}>{value}</p>
+    <div className={`rounded-2xl border-2 ${colors.border} ${colors.bg} p-3 md:p-5 flex flex-col items-center gap-1.5 md:gap-2 flex-1`}>
+      <span className="text-2xl md:text-3xl">{emoji}</span>
+      <p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-widest text-center">{label}</p>
+      <p className={`text-[3.5rem] md:text-[5.5rem] font-black tabular-nums leading-none ${colors.num}`}>{value}</p>
       {pct !== null && max && (
         <>
           <div className="w-full h-2 bg-black/10 rounded-full overflow-hidden">
@@ -110,10 +110,10 @@ function Clock() {
   return (
     <div className="text-center">
       <div className="flex items-end justify-center gap-1">
-        <span className="text-5xl font-black text-gray-800 tabular-nums leading-none">{hhmm}</span>
-        <span className="text-2xl font-bold text-gray-400 tabular-nums leading-none mb-0.5">{ss}</span>
+        <span className="text-3xl md:text-5xl font-black text-gray-800 tabular-nums leading-none">{hhmm}</span>
+        <span className="text-lg md:text-2xl font-bold text-gray-400 tabular-nums leading-none mb-0.5">{ss}</span>
       </div>
-      <p className="text-xs text-gray-400 capitalize mt-0.5">{data}</p>
+      <p className="text-[10px] md:text-xs text-gray-400 capitalize mt-0.5 hidden sm:block">{data}</p>
     </div>
   );
 }
@@ -282,24 +282,24 @@ export function Cozinha() {
   const loungeColors = occ ? pctColor(loungesTotal / loungesMax)             : undefined;
 
   return (
-    <div className="h-screen overflow-hidden bg-gray-100 flex flex-col">
+    <div className="min-h-screen md:h-screen md:overflow-hidden bg-gray-100 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🍳</span>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Hibiscus Beach Club</p>
-            <h1 className="text-base font-black text-gray-900 leading-tight">Cozinha — Ocupação</h1>
+      <div className="bg-white border-b border-gray-200 px-3 md:px-6 py-2 md:py-3 flex items-center justify-between gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <span className="text-xl md:text-2xl shrink-0">🍳</span>
+          <div className="min-w-0">
+            <p className="text-[9px] md:text-[10px] text-gray-400 uppercase tracking-wider hidden sm:block">Hibiscus Beach Club</p>
+            <h1 className="text-sm md:text-base font-black text-gray-900 leading-tight truncate">Cozinha</h1>
           </div>
         </div>
 
         {/* Relógio */}
         <Clock />
 
-        <div className="flex flex-col items-end gap-0.5">
-        <img src="/logo.png" alt="Hibiscus Beach Club" className="h-7 object-contain" />
-        <p className="text-[9px] text-gray-300 hidden lg:block">↺ atualiza a cada 10s</p>
-      </div>
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <img src="/logo.png" alt="Hibiscus Beach Club" className="h-6 md:h-7 object-contain" />
+          <p className="text-[9px] text-gray-300 hidden lg:block">↺ atualiza a cada 10s</p>
+        </div>
       </div>
 
       {/* Banner comunicados compactos (ticker) */}
@@ -332,13 +332,13 @@ export function Cozinha() {
           <p className="text-gray-400 text-sm animate-pulse">Carregando...</p>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 p-4 flex flex-col gap-3 max-w-7xl mx-auto w-full">
+        <div className="flex-1 min-h-0 p-3 md:p-4 flex flex-col gap-3 max-w-7xl mx-auto w-full">
 
           {/* Linha de cima: Refeitório + Últimas Entradas */}
-          <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
+          <div className="flex flex-col lg:flex-row gap-3 md:flex-1 md:min-h-0">
 
             {/* Refeitório */}
-            <div className={`rounded-2xl border-2 p-6 flex flex-col items-center gap-2 lg:w-80 shrink-0 ${refeitorioAberto ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}>
+            <div className={`rounded-2xl border-2 p-4 md:p-6 flex flex-col items-center gap-2 lg:w-80 shrink-0 ${refeitorioAberto ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}>
               <span className="text-3xl">🍽️</span>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Refeitório</p>
 
@@ -352,7 +352,7 @@ export function Cozinha() {
                 </span>
               )}
 
-              <p className={`text-[6rem] font-black tabular-nums leading-none ${refeitorioAberto ? 'text-blue-700' : 'text-gray-400'}`}>{refeitorio}</p>
+              <p className={`text-[4rem] md:text-[6rem] font-black tabular-nums leading-none ${refeitorioAberto ? 'text-blue-700' : 'text-gray-400'}`}>{refeitorio}</p>
               <p className="text-sm text-gray-400 -mt-1 text-center">Previsão de ocupação do refeitório</p>
 
               {refeitorio > 0 && (
@@ -446,7 +446,7 @@ export function Cozinha() {
             </div>
 
             {/* Últimas Entradas */}
-            <div className="flex-1 min-h-0 rounded-2xl border-2 border-gray-200 bg-white flex flex-col overflow-hidden">
+            <div className="min-h-48 md:flex-1 md:min-h-0 rounded-2xl border-2 border-gray-200 bg-white flex flex-col overflow-hidden">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center pt-4 pb-3 border-b border-gray-100">
                 Últimas Entradas
               </p>
@@ -484,7 +484,7 @@ export function Cozinha() {
           </div>
 
           {/* Linha de baixo: Beach + Lounge */}
-          <div className="flex gap-3 h-44">
+          <div className="flex gap-3 h-36 md:h-44">
             <KitchenCard
               emoji="🏖️"
               label="Espaço Beach"
