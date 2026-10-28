@@ -568,6 +568,29 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const monthPct      = Math.min(monthRevenue / monthGoal, 1);
   const monthPctLabel = Math.round(monthPct * 100);
   const monthAbove    = monthRevenue > monthGoal ? Math.round((monthRevenue / monthGoal - 1) * 100) : 0;
+
+  // Indicadores de ritmo
+  const nowBRTmeta   = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Recife' }));
+  const diasNoMes    = new Date(nowBRTmeta.getFullYear(), nowBRTmeta.getMonth() + 1, 0).getDate();
+  const diaAtual     = nowBRTmeta.getDate();
+  const diasRestantes = Math.max(1, diasNoMes - diaAtual + 1); // inclui hoje
+  const diasDecorridos = diaAtual;
+  const mediaDiaria   = diasDecorridos > 0 ? monthRevenue / diasDecorridos : 0;
+  const projecaoMes   = mediaDiaria * diasNoMes;
+  const falta         = Math.max(0, monthGoal - monthRevenue);
+  const necessarioPorDia = falta / diasRestantes;
+  const metaProporcional = (monthGoal / diasNoMes) * diaAtual;
+  const ritmoRatio       = metaProporcional > 0 ? monthRevenue / metaProporcional : 1;
+  const ritmo = monthRevenue >= monthGoal
+    ? { label: 'Meta atingida',    color: 'text-green-700 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20',  dot: 'bg-green-500' }
+    : ritmoRatio >= 1.05
+    ? { label: 'Acima do ritmo',   color: 'text-green-700 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20',  dot: 'bg-green-500' }
+    : ritmoRatio >= 0.90
+    ? { label: 'Dentro do ritmo',  color: 'text-yellow-700 dark:text-yellow-400',bg: 'bg-yellow-50 dark:bg-yellow-900/20',dot: 'bg-yellow-400' }
+    : { label: 'Abaixo do ritmo',  color: 'text-red-600 dark:text-red-400',      bg: 'bg-red-50 dark:bg-red-900/20',      dot: 'bg-red-500' };
+  const projecaoAcima = projecaoMes > monthGoal;
+  const projecaoPct   = projecaoMes > 0 ? Math.round(Math.abs(projecaoMes / monthGoal - 1) * 100 * 10) / 10 : 0;
+
   const blocoJaVendido = (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow border border-gray-300 dark:border-gray-600">
       <div className="flex items-center gap-1.5 mb-3">
@@ -581,6 +604,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         : monthRevRaw !== null
             ? (
               <div className="space-y-2">
+                {/* Valor principal */}
                 <div className="flex items-end gap-2">
                   <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
                     R$ {fmtN(Math.round(monthRevenue))}
@@ -597,6 +621,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     <span>🏆 Meta Alcançada!</span>
                   </div>
                 )}
+                {/* Barra de progresso */}
                 <div>
                   <div className="flex justify-between text-[10px] text-gray-400 mb-1">
                     <span>Meta: R$ {fmtN(monthGoal)}</span>
@@ -609,18 +634,52 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     />
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  {monthPct < 1
-                    ? <p className="text-[10px] font-semibold text-red-500 dark:text-red-400">Faltam R$ {fmtN(Math.round(monthGoal - monthRevenue))}</p>
-                    : <span />
-                  }
-                  {monthRevTs && (
-                    <p className="text-[10px] text-gray-400 text-right">
-                      Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                      {' · '}próx. às {new Date(monthRevTs + 10 * 60 * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  )}
+                {/* Faltam + Necessário por dia */}
+                {monthPct < 1 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5 flex items-center gap-2">
+                      <span className="text-lg">🎯</span>
+                      <div>
+                        <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-none">Faltam para a meta</p>
+                        <p className="text-sm font-black text-red-600 dark:text-red-400 tabular-nums">R$ {fmtN(Math.round(falta))}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2.5 flex items-center gap-2">
+                      <span className="text-lg">📊</span>
+                      <div>
+                        <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-none">Necessário por dia</p>
+                        <p className="text-sm font-black text-blue-700 dark:text-blue-400 tabular-nums">R$ {fmtN(Math.round(necessarioPorDia))}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Média diária + Projeção + Ritmo */}
+                <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-gray-100 dark:border-gray-700 text-[10px]">
+                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                    <span>📅</span>
+                    <span>Média: <strong className="text-gray-700 dark:text-gray-200">R$ {fmtN(Math.round(mediaDiaria))}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className={projecaoAcima ? 'text-green-600' : 'text-red-500'}>
+                      {projecaoAcima ? '↑' : '↓'}
+                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Proj: <strong className={projecaoAcima ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>R$ {fmtN(Math.round(projecaoMes))}</strong>
+                      {projecaoPct > 0 && <span className={`ml-1 px-1 rounded-full text-[9px] ${projecaoAcima ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600'}`}>{projecaoAcima ? '+' : '-'}{projecaoPct}%</span>}
+                    </span>
+                  </div>
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${ritmo.bg}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${ritmo.dot}`} />
+                    <span className={`font-semibold ${ritmo.color}`}>{ritmo.label}</span>
+                  </div>
                 </div>
+                {/* Timestamp */}
+                {monthRevTs && (
+                  <p className="text-[10px] text-gray-400 text-right">
+                    Atualizado às {new Date(monthRevTs).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    {' · '}próx. às {new Date(monthRevTs + 10 * 60 * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
             )
             : <p className="text-xs text-gray-400">Sem dados</p>
