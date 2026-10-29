@@ -152,6 +152,28 @@ export function invalidatePaytourCache(): void {
   cache.clear();
   nextMonthCache    = null;
   nextMonthInflight = null;
+  todayVisitCache   = null;
+}
+
+// ── Faturamento de hoje por data de visita (igual Resumo Financeiro Paytour) ──
+export interface TodayVisitData { revenue: number; orders: number; items: number }
+let todayVisitCache: { data: TodayVisitData; ts: number } | null = null;
+
+export async function fetchTodayVisitRevenue(): Promise<TodayVisitData> {
+  const TTL = 5 * 60 * 1000;
+  if (todayVisitCache && Date.now() - todayVisitCache.ts < TTL) return todayVisitCache.data;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const d = `${brt.getUTCFullYear()}-${pad(brt.getUTCMonth() + 1)}-${pad(brt.getUTCDate())}`;
+  const orders = await apiFetch(`/api/paytour-orders?since=${d}&until=${d}&filter=visita`) as RawOrder[];
+  const conf = orders.filter(o => o.status === 'confirmado' || o.status === 'aprovado');
+  const data: TodayVisitData = {
+    revenue: conf.reduce((s, o) => s + parseFloat(o.valor || '0'), 0),
+    orders:  conf.length,
+    items:   conf.reduce((s, o) => s + (o.itens?.length ?? 1), 0),
+  };
+  todayVisitCache = { data, ts: Date.now() };
+  return data;
 }
 
 // ── Fetch simples — a Vercel function nunca retorna warmingUp ────────────────

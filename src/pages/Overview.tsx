@@ -7,7 +7,7 @@ import { usePaytour } from '../hooks/usePaytour';
 import { useMonthRevenue } from '../hooks/useMonthRevenue';
 import { useReceitaABS } from '../hooks/useReceitaABS';
 import { useCheckin } from '../hooks/useCheckin';
-import { fetchNextMonthVisitData, NextMonthVisit } from '../services/paytour';
+import { fetchNextMonthVisitData, NextMonthVisit, fetchTodayVisitRevenue, TodayVisitData } from '../services/paytour';
 import { Period, Goals, OccupancyState, SPACE_CONFIGS } from '../types';
 import { useAviso, AvisoList, AvisoArea, AVISO_AREAS, AvisoLayout } from '../hooks/useAviso';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
@@ -515,6 +515,18 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
 
+  const [todayVisit,  setTodayVisit]  = useState<TodayVisitData | null>(null);
+  const [todayVisitL, setTodayVisitL] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => fetchTodayVisitRevenue()
+      .then(d => { if (!cancelled) { setTodayVisit(d); setTodayVisitL(false); } })
+      .catch(() => { if (!cancelled) setTodayVisitL(false); });
+    load();
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
   const [nextMonth,  setNextMonth]  = useState<NextMonthVisit | null>(null);
   const [nextMonthL, setNextMonthL] = useState(true);
 
@@ -531,24 +543,23 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   }, []);
 
   // ── Bloco: Ao Vivo ────────────────────────────────────────────────────────
-  const todayRevenue = paytour?.todayRevenue ?? 0;
   const blocoAoVivo = (
     <div className="bg-gradient-to-r from-brand-700 to-brand-900 rounded-xl p-4 shadow-sm text-white">
       <div className="flex items-center gap-1.5 mb-3">
         <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
         <h2 className="text-xs font-semibold uppercase tracking-wider opacity-90">Paytour — Ao Vivo</h2>
-        {ptL && <span className="text-[10px] opacity-60 animate-pulse ml-auto">Carregando...</span>}
+        {todayVisitL && <span className="text-[10px] opacity-60 animate-pulse ml-auto">Carregando...</span>}
       </div>
-      {ptL
+      {todayVisitL
         ? <div className="space-y-2"><div className="h-6 w-32 bg-white/20 rounded animate-pulse" /><div className="h-3 w-24 bg-white/10 rounded animate-pulse" /></div>
         : (
           <div className="space-y-3">
-            <p className="text-2xl font-black">R$ {fmtN(Math.round(todayRevenue))}</p>
+            <p className="text-2xl font-black">R$ {fmtN(Math.round(todayVisit?.revenue ?? 0))}</p>
             <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/20">
               {[
-                { label: 'Atividades',   val: paytour ? fmtN(paytour.todayItems)  : '—' },
-                { label: 'Reservas',     val: paytour ? fmtN(paytour.todayOrders) : '—' },
-                { label: 'Ticket médio', val: paytour && paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
+                { label: 'Atividades',   val: todayVisit ? fmtN(todayVisit.items)  : '—' },
+                { label: 'Reservas',     val: todayVisit ? fmtN(todayVisit.orders) : '—' },
+                { label: 'Ticket médio', val: todayVisit && todayVisit.orders > 0 ? `R$ ${fmtN(Math.round(todayVisit.revenue / todayVisit.orders))}` : '—' },
               ].map(({ label, val }) => (
                 <div key={label} className="text-center">
                   <p className="text-[9px] opacity-60 uppercase tracking-wide">{label}</p>
