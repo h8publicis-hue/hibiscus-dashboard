@@ -543,12 +543,12 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         ? <div className="space-y-2"><div className="h-6 w-32 bg-white/20 rounded animate-pulse" /><div className="h-3 w-24 bg-white/10 rounded animate-pulse" /></div>
         : (
           <div className="space-y-3">
-            <p className="text-2xl font-black">R$ {fmtN(Math.round(paytour.todayRevenue))}</p>
+            <p className="text-2xl font-black">R$ {fmtN(Math.round((paytour?.todayRevenue ?? 0)))}</p>
             <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/20">
               {[
-                { label: 'Atividades',   val: fmtN(paytour.todayItems) },
-                { label: 'Reservas',     val: fmtN(paytour.todayOrders) },
-                { label: 'Ticket médio', val: paytour.todayOrders > 0 ? `R$ ${fmtN(Math.round(paytour.todayRevenue / paytour.todayOrders))}` : '—' },
+                { label: 'Atividades',   val: fmtN((paytour?.todayItems ?? 0)) },
+                { label: 'Reservas',     val: fmtN((paytour?.todayOrders ?? 0)) },
+                { label: 'Ticket médio', val: (paytour?.todayOrders ?? 0) > 0 ? `R$ ${fmtN(Math.round((paytour?.todayRevenue ?? 0) / (paytour?.todayOrders ?? 0)))}` : '—' },
               ].map(({ label, val }) => (
                 <div key={label} className="text-center">
                   <p className="text-[9px] opacity-60 uppercase tracking-wide">{label}</p>

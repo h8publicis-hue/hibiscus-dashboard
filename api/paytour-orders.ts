@@ -132,6 +132,7 @@ async function fetchOrders(since: string, until: string) {
   const isToday = since === today && until === today;
   const maxPage = isToday ? 6 : 30;   // hoje: 6 pág; outros: 30 pág max (1500 pedidos) p/ evitar timeout
   const all: unknown[] = [];
+  const seen = new Set<string>();
   for (let page = 1; page <= maxPage; page++) {
     if (page > 1) await sleep(PAGE_DELAY_MS);
     const data  = await paytourGet(`/v2/pedidos?por_pagina=${PAGE_SIZE}&pagina=${page}`) as any;
@@ -141,10 +142,16 @@ async function fetchOrders(since: string, until: string) {
     }
     if (!items.length) break;
     // Filtra os itens desta página que estão no intervalo
+    let novos = 0;
     for (const o of items) {
+      const id = String(o.id);
+      if (seen.has(id)) continue;
+      seen.add(id); novos++;
       const d = (o.data_hora_pedido as string)?.slice(0, 10);
       if (d && d >= since && d <= until) all.push(o);
     }
+    // API pode repetir páginas — sem itens novos, não há mais o que buscar
+    if (novos === 0) break;
     // Só para se o ÚLTIMO item da página for anterior a `since`
     // (significa que todos os próximos também serão mais antigos — API sorted desc)
     const lastDate = (items[items.length - 1]?.data_hora_pedido as string)?.slice(0, 10) ?? '';
@@ -159,6 +166,7 @@ async function fetchOrders(since: string, until: string) {
 // Isso evita a necessidade de buscar `itens` (que não vem na listagem).
 async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
   const all: unknown[] = [];
+  const seen = new Set<string>();
 
   // Parâmetros testados com a API do Paytour para filtro por data de visita
   const dateParams = `disponibilidade_data_de=${visitSince}&disponibilidade_data_ate=${visitUntil}`;
@@ -173,7 +181,13 @@ async function fetchOrdersByVisitDate(visitSince: string, visitUntil: string) {
       console.log(`[visita] pg1 total_paginas=${data?.info?.total_paginas} count=${items.length} params=${dateParams}`);
     }
     if (!items.length) break;
-    for (const o of items) all.push(o);
+    let novos = 0;
+    for (const o of items) {
+      const id = String(o.id);
+      if (seen.has(id)) continue;
+      seen.add(id); novos++; all.push(o);
+    }
+    if (novos === 0) break;
     if (page >= (data?.info?.total_paginas ?? page)) break;
   }
 
