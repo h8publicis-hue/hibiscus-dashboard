@@ -28,14 +28,16 @@ const JULY_2026_SEED_CUTOFF = '2026-07-22';
 const SEPT_2026_SEED        = 128251.00;
 const SEPT_2026_SEED_CUTOFF = '2026-09-24';
 
-// Snapshot outubro/2026: "Total de Reservas" bruto (sem descontos) R$226.557,00 no Resumo Financeiro
-// em 30/10 ~10h, menos R$3.821 já lançados em 30/10 (o acumulador v10 recontará a partir de 30/10).
+// Snapshot outubro/2026 (Resumo Financeiro, 30/10 ~10h20): Total de Reservas bruto R$227.195,00,
+// Descontos R$10.047,10, Total Movimentado R$217.147,90 (valor da meta). Seed = valores até 29/10
+// (menos R$4.459 de pedidos de 30/10, recontados pelo acumulador v11).
 const OCT_2026_SEED        = 222736.00;
+const OCT_2026_SEED_DESC   = 10047.10;
 const OCT_2026_SEED_CUTOFF = '2026-10-29';
 
 let ptToken = ''; let ptTokenExpiry = 0;
-let memCache: { revenue: number; ts: number } | null = null;
-let inflight: Promise<number> | null = null;
+let memCache: { revenue: number; bruto: number; descontos: number; ts: number } | null = null;
+let inflight: Promise<Fat> | null = null;
 
 async function kvGet(key: string) {
   if (!KV_URL || !KV_TOKEN) return null;
@@ -96,7 +98,9 @@ async function paytourGet(path: string) {
   return JSON.parse(text);
 }
 
-async function computeRevenue(since: string, until: string): Promise<number> {
+type Fat = { revenue: number; bruto: number; descontos: number };
+
+async function computeRevenue(since: string, until: string): Promise<Fat> {
   const month = since.slice(0, 7);
 
   if (month === '2026-06') {
@@ -118,21 +122,22 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     }
     const total = XLS_JUNE_TOTAL + extraTotal;
     console.log(`[fat] junho/2026: XLS R$${XLS_JUNE_TOTAL} + ${extraCount} novos = R$${total.toFixed(2)}`);
-    return total;
+    return { revenue: total, bruto: total, descontos: 0 };
   }
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v10:${month}`;
+  const accKey = `ptf-acc-v11:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
-  const seeds: Record<string, { amount: number; cutoff: string }> = {
+  const seeds: Record<string, { amount: number; desc?: number; cutoff: string }> = {
     '2026-07': { amount: JULY_2026_SEED, cutoff: JULY_2026_SEED_CUTOFF },
     '2026-09': { amount: SEPT_2026_SEED, cutoff: SEPT_2026_SEED_CUTOFF },
-    '2026-10': { amount: OCT_2026_SEED,  cutoff: OCT_2026_SEED_CUTOFF },
+    '2026-10': { amount: OCT_2026_SEED, desc: OCT_2026_SEED_DESC, cutoff: OCT_2026_SEED_CUTOFF },
   };
   const seedCfg  = seeds[month];
   const seedAmt  = seedCfg?.amount  ?? 0;
+  const seedDesc = seedCfg?.desc ?? 0;
   const seedCut  = seedCfg?.cutoff  ?? ''; // sem config: acumula desde o dia 1 (cutoff vazio não exclui nada)
 
   const CANCELLED = new Set(['cancelado', 'estornado', 'reembolsado', 'cancelado_pelo_cliente', 'cancelado_pelo_lojista']);
@@ -163,14 +168,18 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     if (added > 0 || removed > 0 || updated > 0) await kvSet(accKey, acc, ACC_TTL);
     const n = Object.keys(acc).length;
     const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor, 0);
-    const revenue = seedAmt + accRevenue;
+    const accDesc    = Object.values(acc).reduce((s: number, v: any) => s + v.desconto, 0);
+    const bruto = seedAmt + accRevenue; const descontos = seedDesc + accDesc;
+    const revenue = bruto - descontos;
     console.log(`[fat] ${month}: seed=R$${seedAmt} + acc(${n} pedidos, +${added} -${removed} ~${updated})=R$${accRevenue.toFixed(2)} → total=R$${revenue.toFixed(2)}`);
-    return revenue;
+    return { revenue, bruto, descontos };
   } catch (e: any) {
     const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor, 0);
-    const revenue = seedAmt + accRevenue;
+    const accDesc    = Object.values(acc).reduce((s: number, v: any) => s + v.desconto, 0);
+    const bruto = seedAmt + accRevenue; const descontos = seedDesc + accDesc;
+    const revenue = bruto - descontos;
     console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando R$${revenue.toFixed(2)}`);
-    return revenue;
+    return { revenue, bruto, descontos };
   }
 }
 
@@ -182,28 +191,28 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v24:${since}_${until}`;
+  const key   = `ptf-v25:${since}_${until}`;
 
-  if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
+  if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, bruto: memCache.bruto, descontos: memCache.descontos, since, until });
   const kv = await kvGet(key);
-  if (kv && Date.now() - kv.ts < TOTAL_TTL) { memCache = kv; return res.json({ revenue: kv.revenue, since, until }); }
+  if (kv && Date.now() - kv.ts < TOTAL_TTL) { memCache = kv; return res.json({ revenue: kv.revenue, bruto: kv.bruto, descontos: kv.descontos, since, until }); }
 
   if (inflight) {
-    try { const revenue = await inflight; return res.json({ revenue, since, until }); }
-    catch { if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true }); }
+    try { const f = await inflight; return res.json({ ...f, since, until }); }
+    catch { if (memCache) return res.json({ revenue: memCache.revenue, bruto: memCache.bruto, descontos: memCache.descontos, since, until, stale: true }); }
   }
 
   inflight = computeRevenue(since, until).finally(() => { inflight = null; });
 
   try {
-    const revenue = await inflight;
-    const entry   = { revenue, ts: Date.now() };
+    const f     = await inflight;
+    const entry = { ...f, ts: Date.now() };
     memCache = entry;
     kvSet(key, entry, Math.floor(TOTAL_TTL / 1000));
-    return res.json({ revenue, since, until });
+    return res.json({ ...f, since, until });
   } catch (err: any) {
     console.error('[fat]', err.message);
-    if (memCache) return res.json({ revenue: memCache.revenue, since, until, stale: true });
+    if (memCache) return res.json({ revenue: memCache.revenue, bruto: memCache.bruto, descontos: memCache.descontos, since, until, stale: true });
     return res.status(500).json({ error: String(err) });
   }
 }

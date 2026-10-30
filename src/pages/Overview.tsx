@@ -512,7 +512,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   }, []);
   const { chamadas, loading: chamadasL } = useChamadas();
   const { validacao: escalaValidacao, garconsDia, totalHoje: totalGarcons, totalLounge: totalGarconsLounge, totalBeach: totalGarconsBeach, totalEscala, totalAtivos } = useEscalaHoje();
-  const { revenue: monthRevRaw, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
+  const { revenue: monthRevRaw, bruto: monthBruto, descontos: monthDesc, loading: monthRevL, ts: monthRevTs } = useMonthRevenue();
   const { data: absData, loading: absL } = useReceitaABS();
 
 
@@ -619,6 +619,12 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-green-600 dark:text-green-400">
                     <span className="animate-ping inline-block w-2 h-2 rounded-full bg-green-500 opacity-75" />
                     <span>🏆 Meta Alcançada!</span>
+                  </div>
+                )}
+                {monthBruto != null && monthDesc != null && monthDesc > 0 && (
+                  <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400">
+                    <span>Total de reservas: R$ {fmtN(Math.round(monthBruto))}</span>
+                    <span>Descontos: − R$ {fmtN(Math.round(monthDesc))}</span>
                   </div>
                 )}
                 {/* Barra de progresso */}
