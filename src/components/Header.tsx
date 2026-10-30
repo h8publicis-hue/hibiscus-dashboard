@@ -252,15 +252,16 @@ function BrasiliaClock() {
     return () => clearInterval(id);
   }, []);
   const tz = 'America/Sao_Paulo';
+  const sem  = now.toLocaleDateString('pt-BR', { timeZone: tz, weekday: 'long' }).split('-')[0];
   const dia  = now.toLocaleDateString('pt-BR', { timeZone: tz, day: '2-digit' });
   const mes  = now.toLocaleDateString('pt-BR', { timeZone: tz, month: 'short' }).replace('.', '');
   const hora = now.toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   return (
     <span
-      className="hidden md:block text-xs font-semibold text-gray-600 dark:text-gray-300 tabular-nums whitespace-nowrap"
+      className="hidden md:block text-base font-bold text-gray-700 dark:text-gray-200 tabular-nums whitespace-nowrap"
       title="Horário de Brasília"
     >
-      {dia} {mes.charAt(0).toUpperCase() + mes.slice(1)} <span className="ml-1">{hora}</span>
+      {sem.charAt(0).toUpperCase() + sem.slice(1)} {dia} {mes.charAt(0).toUpperCase() + mes.slice(1)} <span className="ml-1">{hora}</span>
     </span>
   );
 }
@@ -301,13 +302,13 @@ export function Header({
       </div>
 
       {/* Period selector — oculto na Visão Geral e Vendas */}
-      <div className="flex items-center gap-1 flex-1 justify-center">
+      <div className="flex items-center gap-3 flex-1 justify-center">
+        <BrasiliaClock />
         {!hidePeriod && <DateRangePicker period={period} onChange={onPeriodChange} />}
       </div>
 
       {/* Right controls */}
       <div className="flex items-center gap-2 shrink-0">
-        <BrasiliaClock />
         <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1 cursor-default" title="SurveyMonkey — pesquisa de satisfação"><StatusDot status={apiStatus.surveymonkey} /> SM</span>
           <span className="flex items-center gap-1 cursor-default" title="Paytour — vendas e reservas"><StatusDot status={apiStatus.paytour} /> PT</span>
