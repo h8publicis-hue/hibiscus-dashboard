@@ -28,11 +28,11 @@ const JULY_2026_SEED_CUTOFF = '2026-07-22';
 const SEPT_2026_SEED        = 128251.00;
 const SEPT_2026_SEED_CUTOFF = '2026-09-24';
 
-// Snapshot outubro/2026 (Resumo Financeiro, 30/10 ~10h20): Total de Reservas bruto R$227.195,00,
-// Descontos R$10.047,10, Total Movimentado R$217.147,90 (valor da meta). Seed = valores até 29/10
-// (menos R$4.459 de pedidos de 30/10, recontados pelo acumulador v11).
-const OCT_2026_SEED        = 222736.00;
-const OCT_2026_SEED_DESC   = 10047.10;
+// Snapshot outubro/2026 (Resumo Financeiro, 30/10 ~10h20): Total de Reservas bruto R$227.255,00,
+// Descontos R$10.107,10, Total Movimentado R$217.147,90 (valor da meta). Seed = valores até 29/10
+// (menos R$4.459 de pedidos de 30/10, recontados pelo acumulador v12).
+const OCT_2026_SEED        = 222796.00;
+const OCT_2026_SEED_DESC   = 10107.10;
 const OCT_2026_SEED_CUTOFF = '2026-10-29';
 
 let ptToken = ''; let ptTokenExpiry = 0;
@@ -127,7 +127,7 @@ async function computeRevenue(since: string, until: string): Promise<Fat> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v11:${month}`;
+  const accKey = `ptf-acc-v12:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; desc?: number; cutoff: string }> = {
@@ -191,7 +191,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v25:${since}_${until}`;
+  const key   = `ptf-v26:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, bruto: memCache.bruto, descontos: memCache.descontos, since, until });
   const kv = await kvGet(key);
