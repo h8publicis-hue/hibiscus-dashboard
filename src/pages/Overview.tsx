@@ -567,7 +567,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const monthGoal     = _goals.receitaTotal;
   const monthPct      = Math.min(monthRevenue / monthGoal, 1);
   const monthPctLabel = Math.round(monthPct * 100);
-  const monthAbove    = monthRevenue > monthGoal ? Math.round((monthRevenue / monthGoal - 1) * 100) : 0;
+  const metaBatida    = monthGoal > 0 && monthRevenue >= monthGoal;
+  const monthAbove    = metaBatida ? Math.round((monthRevenue / monthGoal - 1) * 1000) / 10 : 0;
+  const monthAboveLabel = monthAbove.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   // Indicadores de ritmo
   const nowBRTmeta   = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Recife' }));
@@ -609,13 +611,13 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                   <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
                     R$ {fmtN(Math.round(monthRevenue))}
                   </p>
-                  {monthAbove > 0 && (
+                  {metaBatida && (
                     <span className="mb-0.5 text-xs font-bold text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded-full animate-bounce">
-                      +{monthAbove}% acima
+                      +{monthAboveLabel}% acima da meta
                     </span>
                   )}
                 </div>
-                {monthAbove > 0 && (
+                {metaBatida && (
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-green-600 dark:text-green-400">
                     <span className="animate-ping inline-block w-2 h-2 rounded-full bg-green-500 opacity-75" />
                     <span>🏆 Meta Alcançada!</span>
