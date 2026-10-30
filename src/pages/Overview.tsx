@@ -626,7 +626,6 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                 {monthBruto != null && monthDesc != null && monthDesc > 0 && (
                   <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400">
                     <span>Total de reservas: R$ {fmtN(Math.round(monthBruto))}</span>
-                    <span>Descontos: − R$ {fmtN(Math.round(monthDesc))}</span>
                   </div>
                 )}
                 {/* Barra de progresso */}
