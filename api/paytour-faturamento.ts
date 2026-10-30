@@ -28,6 +28,11 @@ const JULY_2026_SEED_CUTOFF = '2026-07-22';
 const SEPT_2026_SEED        = 128251.00;
 const SEPT_2026_SEED_CUTOFF = '2026-09-24';
 
+// Snapshot outubro/2026: R$215.666,90 verificado em 30/10 às ~10h menos R$2.501 já lançados em 30/10
+// (o acumulador v9 recontará os pedidos a partir de 30/10).
+const OCT_2026_SEED        = 213165.90;
+const OCT_2026_SEED_CUTOFF = '2026-10-29';
+
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; ts: number } | null = null;
 let inflight: Promise<number> | null = null;
@@ -118,12 +123,13 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v8:${month}`;
+  const accKey = `ptf-acc-v9:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; cutoff: string }> = {
     '2026-07': { amount: JULY_2026_SEED, cutoff: JULY_2026_SEED_CUTOFF },
     '2026-09': { amount: SEPT_2026_SEED, cutoff: SEPT_2026_SEED_CUTOFF },
+    '2026-10': { amount: OCT_2026_SEED,  cutoff: OCT_2026_SEED_CUTOFF },
   };
   const seedCfg  = seeds[month];
   const seedAmt  = seedCfg?.amount  ?? 0;
@@ -176,7 +182,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v22:${since}_${until}`;
+  const key   = `ptf-v23:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
