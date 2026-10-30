@@ -244,6 +244,27 @@ function StatusDot({ status }: { status: 'connected' | 'error' | 'loading' }) {
   );
 }
 
+// ── Relógio de Brasília ───────────────────────────────────────────────────────
+function BrasiliaClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const tz = 'America/Sao_Paulo';
+  const dia  = now.toLocaleDateString('pt-BR', { timeZone: tz, day: '2-digit' });
+  const mes  = now.toLocaleDateString('pt-BR', { timeZone: tz, month: 'short' }).replace('.', '');
+  const hora = now.toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return (
+    <span
+      className="hidden md:block text-xs font-semibold text-gray-600 dark:text-gray-300 tabular-nums whitespace-nowrap"
+      title="Horário de Brasília"
+    >
+      {dia} {mes.charAt(0).toUpperCase() + mes.slice(1)} <span className="ml-1">{hora}</span>
+    </span>
+  );
+}
+
 // ── Header ────────────────────────────────────────────────────────────────────
 export function Header({
   period, onPeriodChange, onRefresh, lastSync,
@@ -286,6 +307,7 @@ export function Header({
 
       {/* Right controls */}
       <div className="flex items-center gap-2 shrink-0">
+        <BrasiliaClock />
         <div className="hidden md:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1 cursor-default" title="SurveyMonkey — pesquisa de satisfação"><StatusDot status={apiStatus.surveymonkey} /> SM</span>
           <span className="flex items-center gap-1 cursor-default" title="Paytour — vendas e reservas"><StatusDot status={apiStatus.paytour} /> PT</span>
