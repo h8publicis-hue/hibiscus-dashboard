@@ -28,9 +28,9 @@ const JULY_2026_SEED_CUTOFF = '2026-07-22';
 const SEPT_2026_SEED        = 128251.00;
 const SEPT_2026_SEED_CUTOFF = '2026-09-24';
 
-// Snapshot outubro/2026: R$215.666,90 verificado em 30/10 às ~10h menos R$2.501 já lançados em 30/10
-// (o acumulador v9 recontará os pedidos a partir de 30/10).
-const OCT_2026_SEED        = 213165.90;
+// Snapshot outubro/2026: "Total de Reservas" bruto (sem descontos) R$226.557,00 no Resumo Financeiro
+// em 30/10 ~10h, menos R$3.821 já lançados em 30/10 (o acumulador v10 recontará a partir de 30/10).
+const OCT_2026_SEED        = 222736.00;
 const OCT_2026_SEED_CUTOFF = '2026-10-29';
 
 let ptToken = ''; let ptTokenExpiry = 0;
@@ -123,7 +123,7 @@ async function computeRevenue(since: string, until: string): Promise<number> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v9:${month}`;
+  const accKey = `ptf-acc-v10:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; cutoff: string }> = {
@@ -162,12 +162,12 @@ async function computeRevenue(since: string, until: string): Promise<number> {
     }
     if (added > 0 || removed > 0 || updated > 0) await kvSet(accKey, acc, ACC_TTL);
     const n = Object.keys(acc).length;
-    const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor, 0);
     const revenue = seedAmt + accRevenue;
     console.log(`[fat] ${month}: seed=R$${seedAmt} + acc(${n} pedidos, +${added} -${removed} ~${updated})=R$${accRevenue.toFixed(2)} → total=R$${revenue.toFixed(2)}`);
     return revenue;
   } catch (e: any) {
-    const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor - v.desconto, 0);
+    const accRevenue = Object.values(acc).reduce((s: number, v: any) => s + v.valor, 0);
     const revenue = seedAmt + accRevenue;
     console.warn(`[fat] acumulador ${month}: API falhou (${e.message}), retornando R$${revenue.toFixed(2)}`);
     return revenue;
@@ -182,7 +182,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v23:${since}_${until}`;
+  const key   = `ptf-v24:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, since, until });
   const kv = await kvGet(key);
