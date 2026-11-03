@@ -451,6 +451,7 @@ const NPS_PERIODS = [
   { key: '7d',    label: '7d'   },
   { key: 'month', label: 'Mês'  },
   { key: '30d',   label: '30d'  },
+  { key: 'year',  label: 'Ano'  },
 ] as const;
 
 function AreasBeachCompact() {
@@ -993,7 +994,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
         <div className="grid grid-cols-2 gap-2">
           <MiniKPI icon={<Smile size={14} />} label="Survey" value={surveyAvg != null ? `${surveyAvg} ★` : '—'} sub={surveyVol > 0 ? `${surveyVol} respostas` : 'sem respostas'} color="green" loading={smL}
             info="Média das notas da pesquisa interna no período selecionado. Escala 1–5." />
-          <MiniKPI icon={<Target size={14} />} label="NPS Survey" value={survey ? String(survey.npsScore) : '—'} sub="−100 a +100" color="purple" loading={smL}
+          <MiniKPI icon={<Target size={14} />} label="NPS Survey" value={survey ? String(survey.npsScore) : '—'} sub={survey ? `Meta ${_goals.npsScore} · ${survey.npsScore >= _goals.npsScore ? '+' : '−'}${Math.abs(survey.npsScore - _goals.npsScore)} pts` : `Meta ${_goals.npsScore}`} color="purple" loading={smL}
             info="Net Promoter Score da pesquisa interna. Calculado como % Arretados (nota 4-5) menos % Putz (nota 1-2). Acima de 50 é Excelente." />
         </div>
       </div>

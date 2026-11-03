@@ -68,6 +68,7 @@ function periodStart(period: string): Date {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   }
+  if (period === 'year') return new Date(new Date().getFullYear(), 0, 1);
   if (period.startsWith('custom:')) {
     const from = period.split(':')[1];
     if (from) return new Date(from + 'T00:00:00');
