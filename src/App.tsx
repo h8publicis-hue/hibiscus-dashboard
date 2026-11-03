@@ -58,7 +58,7 @@ function ensureStaffSeed() {
   localStorage.setItem(LS_STAFF_SEED_KEY, '1');
 }
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Header } from './components/Header';
+import { Header, BrasiliaClock } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Overview } from './pages/Overview';
 import { Satisfaction } from './pages/Satisfaction';
@@ -145,6 +145,10 @@ function Dashboard() {
             <h1 className="text-sm font-bold text-brand-600 dark:text-white leading-tight">Hibiscus Beach Club</h1>
             <p className="text-xs text-gray-400">Dashboard Integrado</p>
           </div>
+          <div className="flex-1 flex justify-center">
+            <BrasiliaClock className="text-2xl font-bold text-gray-700 dark:text-gray-200 tabular-nums whitespace-nowrap" />
+          </div>
+          <div className="w-40 shrink-0" aria-hidden />
         </header>
         <div className="flex-1">
           <Overview period={period} goals={goals} occupancy={occupancy} />

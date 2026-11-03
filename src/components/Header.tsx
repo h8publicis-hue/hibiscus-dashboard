@@ -245,7 +245,7 @@ function StatusDot({ status }: { status: 'connected' | 'error' | 'loading' }) {
 }
 
 // ── Relógio de Brasília ───────────────────────────────────────────────────────
-function BrasiliaClock() {
+export function BrasiliaClock({ className }: { className?: string }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -258,7 +258,7 @@ function BrasiliaClock() {
   const hora = now.toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   return (
     <span
-      className="hidden md:block text-base font-bold text-gray-700 dark:text-gray-200 tabular-nums whitespace-nowrap"
+      className={className ?? 'hidden md:block text-base font-bold text-gray-700 dark:text-gray-200 tabular-nums whitespace-nowrap'}
       title="Horário de Brasília"
     >
       {sem.charAt(0).toUpperCase() + sem.slice(1)} {dia} {mes.charAt(0).toUpperCase() + mes.slice(1)} <span className="ml-1">{hora}</span>
