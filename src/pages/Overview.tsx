@@ -15,7 +15,7 @@ import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { BEACH_SETORES, BEACH_SETOR_GRUPOS } from '../types';
 import { useBeachTables, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import type { MesaArea } from '../hooks/useBeachTables';
-import { fetchNpsMensal, NpsMes } from '../services/googleSheets';
+import { fetchNpsMensal, fetchSatisfactionData, NpsMes } from '../services/googleSheets';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -459,9 +459,13 @@ const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 
 function NpsMensalStrip({ meta }: { meta: number }) {
   const [dados, setDados] = useState<NpsMes[] | null>(null);
+  const [ano, setAno] = useState<{ nps: number; nota: number; n: number } | null>(null);
   useEffect(() => {
     let off = false;
-    const load = () => fetchNpsMensal(new Date().getFullYear()).then(d => { if (!off) setDados(d); }).catch(() => {});
+    const load = () => {
+      fetchNpsMensal(new Date().getFullYear()).then(d => { if (!off) setDados(d); }).catch(() => {});
+      fetchSatisfactionData('year').then(d => { if (!off) setAno({ nps: d.npsScore, nota: d.avgScore, n: d.surveys[0]?.responses ?? 0 }); }).catch(() => {});
+    };
     load();
     const id = setInterval(load, 10 * 60_000);
     return () => { off = true; clearInterval(id); };
@@ -470,7 +474,14 @@ function NpsMensalStrip({ meta }: { meta: number }) {
   const mesAtual = new Date().getMonth();
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">NPS por mês · meta {meta}</p>
+      <div className="flex items-baseline justify-between mb-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Acumulado {new Date().getFullYear()} · meta {meta}</p>
+        {ano && ano.n > 0 && (
+          <p className={clsx('text-[11px] font-bold tabular-nums', ano.nps >= meta ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+            NPS {ano.nps} · {ano.nota} ★ <span className="font-normal text-gray-400">· {ano.n} respostas</span>
+          </p>
+        )}
+      </div>
       <div className="grid grid-cols-12 gap-1">
         {dados.map(d => {
           const futuro = d.mes > mesAtual;
