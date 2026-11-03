@@ -654,32 +654,12 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
                     <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2.5 flex items-center gap-2">
                       <span className="text-lg">📊</span>
                       <div>
-                        <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-none">Necessário por dia</p>
+                        <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-none">Meta do dia</p>
                         <p className="text-sm font-black text-blue-700 dark:text-blue-400 tabular-nums">R$ {fmtN(Math.round(necessarioPorDia))}</p>
                       </div>
                     </div>
                   </div>
                 )}
-                {/* Média diária + Projeção + Ritmo */}
-                <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-gray-100 dark:border-gray-700 text-[10px]">
-                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                    <span>📅</span>
-                    <span>Média: <strong className="text-gray-700 dark:text-gray-200">R$ {fmtN(Math.round(mediaDiaria))}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className={projecaoAcima ? 'text-green-600' : 'text-red-500'}>
-                      {projecaoAcima ? '↑' : '↓'}
-                    </span>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      Proj: <strong className={projecaoAcima ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>R$ {fmtN(Math.round(projecaoMes))}</strong>
-                      {projecaoPct > 0 && <span className={`ml-1 px-1 rounded-full text-[9px] ${projecaoAcima ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600'}`}>{projecaoAcima ? '+' : '-'}{projecaoPct}%</span>}
-                    </span>
-                  </div>
-                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full ${ritmo.bg}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${ritmo.dot}`} />
-                    <span className={`font-semibold ${ritmo.color}`}>{ritmo.label}</span>
-                  </div>
-                </div>
                 {/* Timestamp */}
                 {monthRevTs && (
                   <p className="text-[10px] text-gray-400 text-right">
