@@ -11,7 +11,16 @@ const KV_TOKEN    = process.env.KV_REST_API_TOKEN       ?? '';
 const CACHE_TTL   = 5 * 60 * 1000; // 5 min
 const KV_TTL_SEC  = 5 * 60;
 
+export interface CheckinDetalhe {
+  nome:        string;
+  ocupados:    number;
+  capacidade?: number;
+  checkins:    number;
+  pendentes:   number;
+}
+
 export interface CheckinData {
+  detalhe?:      CheckinDetalhe[];
   reservados:    number;
   sessionActive: boolean;
   checkins?:     number;
@@ -109,8 +118,30 @@ async function fetchVagasPorProduto(produtoId: string, dispId: string, dia: stri
   return cap > 0 ? cap - booked : null;
 }
 
+// ── Detalhe por produto (Day Use Beach, Espaço Lounge, Massagens) ──────────
+const PRODUTOS_DETALHE = [
+  { id: '2009461', nome: 'Day Use · Espaço Beach' },
+  { id: '2512268', nome: 'Espaço Lounge' },
+  { id: '2510653', nome: 'Massagens' },
+];
+
+async function fetchSlotsDia(produtoId: string, dia: string, token: string): Promise<{ cap: number; booked: number } | null> {
+  const r = await fetch(`${PT_BASE}/v2/passeios/${produtoId}?data_de=${dia}&data_ate=${dia}`, {
+    headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }),
+    signal: AbortSignal.timeout(8_000),
+  }).catch(() => null);
+  if (!r?.ok) return null;
+  const j = await r.json().catch(() => null) as any;
+  const slots: any[] = (Array.isArray(j?._disponibilidade) ? j._disponibilidade : []).filter((s: any) => !s.date || s.date === dia);
+  if (slots.length === 0) return null;
+  return {
+    cap:    slots.reduce((acc, s) => acc + Number(s.quantidade ?? 0), 0),
+    booked: slots.reduce((acc, s) => acc + Number(s.count ?? 0), 0),
+  };
+}
+
 // ── Fetch atividades do dia ───────────────────────────────────────────────────
-async function fetchCheckin(debugMode = false): Promise<CheckinData> {
+async function fetchCheckin(): Promise<CheckinData> {
   const today = todayBRT();
   const token = await getPtToken();
 
@@ -127,20 +158,6 @@ async function fetchCheckin(debugMode = false): Promise<CheckinData> {
 
   const atividades = await r.json() as any[];
   if (!Array.isArray(atividades)) throw new Error('atividades: resposta inesperada');
-
-  if (debugMode) {
-    const by: Record<string, any> = {};
-    for (const a of atividades) {
-      const k = `${a.produto_id}|${a.produto_disponibilidade_id}`;
-      by[k] ??= { n: 0, campos: {} };
-      by[k].n++;
-      for (const [f, v] of Object.entries(a)) if (/produto|passeio|atividade|titulo|nome_|horario|hora/i.test(f) && typeof v !== 'object') by[k].campos[f] = v;
-    }
-    const lp = await fetch(`${PT_BASE}/v2/passeios`, { headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }) }).catch(() => null);
-    const jl = lp ? await lp.json().catch(() => null) as any : null;
-    const lista = (Array.isArray(jl) ? jl : jl?.itens ?? []).map((x: any) => ({ id: x.id, nome: x.nome ?? x.titulo ?? x.atividade_nome, ativo: x.ativo ?? x.status }));
-    return { debug: true, by, lista, listaStatus: lp?.status, listaKeys: jl && !Array.isArray(jl) ? Object.keys(jl) : undefined, amostra: JSON.stringify(jl).slice(0, 1500) } as any;
-  }
 
   const reservados = atividades.length;
   const checkins   = atividades.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
@@ -163,9 +180,23 @@ async function fetchCheckin(debugMode = false): Promise<CheckinData> {
     if (total != null) disponiveis = total;
   }
 
+  const detalhe: CheckinDetalhe[] = await Promise.all(PRODUTOS_DETALHE.map(async ({ id, nome }) => {
+    const doProduto = atividades.filter(a => String(a.produto_id) === id);
+    const feitos    = doProduto.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
+    const slots     = await fetchSlotsDia(id, today, token);
+    return {
+      nome,
+      ocupados:   slots ? slots.booked : doProduto.length,
+      ...(slots && slots.cap > 0 ? { capacidade: slots.cap } : {}),
+      checkins:   feitos,
+      pendentes:  doProduto.length - feitos,
+    };
+  }));
+
   return {
     reservados,
     sessionActive: true,
+    detalhe,
     checkins,
     pendentes,
     ...(disponiveis != null ? { disponiveis } : {}),
@@ -178,11 +209,8 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const cacheKey = `checkin-v3:${todayBRT()}`;
+  const cacheKey = `checkin-v4:${todayBRT()}`;
   const fresh = req.query?.fresh === '1';
-  if (req.query?.debug === '1') {
-    try { return res.json(await fetchCheckin(true)); } catch (e: any) { return res.status(500).json({ error: e.message }); }
-  }
 
   if (!fresh && memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
 

@@ -781,6 +781,30 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           ))}
         </div>
       )}
+      {!ckL && checkin?.detalhe && checkin.detalhe.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {checkin.detalhe.map(d => {
+            const pct = d.capacidade ? Math.min(d.ocupados / d.capacidade, 1) : 0;
+            const cor = pct >= 1 ? 'bg-red-500' : pct >= 0.8 ? 'bg-orange-400' : 'bg-green-500';
+            return (
+              <div key={d.nome}>
+                <div className="flex items-baseline justify-between gap-2 text-[11px]">
+                  <span className="font-semibold text-gray-700 dark:text-gray-200">{d.nome}</span>
+                  <span className="tabular-nums text-gray-500 dark:text-gray-400">
+                    <strong className="text-gray-800 dark:text-gray-100">{d.ocupados}{d.capacidade ? `/${d.capacidade}` : ''}</strong>
+                    {' · '}check-in {d.checkins} · pend. {d.pendentes}
+                  </span>
+                </div>
+                {d.capacidade ? (
+                  <div className="mt-1 h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${cor}`} style={{ width: `${Math.round(pct * 100)}%` }} />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 

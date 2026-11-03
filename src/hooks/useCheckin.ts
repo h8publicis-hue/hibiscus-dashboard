@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 
+export interface CheckinDetalhe {
+  nome: string;
+  ocupados: number;
+  capacidade?: number;
+  checkins: number;
+  pendentes: number;
+}
+
 export interface CheckinData {
+  detalhe?: CheckinDetalhe[];
   reservados: number;
   sessionActive: boolean;
   disponiveis?: number;
