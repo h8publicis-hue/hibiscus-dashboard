@@ -94,6 +94,12 @@ const KDS_INTERVAL_MS = 8000;
 function Dashboard() {
   useEffect(() => { ensureStaffSeed(); }, []);
   const isKiosk = new URLSearchParams(window.location.search).has('kiosk');
+  // Quiosque (TV): recarrega a cada 30 min para evitar aba travada e pegar novas versões
+  useEffect(() => {
+    if (!isKiosk) return;
+    const id = setTimeout(() => window.location.reload(), 30 * 60 * 1000);
+    return () => clearTimeout(id);
+  }, [isKiosk]);
   const [period, setPeriod]       = useState<Period>('today');
   const [lastSync, setLastSync]   = useState<Date | null>(new Date());
   const [darkMode, setDarkMode]   = useState(false);
