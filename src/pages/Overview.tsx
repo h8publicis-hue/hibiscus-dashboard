@@ -1057,7 +1057,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
 
         <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} reservas={occupancy.reservasHoje} />
         <div className="flex items-baseline justify-between rounded-lg bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
-          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Total nos lounges</span>
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Clientes nos lounges</span>
           <span className="text-sm font-black tabular-nums text-gray-800 dark:text-gray-100">{loungesTotal} <span className="text-[10px] font-medium text-gray-500">pessoas</span></span>
         </div>
         <AreasBeachCompact />
