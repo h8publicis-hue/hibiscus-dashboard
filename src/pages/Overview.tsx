@@ -754,35 +754,25 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   // ── Bloco: Check-in Online ────────────────────────────────────────────────
   const blocoCheckin = (
     <div className="bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-1.5">
           <Users size={13} className="text-gray-400" />
           <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Check-in Online</span>
           {!ckL && checkin && <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" title="API ativa" />}
         </div>
+        {ckL ? (
+          <div className="h-4 w-48 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+        ) : (
+          <div className="flex items-baseline gap-3 text-[11px] tabular-nums">
+            <span className="text-gray-500 dark:text-gray-400"><strong className="text-sm font-black text-purple-600 dark:text-purple-400">{checkin?.reservados ?? '—'}</strong> reservados</span>
+            {checkin?.disponiveis != null && <span className="text-gray-500 dark:text-gray-400"><strong className="text-sm font-black text-orange-500">{checkin.disponiveis}</strong> disponíveis</span>}
+            <span className="text-gray-500 dark:text-gray-400"><strong className="text-sm font-black text-green-600 dark:text-green-400">{checkin?.checkins ?? '—'}</strong> check-ins</span>
+            <span className="text-gray-500 dark:text-gray-400"><strong className="text-sm font-black text-red-500">{checkin?.pendentes ?? '—'}</strong> pendentes</span>
+          </div>
+        )}
       </div>
-
-      {ckL ? (
-        <div className="flex gap-2">
-          {[...Array(4)].map((_, i) => <div key={i} className="flex-1 h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: 'Reservados', value: checkin?.reservados ?? '—', color: 'text-purple-600 dark:text-purple-400' },
-            { label: 'Disponíveis', value: checkin?.disponiveis ?? '—', color: 'text-orange-500' },
-            { label: 'Check-ins',   value: checkin?.checkins   ?? '—', color: 'text-green-600 dark:text-green-400' },
-            { label: 'Pendentes',   value: checkin?.pendentes  ?? '—', color: 'text-red-500' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-              <p className={`text-lg font-black ${color}`}>{value}</p>
-              <p className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider">{label}</p>
-            </div>
-          ))}
-        </div>
-      )}
       {!ckL && checkin?.detalhe && checkin.detalhe.length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-2 space-y-1.5 pt-2 border-t border-gray-100 dark:border-gray-700">
           {checkin.detalhe.map(d => {
             const pct = d.capacidade ? Math.min(d.ocupados / d.capacidade, 1) : 0;
             const cor = pct >= 1 ? 'bg-red-500' : pct >= 0.8 ? 'bg-orange-400' : 'bg-green-500';
