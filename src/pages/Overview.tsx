@@ -107,6 +107,9 @@ function OccupancyRow({ label, current, max, hideMax, sublabel }: { label: strin
   );
 }
 
+// Lounges 501–515 + Prime 516 (o array de ocupação tem mais posições, sem uso)
+const LOUNGES_EXIBIDOS = 16;
+
 // ── Grupos de lounges ────────────────────────────────────────────────────────
 const LOUNGE_GROUPS = [
   { label: 'Frente Mar', ids: [0, 2, 4, 6, 8, 10, 12] },
@@ -995,7 +998,9 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
   const blocoOcupacao = (() => {
     const primeVal     = occupancy.lounges[15] ?? occupancy.prime;
     const loungesFull  = occupancy.lounges.filter(v => v >= SPACE_CONFIGS.lounge.max).length;
-    const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
+    const loungesVisiveis = occupancy.lounges.slice(0, LOUNGES_EXIBIDOS);
+    const loungesTotal = loungesVisiveis.reduce((a, b) => a + b, 0);
+    const loungesOcupados = loungesVisiveis.filter(v => v > 0).length;
     const nacasa       = occupancy.beach + loungesTotal;
 
     const agora = new Date();
@@ -1042,15 +1047,19 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <OccupancyRow label="🏖️ Beach"   current={occupancy.beach}   max={SPACE_CONFIGS.beach.max} />
           <OccupancyRow
             label="🛋️ Lounges"
-            current={occupancy.lounges.filter(v => v > 0).length}
-            max={SPACE_CONFIGS.lounge.count}
+            current={loungesOcupados}
+            max={LOUNGES_EXIBIDOS}
             hideMax
-            sublabel={`${occupancy.lounges.filter(v => v > 0).length} de ${SPACE_CONFIGS.lounge.count} lounges`}
+            sublabel={`${loungesOcupados} de ${LOUNGES_EXIBIDOS} lounges`}
           />
           <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} hideMax />
         </div>
 
         <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} reservas={occupancy.reservasHoje} />
+        <div className="flex items-baseline justify-between rounded-lg bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Total nos lounges</span>
+          <span className="text-sm font-black tabular-nums text-gray-800 dark:text-gray-100">{loungesTotal} <span className="text-[10px] font-medium text-gray-500">pessoas</span></span>
+        </div>
         <AreasBeachCompact />
         {reservasPendentes > 0 && (
           <p className="text-xs font-semibold text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-center">
