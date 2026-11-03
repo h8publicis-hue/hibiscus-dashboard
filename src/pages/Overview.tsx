@@ -87,10 +87,11 @@ function monthName(offset: number): string {
 }
 
 // ── Linha compacta Beach / Prime ──────────────────────────────────────────────
-function OccupancyRow({ label, current, max, hideMax, sublabel }: { label: string; current: number; max: number; hideMax?: boolean; sublabel?: string }) {
-  const pct  = current / max;
-  const bar  = pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
-  const text = pct >= 0.9 ? 'text-red-600' : pct >= 0.6 ? 'text-yellow-600' : 'text-green-600';
+function OccupancyRow({ label, current, max, hideMax, sublabel, limit }: { label: string; current: number; max: number; hideMax?: boolean; sublabel?: string; limit?: number }) {
+  const pct  = limit ? current / limit : current / max;
+  const over = limit ? current > limit : pct >= 0.9;
+  const bar  = limit ? (over ? 'bg-red-500' : 'bg-green-500') : pct >= 0.9 ? 'bg-red-500' : pct >= 0.6 ? 'bg-yellow-400' : 'bg-green-500';
+  const text = limit ? (over ? 'text-red-600' : 'text-green-600') : pct >= 0.9 ? 'text-red-600' : pct >= 0.6 ? 'text-yellow-600' : 'text-green-600';
   return (
     <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
       <span className="text-xs font-medium text-gray-600 dark:text-gray-300 w-16 shrink-0">{label}</span>
@@ -109,6 +110,9 @@ function OccupancyRow({ label, current, max, hideMax, sublabel }: { label: strin
 
 // Lounges 501–515 + Prime 516 (o array de ocupação tem mais posições, sem uso)
 const LOUNGES_EXIBIDOS = 16;
+// Prime (516): até 8 pessoas fica verde; acima disso, vermelho (sem bloquear)
+const PRIME_IDX = 15;
+const PRIME_LIMITE = 8;
 
 // ── Grupos de lounges ────────────────────────────────────────────────────────
 const LOUNGE_GROUPS = [
@@ -184,7 +188,9 @@ function LoungeMap({ lounges, loungeObs, loungeData, reservas }: { lounges: numb
     const reserva = hasActiveReserva(idx) && v === 0;
     const baseBg = reserva
       ? 'bg-blue-50 dark:bg-blue-900/30 border border-dashed border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400'
-      : loungeBg(v, pct);
+      : idx === PRIME_IDX && v > 0
+        ? loungeBg(v, v > PRIME_LIMITE ? 1 : 0)
+        : loungeBg(v, pct);
     return (
       <div
         key={idx}
@@ -1052,7 +1058,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
             hideMax
             sublabel={`${loungesOcupados} de ${LOUNGES_EXIBIDOS} lounges`}
           />
-          <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} hideMax />
+          <OccupancyRow label="💎 Prime"   current={primeVal}          max={SPACE_CONFIGS.prime.max} limit={PRIME_LIMITE} hideMax />
         </div>
 
         <LoungeMap lounges={occupancy.lounges} loungeObs={occupancy.loungeObs} loungeData={occupancy.loungeData} reservas={occupancy.reservasHoje} />
