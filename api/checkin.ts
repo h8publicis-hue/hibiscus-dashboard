@@ -136,7 +136,10 @@ async function fetchCheckin(debugMode = false): Promise<CheckinData> {
       by[k].n++;
       for (const [f, v] of Object.entries(a)) if (/produto|passeio|atividade|titulo|nome_|horario|hora/i.test(f) && typeof v !== 'object') by[k].campos[f] = v;
     }
-    return { debug: true, keys: Object.keys(atividades[0] ?? {}), by } as any;
+    const lp = await fetch(`${PT_BASE}/v2/passeios`, { headers: proxyHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/json' }) }).catch(() => null);
+    const jl = lp ? await lp.json().catch(() => null) as any : null;
+    const lista = (Array.isArray(jl) ? jl : jl?.data ?? jl?.passeios ?? []).map((x: any) => ({ id: x.id, nome: x.nome ?? x.titulo ?? x.atividade_nome, ativo: x.ativo ?? x.status }));
+    return { debug: true, by, lista, listaStatus: lp?.status, listaKeys: jl && !Array.isArray(jl) ? Object.keys(jl) : undefined } as any;
   }
 
   const reservados = atividades.length;
