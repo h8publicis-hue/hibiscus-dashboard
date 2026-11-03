@@ -271,3 +271,25 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     ],
   };
 }
+
+// ── NPS por mês do ano (mesma regra: %notas 4–5 − %notas 1–2) ────────────────
+export interface NpsMes { mes: number; total: number; nps: number | null; }
+
+export async function fetchNpsMensal(year: number): Promise<NpsMes[]> {
+  const rows = await fetchAllRows();
+  const acc = Array.from({ length: 12 }, () => ({ t: 0, p: 0, d: 0 }));
+  for (const row of rows) {
+    const score = Number(cellVal(row, COL_RATING));
+    if (!score || score < 1 || score > 5) continue;
+    const date = parseGVizDate(cellVal(row, COL_DATE) as string);
+    if (!date || date.getFullYear() !== year) continue;
+    const a = acc[date.getMonth()];
+    a.t++;
+    if (score >= 4) a.p++;
+    else if (score <= 2) a.d++;
+  }
+  return acc.map((a, i) => ({
+    mes: i, total: a.t,
+    nps: a.t > 0 ? Math.round((a.p / a.t) * 100) - Math.round((a.d / a.t) * 100) : null,
+  }));
+}

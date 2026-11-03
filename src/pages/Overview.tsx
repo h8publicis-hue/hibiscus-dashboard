@@ -15,6 +15,7 @@ import { useEscalaHoje } from '../hooks/useEscalaHoje';
 import { BEACH_SETORES, BEACH_SETOR_GRUPOS } from '../types';
 import { useBeachTables, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import type { MesaArea } from '../hooks/useBeachTables';
+import { fetchNpsMensal, NpsMes } from '../services/googleSheets';
 import clsx from 'clsx';
 
 interface OverviewProps {
@@ -453,6 +454,44 @@ const NPS_PERIODS = [
   { key: '30d',   label: '30d'  },
   { key: 'year',  label: 'Ano'  },
 ] as const;
+
+const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function NpsMensalStrip({ meta }: { meta: number }) {
+  const [dados, setDados] = useState<NpsMes[] | null>(null);
+  useEffect(() => {
+    let off = false;
+    const load = () => fetchNpsMensal(new Date().getFullYear()).then(d => { if (!off) setDados(d); }).catch(() => {});
+    load();
+    const id = setInterval(load, 10 * 60_000);
+    return () => { off = true; clearInterval(id); };
+  }, []);
+  if (!dados) return null;
+  const mesAtual = new Date().getMonth();
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">NPS por mês · meta {meta}</p>
+      <div className="grid grid-cols-12 gap-1">
+        {dados.map(d => {
+          const futuro = d.mes > mesAtual;
+          const ok = d.nps != null && d.nps >= meta;
+          return (
+            <div key={d.mes} title={d.total ? `${d.total} respostas` : 'sem respostas'}
+              className={clsx('rounded-md py-1 text-center',
+                d.nps == null ? 'bg-gray-50 dark:bg-gray-700/30 text-gray-300 dark:text-gray-600'
+                  : ok ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+                d.mes === mesAtual && 'ring-1 ring-gray-400 dark:ring-gray-500',
+                futuro && 'opacity-40')}>
+              <p className="text-[8px] uppercase leading-none">{MESES_ABREV[d.mes]}</p>
+              <p className="text-[11px] font-bold leading-tight tabular-nums">{d.nps ?? '—'}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function AreasBeachCompact() {
   const { tables, estado } = useBeachTables();
@@ -997,6 +1036,7 @@ export function Overview({ period, goals: _goals, occupancy }: OverviewProps) {
           <MiniKPI icon={<Target size={14} />} label="NPS Survey" value={survey ? String(survey.npsScore) : '—'} sub={survey ? `Meta ${_goals.npsScore} · ${survey.npsScore >= _goals.npsScore ? '+' : '−'}${Math.abs(survey.npsScore - _goals.npsScore)} pts` : `Meta ${_goals.npsScore}`} color="purple" loading={smL}
             info="Net Promoter Score da pesquisa interna. Calculado como % Arretados (nota 4-5) menos % Putz (nota 1-2). Acima de 50 é Excelente." />
         </div>
+        <NpsMensalStrip meta={_goals.npsScore} />
       </div>
     );
   })();
