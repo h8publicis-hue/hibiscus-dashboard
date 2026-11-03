@@ -110,7 +110,7 @@ async function fetchVagasPorProduto(produtoId: string, dispId: string, dia: stri
 }
 
 // ── Fetch atividades do dia ───────────────────────────────────────────────────
-async function fetchCheckin(): Promise<CheckinData> {
+async function fetchCheckin(debugMode = false): Promise<CheckinData> {
   const today = todayBRT();
   const token = await getPtToken();
 
@@ -127,6 +127,17 @@ async function fetchCheckin(): Promise<CheckinData> {
 
   const atividades = await r.json() as any[];
   if (!Array.isArray(atividades)) throw new Error('atividades: resposta inesperada');
+
+  if (debugMode) {
+    const by: Record<string, any> = {};
+    for (const a of atividades) {
+      const k = `${a.produto_id}|${a.produto_disponibilidade_id}`;
+      by[k] ??= { n: 0, campos: {} };
+      by[k].n++;
+      for (const [f, v] of Object.entries(a)) if (/produto|passeio|atividade|titulo|nome_|horario|hora/i.test(f) && typeof v !== 'object') by[k].campos[f] = v;
+    }
+    return { debug: true, keys: Object.keys(atividades[0] ?? {}), by } as any;
+  }
 
   const reservados = atividades.length;
   const checkins   = atividades.filter(a => a.utilizado && String(a.utilizado) !== '0').length;
@@ -166,6 +177,9 @@ export default async function handler(req: any, res: any) {
 
   const cacheKey = `checkin-v3:${todayBRT()}`;
   const fresh = req.query?.fresh === '1';
+  if (req.query?.debug === '1') {
+    try { return res.json(await fetchCheckin(true)); } catch (e: any) { return res.status(500).json({ error: e.message }); }
+  }
 
   if (!fresh && memCache && Date.now() - memCache.ts < CACHE_TTL) return res.json(memCache.data);
 
