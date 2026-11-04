@@ -78,6 +78,7 @@ import { Relatorio }     from './pages/Relatorio';
 import Ajuda             from './pages/Ajuda';
 import { Lider }         from './pages/Lider';
 import { EscalaPublica } from './pages/EscalaPublica';
+import { TvGrade } from './pages/TvGrade';
 import { GoalEditor } from './components/GoalEditor';
 import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
@@ -260,6 +261,7 @@ export default function App() {
         <Route path="/refeicao" element={<Refeicao />} />
         <Route path="/garcom"    element={<Garcom />} />
         <Route path="/mapa-kds"      element={<MapaKds />} />
+        <Route path="/tv"            element={<TvGrade />} />
         <Route path="/mapa-ocupacao" element={<MapaOcupacaoPublica />} />
         <Route path="/*"             element={<ProtectedDashboard />} />
       </Routes>

@@ -50,6 +50,24 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // ── Grade do Modo TV (telas + tempo de cada) ─────────────────────────────────
+  if (type === 'tvgrade') {
+    if (req.method === 'GET') {
+      const stored = await kvGet('dashboard:tvgrade');
+      return res.json({ grade: stored ?? null });
+    }
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const grade = (Array.isArray(body.grade) ? body.grade : []).slice(0, 20).map((g: any) => ({
+        id: String(g?.id ?? '').slice(0, 40),
+        ativo: !!g?.ativo,
+        segundos: Math.min(600, Math.max(5, Math.round(Number(g?.segundos) || 30))),
+      })).filter((g: any) => g.id);
+      await kvSet('dashboard:tvgrade', grade);
+      return res.json({ ok: true });
+    }
+  }
+
   // ── Comunicados rápidos ──────────────────────────────────────────────────────
   // ── Tags de setor das avaliações ─────────────────────────────────────────────
   if (type === 'tags') {

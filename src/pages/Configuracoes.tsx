@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Key, Link2, LogOut, Check, X, Copy, ExternalLink, QrCode, Tags, Plus, RotateCcw } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useSectors } from '../hooks/useSectors';
+import { TELAS_TV, useGradeTv, saveGradeTv, ItemGrade } from '../hooks/useTvGrade';
 
 const DEFAULT_PASSWORD      = 'Admin@!$';
 const DEFAULT_LIDER_PASSWORD = '@Hibiscus';
@@ -43,6 +44,7 @@ const LINKS_OPERACIONAIS = [
   { label: 'App / Garçom',     path: '/garcom',    desc: 'Mapa de mesas Beach — ocupar e liberar' },
   { label: 'Mapa Beach · KDS', path: '/mapa-kds',  desc: 'Mapa de mesas em tela cheia para TV/KDS' },
   { label: 'Quiosque TV',      path: '/?kiosk',    desc: 'Visão geral em modo tela cheia' },
+  { label: 'Modo TV · Grade',  path: '/tv',        desc: 'Alterna as telas escolhidas em Configurações → Modo TV' },
   { label: 'Mapa Beach · Líder', path: '/mapa-ocupacao?t=@Hibiscus', desc: 'Mapa de mesas — acesso externo (somente leitura, PIN: @Hibiscus)' },
 ];
 
@@ -323,6 +325,56 @@ function SetoresEditor() {
   );
 }
 
+function TvGradeEditor() {
+  const [grade, setGrade] = useGradeTv();
+  const [msg, setMsg] = useState('');
+  if (!grade) return <p className="text-xs text-gray-400">Carregando…</p>;
+
+  const mudar = (i: number, p: Partial<ItemGrade>) => { setMsg(''); setGrade(grade.map((g, k) => k === i ? { ...g, ...p } : g)); };
+  const mover = (i: number, d: -1 | 1) => {
+    const j = i + d; if (j < 0 || j >= grade.length) return;
+    const c = [...grade]; [c[i], c[j]] = [c[j], c[i]]; setMsg(''); setGrade(c);
+  };
+  const salvar = async () => {
+    if (!grade.some(g => g.ativo)) { setMsg('Ative ao menos uma tela'); return; }
+    setMsg((await saveGradeTv(grade)) ? 'Salvo. A TV atualiza em até 5 min.' : 'Erro ao salvar');
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-gray-400">Escolha as telas, a ordem e quantos segundos cada uma fica visível. Abra a grade na TV pelo link <code className="font-mono">/tv</code>.</p>
+      <div className="flex flex-col gap-2">
+        {grade.map((g, i) => {
+          const t = TELAS_TV.find(x => x.id === g.id); if (!t) return null;
+          return (
+            <div key={g.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${g.ativo ? 'border-brand-300 bg-brand-50/40 dark:bg-gray-700/40' : 'border-gray-200 dark:border-gray-700'}`}>
+              <input type="checkbox" checked={g.ativo} onChange={e => mudar(i, { ativo: e.target.checked })} className="w-4 h-4 accent-emerald-600" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white leading-tight">{t.nome}</p>
+                <p className="text-[11px] text-gray-400 truncate">{t.desc}</p>
+              </div>
+              <label className="flex items-center gap-1 text-xs text-gray-500">
+                <input type="number" min={5} max={600} value={g.segundos} disabled={!g.ativo}
+                  onChange={e => mudar(i, { segundos: Math.min(600, Math.max(5, Number(e.target.value) || 5)) })}
+                  className="w-16 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-right disabled:opacity-40" />
+                s
+              </label>
+              <div className="flex flex-col">
+                <button onClick={() => mover(i, -1)} disabled={i === 0} className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▲</button>
+                <button onClick={() => mover(i, 1)} disabled={i === grade.length - 1} className="text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none">▼</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={salvar} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold">Salvar grade</button>
+        {msg && <span className="text-xs text-gray-500">{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
 export function Configuracoes() {
   const handleLogout = () => {
     localStorage.removeItem('hibiscus-admin-auth-v2');
@@ -352,6 +404,10 @@ export function Configuracoes() {
             <QrInline path="/lider" label="App do Líder" />
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Modo TV — Grade de Telas" icon={<Link2 size={16} />}>
+        <TvGradeEditor />
       </SectionCard>
 
       <SectionCard title="Links de Acesso Operacional" icon={<Link2 size={16} />}>
