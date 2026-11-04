@@ -290,6 +290,9 @@ function GarcomApp() {
   const handleLogout = () => { sessionStorage.removeItem(PIN_KEY); window.location.reload(); };
 
   // Stats
+  const loungeReservado = (idx: number) =>
+    (occupancy.lounges[idx] ?? 0) === 0 &&
+    (occupancy.reservasHoje ?? []).some(r => r.loungeIdx === idx && (r.status === 'reserva' || r.status === 'confirmada'));
   const loungesTotal = occupancy.lounges.reduce((a, b) => a + b, 0);
   const naCasa       = occupancy.beach + loungesTotal;
   const gap          = portaria !== null ? Math.max(0, portaria - naCasa) : null;
@@ -391,9 +394,9 @@ function GarcomApp() {
             {[0,2,4,6,8,10,12].map((idx, pos) => {
               const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : 'bg-gray-100')}>
-                  <span className="text-[8px] text-gray-400 leading-none">{n}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : 'text-gray-300')}>{c}</span>
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
+                  <span className={clsx('text-[8px] leading-none', loungeReservado(idx) ? 'text-blue-500' : 'text-gray-400')}>{n}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
                 </div>
               );
             })}
@@ -404,9 +407,9 @@ function GarcomApp() {
             {[1,3,5,7,9,11,13].map((idx, pos) => {
               const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : 'bg-gray-100')}>
-                  <span className="text-[8px] text-gray-400 leading-none">{n}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : 'text-gray-300')}>{c}</span>
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
+                  <span className={clsx('text-[8px] leading-none', loungeReservado(idx) ? 'text-blue-500' : 'text-gray-400')}>{n}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
                 </div>
               );
             })}
@@ -421,14 +424,17 @@ function GarcomApp() {
             ].map(({ label, idx }) => {
               const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? (idx === 15 ? 'bg-yellow-50' : 'bg-emerald-50') : 'bg-gray-100')}>
-                  <span className="text-[8px] text-gray-400 leading-none">{label}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? (idx === 15 ? 'text-yellow-600' : 'text-emerald-600') : 'text-gray-300')}>{c}</span>
+                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? (idx === 15 ? 'bg-yellow-50' : 'bg-emerald-50') : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
+                  <span className={clsx('text-[8px] leading-none', loungeReservado(idx) ? 'text-blue-500' : 'text-gray-400')}>{label}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? (idx === 15 ? 'text-yellow-600' : 'text-emerald-600') : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
                 </div>
               );
             })}
           </div>
           <div className="flex justify-end pt-1 border-t border-gray-100">
+            {(occupancy.reservasHoje ?? []).some(r => r.status === 'reserva' || r.status === 'confirmada') && (
+              <span className="text-[9px] text-blue-500 mr-auto">📋 = reservado</span>
+            )}
             <span className="text-[9px] text-gray-400">Total lounges: </span>
             <span className="text-[9px] font-bold text-gray-500 ml-1">{(occupancy.lounges ?? []).reduce((a: number, b: number) => a + b, 0)}</span>
           </div>
