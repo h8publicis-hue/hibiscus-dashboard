@@ -416,11 +416,10 @@ function GarcomApp() {
           </div>
           {/* Outros */}
           <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Outros</p>
-          <div className="grid grid-cols-5 gap-1 mb-2">
+          <div className="grid grid-cols-7 gap-1 mb-2">
             {[
               { label: 'Anx', idx: 14 },
               { label: 'Prime', idx: 15 },
-              { label: '519', idx: 18 },
             ].map(({ label, idx }) => {
               const c = occupancy.lounges[idx] ?? 0;
               return (

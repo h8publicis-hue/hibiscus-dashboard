@@ -42,14 +42,11 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Prime ★',    ids: [15] },
-  { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
 const LOUNGE_LABELS: Record<number, string> = {
   14: 'Anexo',
-  15: 'Gramado',
-  16: 'Gramado',
-  17: 'Gramado',
+  15: 'Prime',
 };
 
 function loungeName(idx: number): string {
@@ -394,11 +391,11 @@ export function Occupancy({ occupancy, actions }: OccupancyProps) {
             </div>
           ))}
 
-          {/* Anexo + Gramado à esquerda · Prime★ alinhado à direita (abaixo do 514) */}
+          {/* Anexo à esquerda · Prime★ alinhado à direita (abaixo do 514) */}
           <div className="flex items-start justify-between">
-            {/* Anexo + Gramado */}
+            {/* Anexo */}
             <div className="flex items-start gap-1.5">
-              {[...LOUNGE_GROUPS[2].ids, ...LOUNGE_GROUPS[4].ids].map((idx) => {
+              {[...LOUNGE_GROUPS[2].ids].map((idx) => {
                 const count = occupancy.lounges[idx];
                 const isSelected = selectedLounge === idx;
                 const obs = occupancy.loungeObs?.[idx] ?? '';

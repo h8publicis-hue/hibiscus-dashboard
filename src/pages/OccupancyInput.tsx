@@ -7,7 +7,6 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Prime ★',    ids: [15] },
-  { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
 const CANAIS   = ['', 'Balcão', 'Paytour', 'Comercial', 'Diretoria', 'Edilene', 'Outros'] as const;
@@ -852,7 +851,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
         ))}
 
         <div className="flex gap-4">
-          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3], LOUNGE_GROUPS[4]].map(group => (
+          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[3]].map(group => (
             <div key={group.label}>
               <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
                 {group.label.includes('★') ? <>{group.label.replace('★','')}<span className="text-yellow-400">★</span></> : group.label}

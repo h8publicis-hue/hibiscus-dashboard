@@ -12,7 +12,6 @@ const LOUNGE_GROUPS = [
   { label: 'Atrás',      ids: [1, 3, 5, 7, 9, 11, 13] },
   { label: 'Anexo',      ids: [14] },
   { label: 'Prime ★',    ids: [15] },
-  { label: 'Gramado',    ids: [16, 17] },
 ] as const;
 
 const OCC_DEFAULT: OccupancyState = {
@@ -125,7 +124,7 @@ function LoungeMap({ lounges, reservas }: { lounges: number[]; reservas?: Lounge
       <div className="border-t border-gray-100 dark:border-gray-700" />
       <div className="flex items-start justify-between">
         <div className="flex gap-3 items-start">
-          {[LOUNGE_GROUPS[2], LOUNGE_GROUPS[4]].map((group) => (
+          {[LOUNGE_GROUPS[2]].map((group) => (
             <div key={group.label} className="flex flex-col gap-1">
               <LoungeLabel label={group.label} className="text-[10px] font-semibold text-gray-500 dark:text-gray-400" />
               <div className="flex gap-1">
