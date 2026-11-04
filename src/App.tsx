@@ -80,7 +80,6 @@ import { Lider }         from './pages/Lider';
 import { EscalaPublica } from './pages/EscalaPublica';
 import { TvGrade } from './pages/TvGrade';
 import { GoalEditor } from './components/GoalEditor';
-import { KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
 import { Period, ApiStatus } from './types';
 import { useMockMode } from './hooks/useMockMode';
@@ -166,6 +165,9 @@ function Dashboard() {
     );
   }
 
+  // Modo TV (botão do cabeçalho): grade em tela cheia; cada tela traz seu próprio cabeçalho/relógio/rodapé
+  if (kdsMode) return <TvGrade onExit={() => setKdsMode(false)} />;
+
   return (
     <>
       <div className="min-h-screen bg-gray-200 dark:bg-gray-900 flex flex-col">
@@ -194,10 +196,7 @@ function Dashboard() {
                 Modo Mock ativo — dados simulados para desenvolvimento
               </div>
             )}
-            {kdsMode
-              ? <TvGrade embedded />
-              : (
-                <Routes>
+            <Routes>
                   <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
                   <Route path="/satisfacao"    element={<Satisfaction period={period} />} />
                   <Route path="/mapa-ocupacao" element={<MapaOcupacao />} />
@@ -207,12 +206,9 @@ function Dashboard() {
                   <Route path="/configuracoes"    element={<Configuracoes />} />
                   <Route path="/relatorio"        element={<Relatorio />} />
                   <Route path="/ajuda"            element={<Ajuda />} />
-                </Routes>
-              )
-            }
+            </Routes>
           </main>
         </div>
-        <KdsBadge active={kdsMode} />
       </div>
 
       {!kdsMode && (

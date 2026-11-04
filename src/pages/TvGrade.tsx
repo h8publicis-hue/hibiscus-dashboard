@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchGradeTv, ItemGrade, TELAS_TV } from '../hooks/useTvGrade';
 
 // Player do Modo TV: alterna as telas ativas da grade, cada uma pelo tempo configurado
-export function TvGrade({ embedded = false }: { embedded?: boolean }) {
+export function TvGrade({ onExit }: { onExit?: () => void }) {
   const [grade, setGrade] = useState<ItemGrade[] | null>(null);
   const [pos, setPos] = useState(0);
 
@@ -30,10 +30,10 @@ export function TvGrade({ embedded = false }: { embedded?: boolean }) {
 
   // Recarrega a página a cada 30 min (evita aba travada e pega versões novas)
   useEffect(() => {
-    if (embedded) return;
+    if (onExit) return;
     const id = setTimeout(() => window.location.reload(), 30 * 60_000);
     return () => clearTimeout(id);
-  }, [embedded]);
+  }, [onExit]);
 
   if (!grade) return <div className="min-h-screen bg-gray-900" />;
   if (!atual) {
@@ -44,8 +44,14 @@ export function TvGrade({ embedded = false }: { embedded?: boolean }) {
     );
   }
   return (
-    <div className={embedded ? 'flex-1 min-h-0 relative bg-gray-900' : 'fixed inset-0 bg-gray-900'}>
+    <div className="fixed inset-0 bg-gray-900">
       <iframe key={atual.id + pos} src={atual.tela.src} title={atual.tela.nome} className="absolute inset-0 w-full h-full border-0" />
+      {onExit && (
+        <button onClick={onExit} title="Sair do Modo TV"
+          className="absolute top-2 right-2 z-20 px-2.5 py-1 rounded-lg bg-black/70 text-white text-xs opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity">
+          ✕ Sair do Modo TV
+        </button>
+      )}
       {telas.length > 1 && (
         <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/20 z-10 pointer-events-none">
           <div key={`${atual.id}-${pos}`} className="h-full bg-emerald-500 kds-progress-bar" style={{ animationDuration: `${atual.segundos * 1000}ms` }} />
