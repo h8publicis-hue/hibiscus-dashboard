@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchGradeTv, ItemGrade, TELAS_TV } from '../hooks/useTvGrade';
 
 // Player do Modo TV: alterna as telas ativas da grade, cada uma pelo tempo configurado
-export function TvGrade() {
+export function TvGrade({ embedded = false }: { embedded?: boolean }) {
   const [grade, setGrade] = useState<ItemGrade[] | null>(null);
   const [pos, setPos] = useState(0);
 
@@ -30,9 +30,10 @@ export function TvGrade() {
 
   // Recarrega a página a cada 30 min (evita aba travada e pega versões novas)
   useEffect(() => {
+    if (embedded) return;
     const id = setTimeout(() => window.location.reload(), 30 * 60_000);
     return () => clearTimeout(id);
-  }, []);
+  }, [embedded]);
 
   if (!grade) return <div className="min-h-screen bg-gray-900" />;
   if (!atual) {
@@ -43,8 +44,8 @@ export function TvGrade() {
     );
   }
   return (
-    <div className="fixed inset-0 bg-gray-900">
-      <iframe key={atual.id + pos} src={atual.tela.src} title={atual.tela.nome} className="w-full h-full border-0" />
+    <div className={embedded ? 'flex-1 min-h-0 relative bg-gray-900' : 'fixed inset-0 bg-gray-900'}>
+      <iframe key={atual.id + pos} src={atual.tela.src} title={atual.tela.nome} className="absolute inset-0 w-full h-full border-0" />
     </div>
   );
 }

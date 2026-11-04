@@ -80,7 +80,7 @@ import { Lider }         from './pages/Lider';
 import { EscalaPublica } from './pages/EscalaPublica';
 import { TvGrade } from './pages/TvGrade';
 import { GoalEditor } from './components/GoalEditor';
-import { KdsController, KdsProgressBar, KdsBadge } from './components/KdsMode';
+import { KdsBadge } from './components/KdsMode';
 import { BottomNav } from './components/BottomNav';
 import { Period, ApiStatus } from './types';
 import { useMockMode } from './hooks/useMockMode';
@@ -89,8 +89,6 @@ import { useOccupancy } from './hooks/useOccupancy';
 import { useSurveyMonkey } from './hooks/useSurveyMonkey';
 import { usePaytour } from './hooks/usePaytour';
 import { invalidatePaytourCache } from './services/paytour';
-
-const KDS_INTERVAL_MS = 8000;
 
 function Dashboard() {
   useEffect(() => { ensureStaffSeed(); }, []);
@@ -170,7 +168,6 @@ function Dashboard() {
 
   return (
     <>
-      <KdsController active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
       <div className="min-h-screen bg-gray-200 dark:bg-gray-900 flex flex-col">
         <Header
           period={period}
@@ -198,7 +195,7 @@ function Dashboard() {
               </div>
             )}
             {kdsMode
-              ? <Overview period={period} goals={goals} occupancy={occupancy} />
+              ? <TvGrade embedded />
               : (
                 <Routes>
                   <Route path="/"           element={<Overview period={period} goals={goals} occupancy={occupancy} />} />
@@ -215,7 +212,6 @@ function Dashboard() {
             }
           </main>
         </div>
-        <KdsProgressBar active={kdsMode} intervalMs={KDS_INTERVAL_MS} />
         <KdsBadge active={kdsMode} />
       </div>
 
