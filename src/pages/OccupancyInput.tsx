@@ -256,12 +256,18 @@ function LoungeModal({ idx, value, info: infoInit, currentBeach, max, onClose, o
   const [qty,  setQty]  = useState(value);
   const [info, setInfo] = useState<LoungeInfo>({ ...infoInit });
   const [step, setStep] = useState<'edit' | 'transfer'>('edit');
+  const [confirmaExcluir, setConfirmaExcluir] = useState(false);
   const name  = SPACE_CONFIGS.lounge.start + idx;
   const delta = qty - value;
 
   function handleConfirm() {
     if (delta > 0) { setStep('transfer'); }
     else { onSave(qty, currentBeach, info); onClose(); }
+  }
+
+  function handleExcluir() {
+    onSave(0, currentBeach, emptyInfo());
+    onClose();
   }
 
   function handleTransfer(isTransfer: boolean) {
@@ -330,6 +336,23 @@ function LoungeModal({ idx, value, info: infoInit, currentBeach, max, onClose, o
               className="w-full py-3 rounded-2xl bg-gray-900 text-white text-sm font-semibold active:bg-gray-700">
               Confirmar
             </button>
+
+            {value > 0 && (confirmaExcluir ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-3 flex flex-col gap-2">
+                <p className="text-xs text-red-700 text-center">Excluir os dados do Lounge {name} e zerar a ocupação?</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmaExcluir(false)}
+                    className="flex-1 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold text-gray-600">Cancelar</button>
+                  <button onClick={handleExcluir}
+                    className="flex-1 py-2 rounded-xl bg-red-600 text-white text-xs font-semibold active:bg-red-700">Sim, excluir</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmaExcluir(true)}
+                className="w-full py-2 text-xs font-semibold text-red-600 active:text-red-700">
+                Excluir informações
+              </button>
+            ))}
           </>
         ) : (
           <>
