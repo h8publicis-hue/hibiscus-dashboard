@@ -10,7 +10,7 @@ interface UseSurveyMonkeyResult {
   error: string | null;
 }
 
-export function useSurveyMonkey(period: string): UseSurveyMonkeyResult {
+export function useSurveyMonkey(period: string, reloadKey = 0): UseSurveyMonkeyResult {
   const [data, setData]       = useState<SurveyMonkeyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function useSurveyMonkey(period: string): UseSurveyMonkeyResult {
       .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
 
     return () => { cancelled = true; };
-  }, [period, isMock]);
+  }, [period, isMock, reloadKey]);
 
   return { data, loading, error };
 }

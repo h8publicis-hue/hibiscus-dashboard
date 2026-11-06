@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { jsPDF } from 'jspdf';
 import { useSurveyMonkey } from '../hooks/useSurveyMonkey';
-import { clearSheetsCache } from '../services/googleSheets';
+import { clearSheetsCache, saveNpsFix, ClasseNps } from '../services/googleSheets';
 import { Period, RecentResponse } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertCircle, RefreshCw, Tag, FileDown, CheckSquare, Square, Layers, Users, Plus, X, Pencil } from 'lucide-react';
@@ -651,9 +651,89 @@ function SectorDropdown({
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+const CLASSES: { cls: ClasseNps; label: string; cor: string }[] = [
+  { cls: 'arretado', label: 'Manter positivo', cor: 'bg-green-600 hover:bg-green-700' },
+  { cls: 'oxente',   label: 'Oxente (neutro)', cor: 'bg-yellow-500 hover:bg-yellow-600' },
+  { cls: 'putz',     label: 'Putz (negativo)', cor: 'bg-red-600 hover:bg-red-700' },
+];
+
+// Revisão humana: respostas com nota alta e texto de aparência negativa
+function RevisaoNps({ suspeitas, revisadas, ajustadas, onChanged }: {
+  suspeitas: RecentResponse[]; revisadas: RecentResponse[]; ajustadas: number; onChanged: () => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [salvando, setSalvando] = useState<string | null>(null);
+  const [erro, setErro] = useState('');
+  if (suspeitas.length === 0 && revisadas.length === 0) return null;
+
+  async function decidir(r: RecentResponse, cls: ClasseNps | null) {
+    if (!r.fixId) return;
+    setSalvando(r.fixId); setErro('');
+    const ok = await saveNpsFix(r.fixId, cls);
+    setSalvando(null);
+    if (ok) onChanged(); else setErro('Não foi possível salvar. Tente de novo.');
+  }
+  const fmt = (d: string) => d.split('-').reverse().join('/');
+
+  return (
+    <div className="mx-6 mb-3 shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
+      <button onClick={() => setAberto(o => !o)} className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
+        <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+          {suspeitas.length > 0
+            ? `${suspeitas.length} resposta${suspeitas.length > 1 ? 's' : ''} para revisar (nota alta com texto negativo)`
+            : 'Nenhuma resposta pendente de revisão'}
+          {ajustadas > 0 && <span className="ml-2 font-normal text-xs text-amber-700 dark:text-amber-400">· {ajustadas} reclassificada{ajustadas > 1 ? 's' : ''} no período</span>}
+        </span>
+        <span className="text-xs text-amber-700 dark:text-amber-400">{aberto ? 'Fechar' : 'Abrir'}</span>
+      </button>
+      {aberto && (
+        <div className="px-4 pb-4 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+          <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+            Leia o comentário e defina a classificação que conta no NPS. A nota original da planilha não muda.
+          </p>
+          {erro && <p className="text-xs text-red-600">{erro}</p>}
+          {suspeitas.map(r => (
+            <div key={r.fixId} className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3">
+              <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-1">
+                <span>{fmt(r.date)}{r.nome ? ` · ${r.nome}` : ''}{r.pulseira ? ` · pulseira ${r.pulseira}` : ''}</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-200">{r.score} ★</span>
+              </div>
+              <p className="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap">{r.text}</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {CLASSES.map(c => (
+                  <button key={c.cls} disabled={salvando === r.fixId} onClick={() => decidir(r, c.cls)}
+                    className={clsx('px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50', c.cor)}>{c.label}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {revisadas.length > 0 && (
+            <details className="text-xs text-gray-600 dark:text-gray-300">
+              <summary className="cursor-pointer font-semibold">Já revisadas ({revisadas.length}) — desfazer</summary>
+              <div className="flex flex-col gap-2 mt-2">
+                {revisadas.map(r => (
+                  <div key={r.fixId} className="flex items-start justify-between gap-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2">
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-gray-400">{fmt(r.date)} · {r.score} ★ → <b>{r.classe}</b></p>
+                      <p className="text-xs truncate">{r.text}</p>
+                    </div>
+                    <button disabled={salvando === r.fixId} onClick={() => decidir(r, null)}
+                      className="shrink-0 text-[11px] text-gray-500 underline disabled:opacity-50">Desfazer</button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Satisfaction({ period }: SatisfactionProps) {
   const [SECTORS] = useSectors();
-  const { data, loading, error } = useSurveyMonkey(period);
+  const [reloadKey, setReloadKey] = useState(0);
+  const { data, loading, error } = useSurveyMonkey(period, reloadKey);
   const { tags, toggleSector }               = useSectorTags();
   const { staff, add: addStaff, remove: removeStaff, update: updateStaff } = useStaff();
   const [activeFilter, setActiveFilter]      = useState<FilterTab>('all');
@@ -784,6 +864,13 @@ export function Satisfaction({ period }: SatisfactionProps) {
           </div>
         </div>
       )}
+
+      <RevisaoNps
+        suspeitas={data?.suspeitas ?? []}
+        revisadas={data?.revisadas ?? []}
+        ajustadas={data?.ajustadas ?? 0}
+        onChanged={() => setReloadKey(k => k + 1)}
+      />
 
       <div className="flex flex-1 min-h-0 gap-4 px-6 pb-6">
 

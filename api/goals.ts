@@ -68,6 +68,24 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // ── Revisão do NPS (correções humanas de classificação) ──────────────────────
+  if (type === 'npsfix') {
+    if (req.method === 'GET') {
+      return res.json({ fixes: (await kvGet('dashboard:nps-fixes')) ?? {} });
+    }
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {};
+      const id = String(body.id ?? '').slice(0, 120);
+      const cls = body.cls;
+      if (!id || !['arretado', 'oxente', 'putz', null].includes(cls)) return res.status(400).json({ error: 'dados inválidos' });
+      const fixes = ((await kvGet('dashboard:nps-fixes')) ?? {}) as Record<string, any>;
+      if (cls === null) delete fixes[id];
+      else fixes[id] = { cls, em: Date.now() };
+      await kvSet('dashboard:nps-fixes', fixes);
+      return res.json({ ok: true });
+    }
+  }
+
   // ── Comunicados rápidos ──────────────────────────────────────────────────────
   // ── Tags de setor das avaliações ─────────────────────────────────────────────
   if (type === 'tags') {

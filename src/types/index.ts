@@ -59,6 +59,8 @@ export interface RecentResponse {
   pulseira?: string;
   nome?: string;
   email?: string;
+  fixId?: string;                                 // id estável para revisão do NPS
+  classe?: 'arretado' | 'oxente' | 'putz';         // classificação corrigida (revisadas)
 }
 
 export interface Survey {
@@ -79,6 +81,9 @@ export interface SurveyMonkeyData {
   recentResponses: RecentResponse[];
   allTimeResponses: RecentResponse[];
   surveys: Survey[];
+  ajustadas?: number;                 // respostas do período reclassificadas na revisão
+  suspeitas?: RecentResponse[];       // 4–5★ com texto negativo, ainda sem revisão
+  revisadas?: RecentResponse[];       // já revisadas (permite desfazer)
 }
 
 // Google Business

@@ -95,6 +95,50 @@ function toSentiment(score: number): Sentiment {
   return 'negative';
 }
 
+
+// ── Revisão humana do NPS ────────────────────────────────────────────────────
+export type ClasseNps = 'arretado' | 'oxente' | 'putz';
+type Fixes = Record<string, { cls: ClasseNps; em: number }>;
+
+const classePorNota = (n: number): ClasseNps => (n >= 4 ? 'arretado' : n === 3 ? 'oxente' : 'putz');
+
+function fixIdOf(dateISO: string, score: number, text: string): string {
+  return `${dateISO}|${score}|${text.slice(0, 50)}`;
+}
+
+async function fetchFixes(): Promise<Fixes> {
+  try {
+    const r = await fetch('/api/goals?type=npsfix', { cache: 'no-store' });
+    const j = await r.json();
+    return (j?.fixes ?? {}) as Fixes;
+  } catch { return {}; }
+}
+
+export async function saveNpsFix(id: string, cls: ClasseNps | null): Promise<boolean> {
+  try {
+    const r = await fetch('/api/goals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'npsfix', id, cls }),
+    });
+    if (r.ok) clearSheetsCache();
+    return r.ok;
+  } catch { return false; }
+}
+
+// Triagem: 4–5★ cujo texto parece negativo vai para revisão humana
+const SINAIS_NEGATIVOS = [
+  'demor', 'ruim', 'pessim', 'horrivel', 'terrivel', 'decepc', 'nao gostei', 'nao recomend', 'nao voltaria', 'nao volto',
+  'absurd', 'descaso', 'mal atendid', 'mau atendid', 'faltou', 'falta de', 'lento', 'sujo', 'suja', 'reclam', 'problema',
+  'desorganiz', 'vergonha', 'pior', 'lament', 'insatisf', 'nao funcion', 'esperei', 'esperando', 'melhorar', 'deixou a desejar',
+  'nao foi', 'caro demais', 'muito caro', 'fila', 'nao tinha', 'nao havia', 'sem educacao', 'grosseir', 'mal educad',
+];
+function pareceNegativo(text: string): boolean {
+  const t = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/nada (a|para|pra|de) reclamar|sem (nada a )?reclama\w*|nenhum problema|sem problema\w*/g, '');
+  return SINAIS_NEGATIVOS.some(k => t.includes(k));
+}
+
 // ── Cache (5 min) + in-flight dedup ──────────────────────────────────────────
 let rowCache: { rows: GVizRow[]; fetchedAt: number } | null = null;
 let rowInflight: Promise<GVizRow[]> | null = null;
@@ -147,7 +191,7 @@ export async function fetchSatisfactionData(period: string): Promise<SurveyMonke
 }
 
 async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData> {
-  const rows  = await fetchAllRows();
+  const [rows, fixes] = await Promise.all([fetchAllRows(), fetchFixes()]);
   const since = periodStart(period);
   const until = periodEnd(period);
 
@@ -192,10 +236,13 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
 
   const total = entries.length;
 
-  // Promoters = 5, Neutrals = 4, Detractors = 1–3
-  const nP = entries.filter(e => e.score >= 4).length;
-  const nN = entries.filter(e => e.score === 3).length;
-  const nD = entries.filter(e => e.score <= 2).length;
+  // Classe efetiva: correção humana (se houver) ou nota (4–5 Arretado, 3 Oxente, 1–2 Putz)
+  const fixIdE = (e: Entry) => fixIdOf(e.date.toISOString().slice(0, 10), e.score, e.text);
+  const classeE = (e: Entry): ClasseNps => fixes[fixIdE(e)]?.cls ?? classePorNota(e.score);
+  const nP = entries.filter(e => classeE(e) === 'arretado').length;
+  const nN = entries.filter(e => classeE(e) === 'oxente').length;
+  const nD = entries.filter(e => classeE(e) === 'putz').length;
+  const ajustadas = entries.filter(e => classeE(e) !== classePorNota(e.score)).length;
 
   const pctP = total > 0 ? Math.round((nP / total) * 100) : 0;
   const pctN = total > 0 ? Math.round((nN / total) * 100) : 0;
@@ -212,8 +259,9 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     const day = e.date.toISOString().slice(0, 10);
     if (!byDay[day]) byDay[day] = { p: 0, d: 0, t: 0 };
     byDay[day].t++;
-    if (e.score >= 4)      byDay[day].p++;
-    else if (e.score <= 2) byDay[day].d++;
+    const c = classeE(e);
+    if (c === 'arretado')   byDay[day].p++;
+    else if (c === 'putz')  byDay[day].d++;
   }
 
   const npsHistory = Object.entries(byDay)
@@ -233,7 +281,19 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     pulseira:  e.pulseira || undefined,
     nome:      e.nome     || undefined,
     email:     e.email    || undefined,
+    fixId:     fixIdE(e),
+    ...(fixes[fixIdE(e)] ? { classe: fixes[fixIdE(e)].cls } : {}),
   });
+
+  // Fila de revisão: últimos 60 dias, 4–5★ com texto de aparência negativa, ainda sem revisão
+  const corte = new Date(); corte.setDate(corte.getDate() - 60);
+  const recentes = allEntries.filter(e => e.date >= corte && e.text.length > 3);
+  const suspeitas = recentes
+    .filter(e => e.score >= 4 && !fixes[fixIdE(e)] && pareceNegativo(e.text))
+    .sort((a, b) => b.date.getTime() - a.date.getTime()).map(toResponse);
+  const revisadas = recentes
+    .filter(e => !!fixes[fixIdE(e)])
+    .sort((a, b) => b.date.getTime() - a.date.getTime()).map(toResponse);
 
   // Responses with text, newest first — filtered to selected period
   const recentResponses = [...entries]
@@ -260,6 +320,9 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     responseRate,
     totalResponses: totalAllTime,  // ← total em toda a planilha, independente do período
     npsHistory,
+    ajustadas,
+    suspeitas,
+    revisadas,
     recentResponses,
     allTimeResponses,
     surveys: [
@@ -276,7 +339,7 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
 export interface NpsMes { mes: number; total: number; nps: number | null; }
 
 export async function fetchNpsMensal(year: number): Promise<NpsMes[]> {
-  const rows = await fetchAllRows();
+  const [rows, fixes] = await Promise.all([fetchAllRows(), fetchFixes()]);
   const acc = Array.from({ length: 12 }, () => ({ t: 0, p: 0, d: 0 }));
   for (const row of rows) {
     const score = Number(cellVal(row, COL_RATING));
@@ -285,8 +348,10 @@ export async function fetchNpsMensal(year: number): Promise<NpsMes[]> {
     if (!date || date.getFullYear() !== year) continue;
     const a = acc[date.getMonth()];
     a.t++;
-    if (score >= 4) a.p++;
-    else if (score <= 2) a.d++;
+    const texto = String(cellVal(row, COL_FEEDBACK) ?? '').trim();
+    const c = fixes[fixIdOf(date.toISOString().slice(0, 10), score, texto)]?.cls ?? classePorNota(score);
+    if (c === 'arretado') a.p++;
+    else if (c === 'putz') a.d++;
   }
   return acc.map((a, i) => ({
     mes: i, total: a.t,
