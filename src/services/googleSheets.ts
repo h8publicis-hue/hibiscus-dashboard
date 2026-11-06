@@ -285,8 +285,8 @@ async function _fetchSatisfactionData(period: string): Promise<SurveyMonkeyData>
     ...(fixes[fixIdE(e)] ? { classe: fixes[fixIdE(e)].cls } : {}),
   });
 
-  // Fila de revisão: últimos 60 dias, 4–5★ com texto de aparência negativa, ainda sem revisão
-  const corte = new Date(); corte.setDate(corte.getDate() - 60);
+  // Fila de revisão: últimos 90 dias, 4–5★ com texto de aparência negativa, ainda sem revisão
+  const corte = new Date(); corte.setDate(corte.getDate() - 90);
   const recentes = allEntries.filter(e => e.date >= corte && e.text.length > 3);
   const suspeitas = recentes
     .filter(e => e.score >= 4 && !fixes[fixIdE(e)] && pareceNegativo(e.text))
