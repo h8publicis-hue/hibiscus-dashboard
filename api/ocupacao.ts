@@ -123,6 +123,21 @@ export default async function handler(req: any, res: any) {
     return res.json({ ok: true });
   }
 
+  // Histórico de validações do mês (para o relatório de rotatividade por área)
+  if (action === 'escala-rotatividade') {
+    const mes = ((req.query?.mes as string) || todayBRT().slice(0, 7)).trim();
+    if (!/^\d{4}-\d{2}$/.test(mes)) return res.status(400).json({ error: 'mes inválido' });
+    const [ano, m] = mes.split('-').map(Number);
+    const dias = new Date(ano, m, 0).getDate();
+    const datas = Array.from({ length: dias }, (_, i) => `${mes}-${String(i + 1).padStart(2, '0')}`);
+    const vals = await Promise.all(datas.map(d => kvGet(`escala-validacao:${d}`)));
+    const out = datas
+      .map((data, i) => ({ data, v: vals[i] as any }))
+      .filter(x => x.v?.validado && Array.isArray(x.v.garcons))
+      .map(x => ({ data: x.data, garcons: x.v.garcons }));
+    return res.json({ mes, dias: out });
+  }
+
   if (action === 'escala-valida') {
     const data = ((req.query?.data as string) || todayBRT()).trim();
     const key  = `escala-validacao:${data}`;

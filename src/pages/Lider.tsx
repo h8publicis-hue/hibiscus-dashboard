@@ -4,6 +4,7 @@ import { useAviso } from '../hooks/useAviso';
 import { useBeachTables, AREAS, AREA_COLORS } from '../hooks/useBeachTables';
 import type { MesaArea } from '../hooks/useBeachTables';
 import { useEscalaHoje } from '../hooks/useEscalaHoje';
+import { RotatividadeGarcons } from '../components/RotatividadeGarcons';
 import { useOccupancy } from '../hooks/useOccupancy';
 import { useChamadas, parseTempoSec } from '../hooks/useChamadas';
 import type { ValidacaoGarcom, BeachSetor, EscalaGarcom, EscalaStatus, CorGarcom, TipoAusencia } from '../types';
@@ -1086,7 +1087,7 @@ function LiderLogin({ onLogin }: { onLogin: () => void }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-type Aba = 'hoje' | 'escala';
+type Aba = 'hoje' | 'escala' | 'rotatividade';
 
 function AvisoCardLider({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -1515,6 +1516,7 @@ export function Lider() {
         {([
           { id: 'hoje',   label: 'Hoje',          icon: <LayoutDashboard size={14} /> },
           { id: 'escala', label: 'Escala Mensal',  icon: <CalendarDays size={14} /> },
+          { id: 'rotatividade', label: 'Rotatividade', icon: <Users size={14} /> },
         ] as { id: Aba; label: string; icon: React.ReactNode }[]).map(t => (
           <button key={t.id} onClick={() => setAba(t.id)}
             className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors ${
@@ -1528,6 +1530,7 @@ export function Lider() {
       </div>
 
       <main className="p-4 max-w-lg mx-auto flex flex-col gap-4 pb-8">
+        {aba === 'rotatividade' && <RotatividadeGarcons />}
         {aba === 'hoje' && (
           <>
             <BoxEscala />
