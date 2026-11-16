@@ -100,7 +100,23 @@ export function RotatividadeGarcons() {
     const wCol = (W - ML - MR - wNome - wTotal) / nCols;
     let y = 14;
 
+    // Logo do Grupo Hibiscus (canto superior direito de cada página)
+    let logo: { data: string; w: number; h: number } | null = null;
+    try {
+      const blob = await (await fetch('/logo.png')).blob();
+      const data: string = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob); });
+      const dim: { w: number; h: number } = await new Promise(res => {
+        const img = new Image();
+        img.onload = () => res({ w: img.naturalWidth || 349, h: img.naturalHeight || 80 });
+        img.onerror = () => res({ w: 349, h: 80 });
+        img.src = data;
+      });
+      const h = 14;
+      logo = { data, w: (dim.w / dim.h) * h, h };
+    } catch { /* sem logo */ }
+
     const cabecalho = () => {
+      if (logo) doc.addImage(logo.data, 'PNG', W - MR - logo.w, y - 6, logo.w, logo.h, undefined, 'FAST');
       doc.setTextColor(31, 41, 55); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
       doc.text('Distribuição de áreas — ' + rotuloMes(mes), ML, y);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128);
