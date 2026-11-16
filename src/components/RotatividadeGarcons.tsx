@@ -33,6 +33,16 @@ function rotuloMes(mes: string) {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+function hexRgb(h: string): [number, number, number] {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+// mistura a cor com branco (t = 0..1 de intensidade) para a célula do PDF
+function misturaBranco(h: string, t: number): [number, number, number] {
+  const [r, g, b] = hexRgb(h);
+  return [Math.round(255 - (255 - r) * t), Math.round(255 - (255 - g) * t), Math.round(255 - (255 - b) * t)];
+}
+
 export function RotatividadeGarcons() {
   const [mes, setMes] = useState(mesBRT());
   const [dias, setDias] = useState<DiaValidado[] | null>(null);
@@ -81,6 +91,61 @@ export function RotatividadeGarcons() {
     return { linhas: lista, colunas: cols, maxCelula: maxC };
   }, [dias]);
 
+  async function imprimir() {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+    const W = 297, ML = 12, MR = 12;
+    const nCols = colunas.length;
+    const wNome = 62, wTotal = 20;
+    const wCol = (W - ML - MR - wNome - wTotal) / nCols;
+    let y = 14;
+
+    const cabecalho = () => {
+      doc.setTextColor(31, 41, 55); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+      doc.text('Distribuição de áreas — ' + rotuloMes(mes), ML, y);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128);
+      doc.text('Hibiscus Beach Club · dias de trabalho por garçom em cada área (escalas validadas; ausências e faltas não contam)', ML, y + 5);
+      y += 11;
+      doc.setFillColor(31, 41, 55); doc.rect(ML, y, W - ML - MR, 7, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text('Garçom', ML + 2, y + 4.8);
+      colunas.forEach((c, i) => doc.text(c.label, ML + wNome + wCol * i + wCol / 2, y + 4.8, { align: 'center' }));
+      doc.text('Total', W - MR - wTotal / 2, y + 4.8, { align: 'center' });
+      y += 7;
+    };
+    cabecalho();
+
+    const hRow = 7;
+    linhas.forEach((l, idx) => {
+      if (y + hRow > 192) { doc.addPage(); y = 14; cabecalho(); }
+      if (idx % 2 === 1) { doc.setFillColor(249, 250, 251); doc.rect(ML, y, W - ML - MR, hRow, 'F'); }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(31, 41, 55);
+      doc.text(l.nome + (l.seqMax >= limite ? '  (!)' : ''), ML + 2, y + 4.8);
+      colunas.forEach((c, i) => {
+        const n = l.cont[c.key] ?? 0;
+        const x = ML + wNome + wCol * i;
+        if (n) {
+          doc.setFillColor(...misturaBranco(c.cor, 0.3 + 0.7 * (n / maxCelula)));
+          doc.rect(x + 0.5, y + 0.5, wCol - 1, hRow - 1, 'F');
+          doc.setTextColor(31, 41, 55); doc.setFont('helvetica', 'bold');
+          doc.text(String(n), x + wCol / 2, y + 4.8, { align: 'center' });
+        } else {
+          doc.setTextColor(209, 213, 219); doc.setFont('helvetica', 'normal');
+          doc.text('-', x + wCol / 2, y + 4.8, { align: 'center' });
+        }
+      });
+      doc.setTextColor(31, 41, 55); doc.setFont('helvetica', 'bold');
+      doc.text(String(l.total), W - MR - wTotal / 2, y + 4.8, { align: 'center' });
+      doc.setDrawColor(229, 231, 235); doc.line(ML, y + hRow, W - MR, y + hRow);
+      y += hRow;
+    });
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(107, 114, 128);
+    const nota = linhas.some(l => l.seqMax >= limite) ? `(!) ${limite} ou mais dias seguidos na mesma área.   ` : '';
+    doc.text(nota + 'Gerado em ' + new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' }) + ' · Tecnologia H8 Sistemas', ML, 203);
+    doc.save(`rotatividade-${mes}.pdf`);
+  }
+
   const rotulo = (k: string) => COLUNAS.find(c => c.key === k)?.label ?? k;
 
   return (
@@ -94,6 +159,11 @@ export function RotatividadeGarcons() {
         <p className="text-[11px] text-gray-400">
           Dias de trabalho de cada garçom por área, a partir das escalas validadas{dias ? ` (${dias.length} dia${dias.length === 1 ? '' : 's'} no mês)` : ''}. Ausências e faltas não contam.
         </p>
+        {linhas.length > 0 && (
+          <button onClick={imprimir} className="self-start px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold">
+            Imprimir / baixar PDF
+          </button>
+        )}
         <label className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
           Alertar a partir de
           <select value={limite} onChange={e => { const n = Number(e.target.value); setLimite(n); try { localStorage.setItem(LIMITE_KEY, String(n)); } catch { /* */ } }}
