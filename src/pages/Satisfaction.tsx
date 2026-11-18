@@ -651,6 +651,8 @@ function SectorDropdown({
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+const REVISAO_KEY = 'hibiscus-revisao-nps';
+
 const CLASSES: { cls: ClasseNps; label: string; cor: string }[] = [
   { cls: 'arretado', label: 'Manter positivo', cor: 'bg-green-600 hover:bg-green-700' },
   { cls: 'oxente',   label: 'Oxente (neutro)', cor: 'bg-yellow-500 hover:bg-yellow-600' },
@@ -664,7 +666,32 @@ function RevisaoNps({ suspeitas, revisadas, ajustadas, onChanged }: {
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [erro, setErro] = useState('');
+  const [liberado, setLiberado] = useState(() => { try { return sessionStorage.getItem(REVISAO_KEY) === 'ok'; } catch { return false; } });
+  const [pedindoSenha, setPedindoSenha] = useState(false);
+  const [senha, setSenha] = useState('');
+  const [erroSenha, setErroSenha] = useState('');
+  const [verificando, setVerificando] = useState(false);
   if (suspeitas.length === 0 && revisadas.length === 0) return null;
+
+  function alternar() {
+    if (aberto) { setAberto(false); return; }
+    if (liberado) { setAberto(true); return; }
+    setPedindoSenha(p => !p); setErroSenha('');
+  }
+
+  async function confirmarSenha(e: React.FormEvent) {
+    e.preventDefault();
+    setVerificando(true); setErroSenha('');
+    try {
+      const r = await fetch('/api/goals?type=config', { cache: 'no-store' });
+      const { config } = await r.json();
+      if (senha === (config?.adminPassword ?? 'Admin@!$')) {
+        try { sessionStorage.setItem(REVISAO_KEY, 'ok'); } catch { /* ignore */ }
+        setLiberado(true); setAberto(true); setPedindoSenha(false); setSenha('');
+      } else setErroSenha('Senha incorreta.');
+    } catch { setErroSenha('Erro de conexão. Tente novamente.'); }
+    finally { setVerificando(false); }
+  }
 
   async function decidir(r: RecentResponse, cls: ClasseNps | null) {
     if (!r.fixId) return;
@@ -677,15 +704,24 @@ function RevisaoNps({ suspeitas, revisadas, ajustadas, onChanged }: {
 
   return (
     <div className="mx-6 mb-3 shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
-      <button onClick={() => setAberto(o => !o)} className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
+      <button onClick={alternar} className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
           {suspeitas.length > 0
             ? `${suspeitas.length} resposta${suspeitas.length > 1 ? 's' : ''} para revisar (nota alta com texto negativo)`
             : 'Nenhuma resposta pendente de revisão'}
           {ajustadas > 0 && <span className="ml-2 font-normal text-xs text-amber-700 dark:text-amber-400">· {ajustadas} reclassificada{ajustadas > 1 ? 's' : ''} no período</span>}
         </span>
-        <span className="text-xs text-amber-700 dark:text-amber-400">{aberto ? 'Fechar' : 'Abrir'}</span>
+        <span className="text-xs text-amber-700 dark:text-amber-400">{aberto ? 'Fechar' : liberado ? 'Abrir' : '🔒 Abrir'}</span>
       </button>
+      {pedindoSenha && !aberto && (
+        <form onSubmit={confirmarSenha} className="px-4 pb-4 flex flex-wrap items-center gap-2">
+          <input type="password" autoFocus value={senha} onChange={e => setSenha(e.target.value)} placeholder="Senha de acesso"
+            className="flex-1 min-w-[180px] rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm" />
+          <button type="submit" disabled={verificando || !senha}
+            className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold disabled:opacity-50">Entrar</button>
+          {erroSenha && <span className="text-xs text-red-600 w-full">{erroSenha}</span>}
+        </form>
+      )}
       {aberto && (
         <div className="px-4 pb-4 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
           <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
