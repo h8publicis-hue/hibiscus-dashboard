@@ -276,7 +276,7 @@ function LoungeModal({ idx, value, info: infoInit, currentBeach, max, onClose, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
       <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4 shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
 
@@ -405,7 +405,7 @@ function ReservaModal({ onClose, onSave }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
       <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4 shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
@@ -457,7 +457,7 @@ function ReservasModal({ reservas, onClose, onUpdate }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
       <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4 shadow-xl max-h-[85vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
@@ -581,7 +581,7 @@ function ProximasModal({ onClose, onCancel }: {
   }, {});
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
       <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4 shadow-xl max-h-[85vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
