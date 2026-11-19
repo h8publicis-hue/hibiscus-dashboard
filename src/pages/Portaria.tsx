@@ -338,8 +338,8 @@ export function Portaria() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-3">
           <p className="text-sm font-bold text-gray-800">🏖️ Ocupação Geral</p>
           <OccupancyRow label="Beach" current={occ.beach} max={SPACE_CONFIGS.beach.max} />
-          <OccupancyRow label="Lounges" current={occ.lounges.reduce((a, b) => a + b, 0)} max={SPACE_CONFIGS.lounge.max * SPACE_CONFIGS.lounge.count} />
-          <OccupancyRow label="Prime" current={occ.prime} max={SPACE_CONFIGS.prime.max} />
+          <OccupancyRow label="Lounges" current={occ.lounges.reduce((a, b) => a + b, 0)} max={150} />
+          <OccupancyRow label="Prime" current={occ.prime} max={8} />
           <div className="border-t border-gray-100 pt-2">
             <LoungeMap lounges={occ.lounges} reservas={occ.reservasHoje} />
           </div>
