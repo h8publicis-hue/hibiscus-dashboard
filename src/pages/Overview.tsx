@@ -185,7 +185,7 @@ function LoungeMap({ lounges, loungeObs, loungeData, reservas }: { lounges: numb
 
   function LoungeCell({ idx, extraClass }: { idx: number; extraClass?: string }) {
     const v = lounges[idx];
-    const pct = v / SPACE_CONFIGS.lounge.max;
+    const pct = v > 10 ? 1 : 0;
     const num = SPACE_CONFIGS.lounge.start + idx;
     const active = hasInfo(idx);
     const reserva = hasActiveReserva(idx) && v === 0;
@@ -405,7 +405,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
           <div className="flex flex-1 gap-0.5">
             {group.ids.map((idx) => {
               const v = lounges[idx];
-              const pct = v / SPACE_CONFIGS.lounge.max;
+              const pct = v > 10 ? 1 : 0;
               const num = SPACE_CONFIGS.lounge.start + idx;
               return (
                 <div key={idx} className={clsx('flex-1 rounded flex flex-col items-center justify-center py-1 text-center', loungeBg(v, pct))}>
@@ -425,7 +425,7 @@ function LoungeMapMini({ lounges }: { lounges: number[] }) {
             <div className="flex gap-0.5">
               {group.ids.map((idx) => {
                 const v = lounges[idx];
-                const pct = v / SPACE_CONFIGS.lounge.max;
+                const pct = v > 10 ? 1 : 0;
                 const num = SPACE_CONFIGS.lounge.start + idx;
                 return (
                   <div key={idx} className={clsx('w-8 rounded flex flex-col items-center justify-center py-1 text-center', loungeBg(v, pct))}>

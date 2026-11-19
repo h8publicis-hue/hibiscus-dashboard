@@ -737,7 +737,7 @@ function LoungeGrid({ occ, reservas, update, onReservaUpdate }: {
 
   function LoungeCell({ idx }: { idx: number }) {
     const v   = occ.lounges[idx];
-    const p   = v / SPACE_CONFIGS.lounge.max;
+    const p   = v > 10 ? 1 : 0;
     const num = SPACE_CONFIGS.lounge.start + idx;
     const info = occ.loungeData?.[idx];
     const hasData = info && (info.nome || info.obs || info.canal || info.veiculo || info.parceiro || info.telefone);

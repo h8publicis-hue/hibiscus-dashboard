@@ -91,7 +91,7 @@ function LoungeMap({ lounges, reservas }: { lounges: number[]; reservas?: Lounge
 
   function LoungeCell({ idx, extraClass }: { idx: number; extraClass?: string }) {
     const v    = lounges[idx] ?? 0;
-    const pct  = v / SPACE_CONFIGS.lounge.max;
+    const pct  = v > 10 ? 1 : 0;
     const num  = SPACE_CONFIGS.lounge.start + idx;
     const reserva = hasActiveReserva(idx) && v === 0;
     const baseBg = reserva
