@@ -328,7 +328,13 @@ function SetoresEditor() {
 function TvGradeEditor() {
   const [grade, setGrade] = useGradeTv();
   const [msg, setMsg] = useState('');
+  const [copiado, setCopiado] = useState(false);
   if (!grade) return <p className="text-xs text-gray-400">Carregando…</p>;
+  const link = `${window.location.origin}/tv`;
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); }
+    catch { window.prompt('Copie o link:', link); }
+  };
 
   const mudar = (i: number, p: Partial<ItemGrade>) => { setMsg(''); setGrade(grade.map((g, k) => k === i ? { ...g, ...p } : g)); };
   const mover = (i: number, d: -1 | 1) => {
@@ -342,7 +348,12 @@ function TvGradeEditor() {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-gray-400">Escolha as telas, a ordem e quantos segundos cada uma fica visível. Abra a grade na TV pelo link <code className="font-mono">/tv</code>.</p>
+      <p className="text-xs text-gray-400">Escolha as telas, a ordem e quantos segundos cada uma fica visível. Abra a grade na TV pelo link abaixo.</p>
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2">
+        <code className="font-mono text-xs text-gray-700 dark:text-gray-200 flex-1 min-w-0 truncate">{link}</code>
+        <button onClick={copiar} className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-200">{copiado ? 'Copiado' : 'Copiar'}</button>
+        <a href="/tv" target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold">Abrir</a>
+      </div>
       <div className="flex flex-col gap-2">
         {grade.map((g, i) => {
           const t = TELAS_TV.find(x => x.id === g.id); if (!t) return null;
