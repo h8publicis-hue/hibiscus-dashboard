@@ -205,9 +205,9 @@ export function MapaKds() {
                 {[0,2,4,6,8,10,12].map(idx => {
                   const n = occupancy.lounges[idx] ?? 0;
                   return (
-                    <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[26px]', n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
+                    <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[26px]', n > 10 ? 'bg-red-600/40 border border-red-500/60' : n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
                       <span className="text-[7px] text-white/30 leading-none">{501 + idx}</span>
-                      <span className={clsx('text-xs font-black leading-none tabular-nums', n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
+                      <span className={clsx('text-xs font-black leading-none tabular-nums', n > 10 ? 'text-red-300' : n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
                     </div>
                   );
                 })}
@@ -220,9 +220,9 @@ export function MapaKds() {
                 {[1,3,5,7,9,11,13].map(idx => {
                   const n = occupancy.lounges[idx] ?? 0;
                   return (
-                    <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[26px]', n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
+                    <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[26px]', n > 10 ? 'bg-red-600/40 border border-red-500/60' : n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
                       <span className="text-[7px] text-white/30 leading-none">{501 + idx}</span>
-                      <span className={clsx('text-xs font-black leading-none tabular-nums', n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
+                      <span className={clsx('text-xs font-black leading-none tabular-nums', n > 10 ? 'text-red-300' : n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
                     </div>
                   );
                 })}
@@ -233,9 +233,9 @@ export function MapaKds() {
               {[{idx:14,label:'Anexo'},{idx:15,label:'Prime'}].map(({idx,label}) => {
                 const n = occupancy.lounges[idx] ?? 0;
                 return (
-                  <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[30px]', idx === 15 ? (n > 0 ? 'bg-yellow-600/30 border border-yellow-500/50' : 'bg-yellow-900/20 border border-yellow-700/30') : n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
+                  <div key={idx} className={clsx('flex flex-col items-center rounded-lg px-1.5 py-1 min-w-[30px]', idx === 15 ? (n > 8 ? 'bg-red-600/40 border border-red-500/60' : n > 0 ? 'bg-yellow-600/30 border border-yellow-500/50' : 'bg-yellow-900/20 border border-yellow-700/30') : n > 10 ? 'bg-red-600/40 border border-red-500/60' : n > 0 ? 'bg-green-600/30 border border-green-500/40' : 'bg-white/5')}>
                     <span className="text-[7px] text-white/30 leading-none">{label}</span>
-                    <span className={clsx('text-xs font-black leading-none tabular-nums', idx === 15 ? 'text-yellow-300' : n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
+                    <span className={clsx('text-xs font-black leading-none tabular-nums', idx === 15 ? 'text-yellow-300' : n > 10 ? 'text-red-300' : n > 0 ? 'text-green-300' : 'text-white/20')}>{n}</span>
                   </div>
                 );
               })}
