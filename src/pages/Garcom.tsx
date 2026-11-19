@@ -394,9 +394,9 @@ function GarcomApp() {
             {[0,2,4,6,8,10,12].map((idx, pos) => {
               const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 10 ? 'bg-red-100' : c > 0 ? 'bg-emerald-50' : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
                   <span className={clsx('text-[8px] leading-none', loungeReservado(idx) ? 'text-blue-500' : 'text-gray-400')}>{n}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 10 ? 'text-red-600' : c > 0 ? 'text-emerald-600' : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
                 </div>
               );
             })}
@@ -407,9 +407,9 @@ function GarcomApp() {
             {[1,3,5,7,9,11,13].map((idx, pos) => {
               const n = 501 + idx; const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? 'bg-emerald-50' : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
+                <div key={pos} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 10 ? 'bg-red-100' : c > 0 ? 'bg-emerald-50' : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
                   <span className={clsx('text-[8px] leading-none', loungeReservado(idx) ? 'text-blue-500' : 'text-gray-400')}>{n}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? 'text-emerald-600' : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', c > 10 ? 'text-red-600' : c > 0 ? 'text-emerald-600' : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
                 </div>
               );
             })}
@@ -423,9 +423,9 @@ function GarcomApp() {
             ].map(({ label, idx }) => {
               const c = occupancy.lounges[idx] ?? 0;
               return (
-                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', c > 0 ? (idx === 15 ? 'bg-yellow-50' : 'bg-emerald-50') : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
+                <div key={idx} className={clsx('rounded-lg py-1 flex flex-col items-center', (idx === 15 ? c > 8 : c > 10) ? 'bg-red-100' : c > 0 ? (idx === 15 ? 'bg-yellow-50' : 'bg-emerald-50') : loungeReservado(idx) ? 'bg-blue-50 border border-dashed border-blue-300' : 'bg-gray-100')}>
                   <span className={clsx('text-[8px] leading-none', loungeReservado(idx) ? 'text-blue-500' : 'text-gray-400')}>{label}</span>
-                  <span className={clsx('text-xs font-bold leading-snug', c > 0 ? (idx === 15 ? 'text-yellow-600' : 'text-emerald-600') : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
+                  <span className={clsx('text-xs font-bold leading-snug', (idx === 15 ? c > 8 : c > 10) ? 'text-red-600' : c > 0 ? (idx === 15 ? 'text-yellow-600' : 'text-emerald-600') : loungeReservado(idx) ? 'text-blue-600' : 'text-gray-300')}>{loungeReservado(idx) ? '📋' : c}</span>
                 </div>
               );
             })}
