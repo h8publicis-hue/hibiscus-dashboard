@@ -35,6 +35,13 @@ const OCT_2026_SEED        = 222796.00;
 const OCT_2026_SEED_DESC   = 10107.10;
 const OCT_2026_SEED_CUTOFF = '2026-10-29';
 
+// Snapshot novembro/2026 (Resumo Financeiro Paytour, 25/11 ~10h): Faturamento R$225.923,00,
+// Descontos R$76,00, Receita Bruta R$225.847,00. Seed = Faturamento menos R$1.409 de pedidos
+// aprovados de 25/11 (recontados pelo acumulador v13). Corrige diferença de R$1.240 do v12.
+const NOV_2026_SEED        = 224514.00;
+const NOV_2026_SEED_DESC   = 76.00;
+const NOV_2026_SEED_CUTOFF = '2026-11-24';
+
 let ptToken = ''; let ptTokenExpiry = 0;
 let memCache: { revenue: number; bruto: number; descontos: number; ts: number } | null = null;
 let inflight: Promise<Fat> | null = null;
@@ -127,13 +134,14 @@ async function computeRevenue(since: string, until: string): Promise<Fat> {
 
   // Acumulador Redis v2 — captura pedidos após o cutoff do seed; remove cancelados/estornados.
   // Seed + acc = total do mês sem dupla contagem.
-  const accKey = `ptf-acc-v12:${month}`;
+  const accKey = `ptf-acc-v13:${month}`;
   const acc = (await kvGet(accKey)) as Record<string, { valor: number; desconto: number }> | null ?? {};
 
   const seeds: Record<string, { amount: number; desc?: number; cutoff: string }> = {
     '2026-07': { amount: JULY_2026_SEED, cutoff: JULY_2026_SEED_CUTOFF },
     '2026-09': { amount: SEPT_2026_SEED, cutoff: SEPT_2026_SEED_CUTOFF },
     '2026-10': { amount: OCT_2026_SEED, desc: OCT_2026_SEED_DESC, cutoff: OCT_2026_SEED_CUTOFF },
+    '2026-11': { amount: NOV_2026_SEED, desc: NOV_2026_SEED_DESC, cutoff: NOV_2026_SEED_CUTOFF },
   };
   const seedCfg  = seeds[month];
   const seedAmt  = seedCfg?.amount  ?? 0;
@@ -191,7 +199,7 @@ export default async function handler(req: any, res: any) {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const since = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   const until = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-  const key   = `ptf-v26:${since}_${until}`;
+  const key   = `ptf-v27:${since}_${until}`;
 
   if (memCache && Date.now() - memCache.ts < TOTAL_TTL) return res.json({ revenue: memCache.revenue, bruto: memCache.bruto, descontos: memCache.descontos, since, until });
   const kv = await kvGet(key);
